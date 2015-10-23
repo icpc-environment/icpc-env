@@ -2,7 +2,7 @@
 # Lets the users use SSO autologin
 #username=$(zenity --entry --title="DOMjudge Autologin" --text="Enter DOMjudge username:" --entry-text="")
 username=$(head -n1 /icpc/TEAM)
-password=$(zenity --entry --title="DOMjudge Autologin" --text="Enter DOMjudge password:" --entry-text="")
+password=$(zenity --entry --hide-text --title="DOMjudge Autologin" --text="Enter DOMjudge password:")
 
 # No credentials entered, skip setting this up
 if [ -z "$username" ] || [ -z "$password" ]; then
