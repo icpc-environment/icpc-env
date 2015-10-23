@@ -1,0 +1,3 @@
+*.iso
+configs/ssh*
+group_vars/all
