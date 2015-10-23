@@ -61,11 +61,9 @@ cd icpcenv
     http://www.eclipse.org/downloads/packages/release/mars/r
     
     ```bash
-    wget -O files/eclipse-java-mars-R-linux-gtk.tar.gz http://url/to/32bit/version  # 32bit
-    wget -O files/eclipse-java-mars-R-linux-gtk-x86-64.tar.gz  http://url/to/64bit/version  # 64bit
+    wget -O files/eclipse32.tar.gz http://url/to/32bit/version  # 32bit
+    wget -O files/eclipse64.tar.gz  http://url/to/64bit/version  # 64bit
     ```
-    Alternatively, you can name them whatever you want and update the
-    `eclipse32.tar.gz` or `eclipse64.tar.gz` symlinks in `files/`
   * A file containing the jdk documentation from oracle located in `files/jdk8-docs.tar.gz`
     This archive should have a `jdk8-docs` directory in it containing the javadocs.
 
