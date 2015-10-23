@@ -1,0 +1,77 @@
+---
+- name: create icpc directory
+  file: path=/icpc state=directory
+
+- name: copy icpc scripts
+  copy: src=files/scripts dest=/icpc mode=0755
+
+- name: setup PATH variable
+  copy: dest=/etc/profile.d/icpc_path.sh src=files/icpc_path.sh
+
+- name: copy icpc default wallpaper
+  copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
+
+- include: _timezone.yml
+
+# ICPC tools we need
+- name: install ICPC tools we need
+  apt: pkg={{item}} state=present
+  environment: proxy_env
+  with_items:
+      - ufw
+      - imagemagick
+      - gksu
+      - git
+      - ntp
+      - cups
+      - cups-bsd
+      - pdftk
+      - enscript
+#      - mtools # TODO: used for mklabel, shouldn't need anymore
+
+- name: remove existing skel directory
+  file: path=/etc/skel state=absent
+- name: setup user skeleton directory
+  git: dest=/etc/skel repo={{ git_user_home }}
+
+- name: setup admin skeleton directory
+  git: dest=/home/icpcadmin repo={{ git_admin_home }}
+  notify:
+      - fix permissions
+
+- name: create contestant group
+  group: name='contestant' state='present'
+- name: create contestant user
+  user: name='contestant' group='contestant' groups='lpadmin' password='$1$salty$lOyh/41oDtq.J4v0Lltp4.' shell='/bin/bash'
+  notify:
+      - clear user password
+
+- name: create icpcadmin group
+  group: name='icpcadmin' state='present'
+- name: create icpcadmin user
+  user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{icpcadmin_pass}}' shell='/bin/bash'
+- name: set up authorized keys for icpcadmin
+  authorized_key: user='icpcadmin' key="{{ lookup('file', 'configs/ssh_key.pub') }}"
+
+
+- name: create team reset group
+  group: name='teamreset' state='present'
+- name: create team reset user
+  user: name='teamreset' comment="Clear Team Account" group='teamreset' groups='sudo,adm,lpadmin' createhome=no password='{{icpcadmin_pass}}' shell='/bin/bash'
+- name: make home folder/autostart path
+  file: state=directory path=/home/teamreset/.config/autostart owner=teamreset group=teamreset
+- name: create autostart file
+  copy: src=files/teamreset.desktop dest=/home/teamreset/.config/autostart/teamreset.desktop
+
+- name: setup sudo for the admin
+  copy: dest=/etc/sudoers.d/icpcadmins src=icpcadmins.sudo mode=0440
+
+- name: create mountpoint
+  file: path=/mnt/usbdrive state=directory
+- name: mount fat32 partition
+  mount: >
+    name=/mnt/usbdrive
+    src='LABEL=ICPC'
+    fstype=vfat
+    opts="defaults,uid=contestant,gid=contestant,nobootwait"
+    state=present

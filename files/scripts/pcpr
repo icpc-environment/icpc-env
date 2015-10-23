@@ -1,0 +1,69 @@
+#!/usr/bin/python
+
+#usage: pcpr North.java
+#usage: pcpr --output=files.ps *.java
+#usage: pcpr -P printer *.cpp
+#usage: pcpr --portrait -1 North.hs     [ For those with difficulty with the small print.]
+
+#This script is intended for use at ACM SER 2008 ICPC; it ensures a proper header/footer:
+#
+#   1)  file name
+#   2)  page i of n
+#   3)  time of job
+#   4)  Unix "user"   ("ubuntu", possibly)
+#   5)  Contents of the files /ACM/SITE /ACM/TEAM
+#   6)  Hostname
+#   7)  Mac address
+#
+
+#  Verify /usr/bin/enscript permissions.  chmod go+rx /usr/bin/enscript
+#  Verify this script's permissions.      chomd go+rx /scripts/pcpr
+
+#  This script uses "enscript" to print to the default printer (by default).  Verify
+#  that a default printer has been configured; cf "lpstat -p -d"
+
+# CUPS supports "PostScript" on all printers (where they have it or not).
+# If the printer is a PostScript printer you need the PostScript Printer Description PPD
+# file that comes with your printer.
+
+
+#The header is easily spoofed if the user has access to "enscript".
+#Maybe sudo can be used to make it more secure.
+#
+# edit /etc/sudoers with visudo
+#
+# ubuntu ALL=NOPASSWD:/usr/bin/enscript
+
+import sys, os, commands
+
+sitefile = "/icpc/SITE"
+teamfile = "/icpc/TEAM"
+user = os.environ["USER"]
+#host = os.environ["HOSTNAME"]
+
+if os.path.exists (sitefile):
+   site = commands.getoutput ("cat "+teamfile)
+else:
+   site = "[none]"
+
+if os.path.exists (teamfile):
+   team = commands.getoutput ("cat "+teamfile)
+else:
+   team = "[none]"
+
+netDevice = commands.getoutput ("ifconfig | grep eth | awk '{ print substr($0,0,4)}'");
+eth0     = commands.getoutput ("ifconfig "+netDevice+" | head -1 | sed 's/.*HWaddr //'");
+hostname = commands.getoutput ("hostname");
+
+# -MLetter  we assume US printers and generate letter size pages and not A4 pages
+options = "-MLetter -2 --landscape --pretty-print "
+
+# The header is too wide, but footers are a pain
+header = "$n; page $% of $=; time=$C; user=$(USER); site="+site+"; team="+team+"; host="+hostname+"; mac="+eth0
+header = "$n; page $% of $=; team="+team+"; mac="+eth0
+
+# Though I encourage just one argument (the name of one file);
+# all command line arguments are tacked on at the end
+os.system ("/usr/bin/enscript " + options + " '--header="+ header + "' " + ' '.join(sys.argv[1:]))
+
+# PS.  Using footers would be nice, but that would require writing enscript *.hdr files.

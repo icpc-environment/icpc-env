@@ -1,0 +1,65 @@
+---
+
+- name: install local squid proxy + squidguard
+  apt: pkg={{item}} state=present
+  with_items:
+    - squid3
+    - squidguard
+
+- name: configure squidguard
+  template: src=files/squid/squidGuard.conf.j2 dest=/etc/squidguard/squidGuard.conf
+
+- name: template out the allowed domains
+  template: src=files/squid/icpcsites-domainlist.j2 dest=/var/lib/squidguard/db/icpcsites-domainlist
+
+- name: template out the allowed urls
+  template: src=files/squid/icpcsites-urllist.j2 dest=/var/lib/squidguard/db/icpcsites-urllist
+
+- name: configure squid3
+  template: src=files/squid/squid.conf.j2 dest=/etc/squid3/squid.conf
+  notify: restart squid3
+
+- name: configure system to use the proxy by default
+  lineinfile: dest=/etc/environment line="{{item}}"
+  with_items:
+    - http_proxy="http://localhost:3128/"
+    - https_proxy="http://localhost:3128/"
+    - ftp_proxy="http://localhost:3128/"
+    - no_proxy="localhost,127.0.0.1"
+    - HTTP_PROXY="http://localhost:3128/"
+    - HTTPS_PROXY="http://localhost:3128/"
+    - FTP_PROXY="http://localhost:3128/"
+    - NO_PROXY="localhost,127.0.0.1"
+
+- name: Make sure inbound policy is deny
+  ufw: direction=incoming policy=deny
+
+- name: allow inbound ssh
+  ufw: rule=allow name=OpenSSH
+
+- name: enable the firewall
+  ufw: state=enabled logging=off
+
+# - name: allow ip printing
+#   ufw: rule=allow to_port=9100 proto=tcp direction=out
+#
+# - name: allow dhcp
+#   ufw: rule=allow to_port={{ item }} proto=udp direction=out
+#   with_items: [67, 68]
+#
+# - name: allow ntp
+#   ufw: rule=allow to_port=123 proto=udp direction=out
+#
+# - name: allow dns
+#   ufw: rule=allow to_port=53 direction=out
+
+#- name: allow proxy user to talk out on port 80/443
+#  lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner proxy -j ACCEPT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+# block the user from talking to anything(except localhost)
+#- lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner contestant -j REJECT" insertafter="-A ufw-before-output -m owner --uid-owner proxy -j ACCEPT"
+
+- name: prevent the 'contestant' user from using the network(except through the proxy or to localhost)
+  lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+
+- name: copy block page for squid to use
+  copy: src=files/squid/block.html dest=/opt/localwww/block.html

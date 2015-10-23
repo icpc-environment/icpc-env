@@ -1,0 +1,10 @@
+---
+- name: get vmtouch code
+  git: dest=/tmp/vmtouch repo=https://github.com/hoytech/vmtouch
+- name: compile vmtouch
+  command: chdir=/tmp/vmtouch creates=/tmp/vmtouch make
+- name: install vmtouch
+  command: chdir=/tmp/vmtouch creates=/usr/bin/vmtouch make install
+
+- name: add cronjob to run these on reboot
+  copy: src=warm-fs-cache.conf dest=/etc/init mode=0644

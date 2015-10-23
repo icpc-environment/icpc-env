@@ -1,0 +1,27 @@
+---
+  - name: install eclipse(32bit)
+    unarchive: src=files/eclipse-32.tar.gz dest=/opt creates=/opt/eclipse
+    when: ansible_userspace_architecture == 'i386'
+
+  - name: install eclipse(64bit)
+    unarchive: src=files/eclipse-64.tar.gz dest=/opt creates=/opt/eclipse
+    when: ansible_userspace_architecture == 'x86_64'
+
+  - name: eclipse shortcut
+    copy: src=files/eclipse/Eclipse.desktop dest=/usr/share/applications/Eclipse.desktop
+
+  # Eclipse plugins(for c/c++ and python)
+  - name: install cdt plugin
+    script: files/eclipse/cdt.sh
+  - name: install pydev plugin
+    script: files/eclipse/pydev.sh
+
+  # This is somewhat large, ~750mb
+  - name: eclipse recommenders
+    unarchive: src=files/eclipse/eclipse-mars-recommenders.tar.gz dest=/opt creates=/opt/eclipse-mars-recommenders
+
+  # See this for how to set global eclipse configurations
+  - name: configure eclipse
+    copy: src=files/eclipse/eclipse_plugincustomization.ini dest=/opt/eclipse/eclipse_plugincustomization.ini
+  - name: fixup the eclipse.ini file to use our custom configuration
+    lineinfile: dest=/opt/eclipse/eclipse.ini insertafter="-vmargs" line="-Declipse.pluginCustomization=/opt/eclipse/eclipse_plugincustomization.ini"

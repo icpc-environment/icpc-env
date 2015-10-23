@@ -1,0 +1,25 @@
+---
+icpc_timezone: 'America/New_York'
+
+git_user_home:  'https://github.com/icpc-environment/contestant_home.git'
+git_admin_home: 'https://github.com/icpc-environment/admin_home.git'
+
+# Generated with crypt.crypt('icpcadmin', '$1$vzSeODBo4fg$')
+icpcadmin_pass: $1$vzSeODBo$bfTHMSAQpnl5AM.MdTaMY0
+
+allowed_domains:
+  - ser.cs.fit.edu
+  - ser2015.cloudcontest.org
+  - docs.cloudcontest.org
+
+allowed_urls: []
+  # Maybe host language docs here instead? Makes for less on the image itself
+
+# urls we are configured to send autologin credentials to
+squid_autologin_urls:
+  - ^http://ser2015.cloudcontest.org/team/
+  - ^http://ser2015.cloudcontest.org/public/login.php$
+
+# After this date the restrictions for allowed_domains will not apply
+# Must be period separated in the format "YYYY.MM.DD"
+squid_unblock_date: 2015.11.15

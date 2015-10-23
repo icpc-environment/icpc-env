@@ -1,0 +1,42 @@
+---
+- name: Do Everything
+  hosts: all
+  sudo: yes
+  user: imageadmin
+  tasks:
+    - name: Use local apt mirror
+      copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
+
+    - name: disable fsync for dpkg
+      copy: src=files/02-dpkg-no-sync dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync
+    - name: disable apt cache
+      copy: src=files/02-fast-apt dest=/etc/apt/apt.conf.d/02-fast-apt
+
+    - name: be sure apt cache is updated
+      apt: update_cache=yes
+      environment: proxy_env
+
+    - include: 'playbooks/gui.yml'
+    - include: 'playbooks/_clean.yml'
+
+
+    - include: 'playbooks/devel_tools.yml'
+    - include: 'playbooks/_clean.yml'
+    - include: 'playbooks/compilers.yml'
+    - include: 'playbooks/_clean.yml'
+    - include: 'playbooks/eclipse.yml'
+    - include: 'playbooks/_clean.yml'
+
+    - include: 'playbooks/localweb.yml'
+
+    - include: 'playbooks/icpc.yml'
+    - include: 'playbooks/lang_docs.yml'
+    - include: 'playbooks/vmtouch.yml'
+    - include: 'playbooks/_clean.yml'
+
+    - include: 'playbooks/firewall.yml'
+
+    - include: 'playbooks/system.yml'
+
+  handlers:
+    - include: 'playbooks/handlers.yml'

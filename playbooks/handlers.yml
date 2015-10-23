@@ -1,0 +1,18 @@
+---
+- name: update timezone
+  command: dpkg-reconfigure --frontend noninteractive tzdata
+
+- name: clear user password
+  command: passwd -d contestant
+
+- name: fix permissions
+  file: owner=icpcadmin group=icpcadmin dest=/home/icpcadmin recurse=yes
+
+- name: update grub
+  command: /usr/sbin/update-grub
+
+- name: restart squid3
+  service: name=squid3 state=restarted
+
+- name: restart simple-httpd
+  service: name=simple-httpd state=restarted

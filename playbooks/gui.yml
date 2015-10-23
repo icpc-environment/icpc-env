@@ -1,0 +1,30 @@
+---
+- name: install xfce
+  apt: pkg={{ item }} state=present
+  environment: proxy_env
+  with_items:
+    - xfce4
+    - lightdm
+    - lightdm-gtk-greeter   # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space)
+    - xfce4-power-manager
+    - xubuntu-default-settings
+    - xfce4-terminal
+    - firefox
+    - alacarte # menu editor
+    - htop
+
+- name: Remove unneeded packages
+  apt: pkg={{ item }} purge=yes state=absent
+  environment: proxy_env
+  with_items:
+    - byobu
+    - xscreensaver
+    - xscreensaver-data
+    - yelp
+    - desktop-base
+
+- name: setup lightdm
+  copy: src=files/lightdm.conf dest=/etc/lightdm/lightdm.conf
+
+- name: configure xorg/x11
+  copy: src=files/xorg.conf dest=/etc/X11/xorg.conf
