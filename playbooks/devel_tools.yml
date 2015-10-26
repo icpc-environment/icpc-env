@@ -19,3 +19,5 @@
         - codeblocks-contrib
         # netbeans --noinstall-recommends: 175mb(440mb otherwise)
         #- netbeans
+        - geany
+        - geany-plugins
