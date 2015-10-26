@@ -19,6 +19,9 @@
   template: src=files/squid/squid.conf.j2 dest=/etc/squid3/squid.conf
   notify: restart squid3
 
+- name: make sure an autologin.conf file exists or squid won't start
+  copy: content="#placeholder\n" dest=/etc/squid3/autologin.conf mode=0640 owner=root group=root
+
 - name: configure system to use the proxy by default
   lineinfile: dest=/etc/environment line="{{item}}"
   with_items:
