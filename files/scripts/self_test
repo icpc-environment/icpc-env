@@ -55,8 +55,19 @@ else
 fi
 
 echo
-echo "Printers:"
-lpstat -v 2>/dev/null| grep -v ContestPrinter | sed -e 's|socket://||' -e 's|:||' | awk '{printf "    %-56s%s\n", $3, $4}'
+echo "${BLUE}Printing Configuration${RESET}"
+print_check "Making sure cups is running"
+check_service 'cups'
+PRINTERS=$(lpstat -v 2>/dev/null| grep -v ContestPrinter | sed -e 's|socket://||' -e 's|:||' | awk '{printf "    %-56s%s\n", $3, $4}')
+NUMPRINTERS=$(echo -n "$PRINTERS" | grep -c Printer)
+print_check "Checking there are printers present"
+if [ "$NUMPRINTERS" -eq "0" ]; then
+  print_fail
+else
+  print_ok
+fi
+echo "Configured Printers:"
+echo "$PRINTERS"
 
 echo
 echo "${BLUE}Connectivity Test${RESET}"
@@ -64,8 +75,7 @@ print_check "Checking if the firewall is enabled"
 ufw status 2>&1 | grep 'Status: active' >/dev/null
 check_return $?
 
-print_check "Making sure cups is running(for printing)"
-check_service 'cups'
+
 print_check "Making sure the squid proxy is running"
 check_service 'squid3'
 
@@ -110,4 +120,4 @@ echo
 echo "${BLUE}Image Details${RESET}"
 VERSIONINFO=$(cat /icpc/version 2>/dev/null)
 VERSIONDEFAULT="${RED}No version info found!${DEFAULT}"
-echo -e ${VERSIONINFO:-$VERSIONDEFAULT}
+echo -e "${VERSIONINFO:-$VERSIONDEFAULT}"
