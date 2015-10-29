@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# print out the image version
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+BLUE=$(tput bold; tput setaf 4)
+ORANGE=$(tput setaf 3)
+RESET=$(tput sgr0)
+
+# check that cups is running
+function print_ok() {
+  echo "${GREEN}Pass${RESET}"
+}
+function print_fail() {
+  echo "${RED}Fail${RESET}"
+}
+function print_check() {
+  printf "%-60s" "$1"
+}
+function print_version() {
+  print_check "$1"
+  shift
+  VERSION=$($@ 2>&1| grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?([_-p][0-9]+)?' |awk '{print length, $0}'|sort -rn |cut -d " " -f2- | head -n1)
+  UNKNOWN="${RED}Unknown${RESET}"
+  VERSION="${VERSION:-$UNKNOWN}"
+  echo $VERSION
+}
+function check_return() {
+  if [ $1 -eq 0 ]; then
+    print_ok
+  else
+    print_fail
+  fi
+}
+function check_service() {
+  service $1 status 2>/dev/null | grep 'start/running' >/dev/null
+  check_return $?
+}
+
+echo "${BLUE}System Configuration${RESET}"
+print_check "Team ID"
+TEAMNAME="$(cat /icpc/TEAM 2>/dev/null)"
+NOTEAM="${RED}Not Set${RESET}"
+TEAMNAME="${TEAMNAME:-$NOTEAM}"
+echo $TEAMNAME
+print_check "DOMjudge Autologin Configured"
+cat /etc/squid3/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
+if [ $? -eq 0 ]; then
+  echo "${GREEN}Yes${RESET}"
+  print_check "    Team Login"
+  DJTEAM=$(cat /etc/squid3/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
+  echo $DJTEAM
+else
+  echo "${ORANGE}No${RESET}"
+fi
+
+echo
+echo "Printers:"
+lpstat -v 2>/dev/null| grep -v ContestPrinter | sed -e 's|socket://||' -e 's|:||' | awk '{printf "    %-56s%s\n", $3, $4}'
+
+echo
+echo "${BLUE}Connectivity Test${RESET}"
+print_check "Checking if the firewall is enabled"
+ufw status 2>&1 | grep 'Status: active' >/dev/null
+check_return $?
+
+print_check "Making sure cups is running(for printing)"
+check_service 'cups'
+print_check "Making sure the squid proxy is running"
+check_service 'squid3'
+
+print_check "Testing access to google is blocked with a proxy error"
+wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://google.com 2>/dev/null | grep "<h1>Access Denied</h1>" > /dev/null
+check_return $?
+
+print_check "Testing access to ser.cs.fit.edu is successful with proxy"
+wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://ser.cs.fit.edu 2>/dev/null | grep "<h1>ACM Southeast USA Regional Intercollegiate Programming Contest</h1>" > /dev/null
+check_return $?
+
+print_check "Testing direct internet access is disabled"
+su - contestant -c 'wget -e use_proxy=no -O- http://163.118.135.11 >/dev/null 2>&1' 2>/dev/null
+if [ $? -eq 0 ]; then
+  print_fail
+else
+  print_ok
+fi
+
+echo
+echo "${BLUE}Compiler Versions${RESET}"
+print_version "ada"       "gnat --version"
+print_version "c"         "gcc --version"
+print_version "c++"       "g++ --version"
+print_version "c#"        "mono --version"
+print_version "fortran"   "gfortran --version"
+print_version "go"        "go version"
+print_version "gccgo"     "gccgo --version"
+print_version "haskell"   "ghc --version"
+print_version "java"      "java -version"
+print_version "lua"       "lua -v"
+print_version "pascal"    "fpc -version"
+print_version "python 2"  "python --version"
+print_version "python 3"  "python3 --version"
+print_version "ruby"      "ruby --version"
+print_version "scala"     "scala -version"
+
+echo
+echo "${BLUE}Image Details${RESET}"
+VERSIONINFO=$(cat /icpc/version 2>/dev/null)
+VERSIONDEFAULT="${RED}No version info found!${DEFAULT}"
+echo -e ${VERSIONINFO:-$VERSIONDEFAULT}

@@ -5,6 +5,12 @@
 - name: copy icpc scripts
   copy: src=files/scripts dest=/icpc mode=0755
 
+- name: create printfile symlink(to match world finals image)
+  file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
+
+- name: set default papersize to letter
+  copy: dest=/etc/papersize content="letter\n" mode=0644
+
 - name: setup PATH variable
   copy: dest=/etc/profile.d/icpc_path.sh src=files/icpc_path.sh
 
@@ -27,7 +33,7 @@
       - cups-bsd
       - pdftk
       - enscript
-#      - mtools # TODO: used for mklabel, shouldn't need anymore
+#      - mtools # TODO: used for mklabel, shouldn't need anymore(as it's done by kickstart/kickseed)
 
 - name: remove existing skel directory
   file: path=/etc/skel state=absent
@@ -65,6 +71,9 @@
 
 - name: setup sudo for the admin
   copy: dest=/etc/sudoers.d/icpcadmins src=icpcadmins.sudo mode=0440
+
+- name: set up firstboot Configuration
+  copy: src=files/firstboot.conf dest=/etc/init/firstboot.conf
 
 - name: create mountpoint
   file: path=/mnt/usbdrive state=directory

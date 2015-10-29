@@ -38,5 +38,13 @@
 
     - include: 'playbooks/system.yml'
 
+    # Copy some build information to the image
+    - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
+      sudo: false
+      register: git_revision
+      delegate_to: 127.0.0.1
+    - name: copy version info
+      copy: content="{{git_revision.stdout}}" dest=/icpc/version
+
   handlers:
     - include: 'playbooks/handlers.yml'
