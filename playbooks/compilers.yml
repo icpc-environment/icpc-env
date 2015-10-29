@@ -21,14 +21,16 @@
         - python3                   # python 3
         - gnat                      # gnu ada
         - gfortran                  # fortran
-        - mono-mcs                  # c#
-        - mono-gmcs                 # c#
+        - mono-complete             # c#
+        #- fsharp                    # fsharp
         - lua5.2                    # lua
-        #- oracle-java7-installer    # java7
+        #- oracle-java7-installer   # java7
         - oracle-java8-installer    # java8
         - gccgo                     # go reference compiler
         - golang                    # go using gcc
         - ruby                      # ruby
+        - nodejs                    # javascript
+        - gdc                       # D
 
   # Frees up around 375mb
   - name: remove jdk files that we downloaded
