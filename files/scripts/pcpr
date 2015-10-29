@@ -34,36 +34,39 @@
 #
 # ubuntu ALL=NOPASSWD:/usr/bin/enscript
 
-import sys, os, commands
+import sys
+import os
+import commands
+
 
 sitefile = "/icpc/SITE"
 teamfile = "/icpc/TEAM"
 user = os.environ["USER"]
 #host = os.environ["HOSTNAME"]
 
-if os.path.exists (sitefile):
-   site = commands.getoutput ("cat "+teamfile)
+if os.path.exists(sitefile):
+    site = commands.getoutput("cat " + teamfile)
 else:
-   site = "[none]"
+    site = "[none]"
 
-if os.path.exists (teamfile):
-   team = commands.getoutput ("cat "+teamfile)
+if os.path.exists(teamfile):
+    team = commands.getoutput("cat " + teamfile)
 else:
-   team = "[none]"
+    team = "[none]"
 
-netDevice = commands.getoutput ("ifconfig | grep eth | awk '{ print substr($0,0,4)}'");
-eth0     = commands.getoutput ("ifconfig "+netDevice+" | head -1 | sed 's/.*HWaddr //'");
-hostname = commands.getoutput ("hostname");
+netDevice = commands.getoutput("/sbin/ifconfig | grep eth | awk '{ print substr($0,0,4)}'")
+eth0 = commands.getoutput("/sbin/ifconfig " + netDevice + " | head -1 | sed 's/.*HWaddr //'")
+hostname = commands.getoutput("hostname")
 
 # -MLetter  we assume US printers and generate letter size pages and not A4 pages
 options = "-MLetter -2 --landscape --pretty-print "
 
 # The header is too wide, but footers are a pain
-header = "$n; page $% of $=; time=$C; user=$(USER); site="+site+"; team="+team+"; host="+hostname+"; mac="+eth0
-header = "$n; page $% of $=; team="+team+"; mac="+eth0
+header = "$n; page $% of $=; time=$C; user=$(USER); site=" + site + "; team=" + team + "; host=" + hostname + "; mac=" + eth0
+header = "$n; page $% of $=; team=" + team + "; mac=" + eth0
 
 # Though I encourage just one argument (the name of one file);
 # all command line arguments are tacked on at the end
-os.system ("/usr/bin/enscript " + options + " '--header="+ header + "' " + ' '.join(sys.argv[1:]))
+os.system("/usr/bin/enscript " + options + " '--header=" + header + "' " + ' '.join(sys.argv[1:]))
 
 # PS.  Using footers would be nice, but that would require writing enscript *.hdr files.
