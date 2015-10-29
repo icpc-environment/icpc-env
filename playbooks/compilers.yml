@@ -44,7 +44,11 @@
   - name: get scala deb file
     #copy: src=files/scala.deb dest=/tmp/scala.deb
     get_url: url=http://downloads.typesafe.com/scala/2.11.7/scala-2.11.7.deb dest=/tmp/scala.deb
-    when: not has_scala.stat.exists
+    when: not has_scala.stat.exists and scala_deb_url is undefined
+
+  - name: get scala deb file
+    get_url: url={{scala_deb_url}} dest=/tmp/scala.deb
+    when: not has_scala.stat.exists and scala_deb_url is defined
 
   - name: install scala
     apt: deb=/tmp/scala.deb
