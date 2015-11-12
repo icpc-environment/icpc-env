@@ -79,6 +79,7 @@ service squid3 start
 
 whiptail --title "Configure Printers" --yesno "Do you want to configure any printers at this time?\n\nNo changes will be made to the printing system if you choose no." 10 60
 CONFIG_PRINTERS=$?
+DO_PRINTPAGE=0
 if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
   # are there any existing printers? if so, do we want to clear them?
   lpstat -v 2>/dev/null| grep Printer0 2>&1 >/dev/null
@@ -138,7 +139,6 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
 
   # Check if we have any printers present, if so make sure we enable the class and set it as default
   # also ask about printing a test page
-  DO_PRINTPAGE=0
   lpstat -v 2>/dev/null | grep Printer0 2>&1 >/dev/null
   if [ $? -eq 0 ]; then
   	lpadmin -d ContestPrinter
