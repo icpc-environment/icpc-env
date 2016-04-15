@@ -42,26 +42,28 @@ cd icpcenv
 
 2. Make sure dependencies are met
   * Install required packages
+
     ```bash
     sudo apt-get install qemu-system-x86 uml-utlities ansible
     ```
   * Generate an ssh keypair(without a password) that will be used during building the image
+    
     ```bash
     ssh-keygen -f configs/ssh_key -t rsa -C "ICPC Environment Key" -N ""
     ```
   * Download either the 32 or 64 bit version of Ubuntu 14.04 Server:
+    
     ```bash
     wget http://releases.ubuntu.com/14.04/ubuntu-14.04.3-server-amd64.iso # 64 bit
     wget http://releases.ubuntu.com/14.04/ubuntu-14.04.3-server-i386.iso  # 32 bit
     ```
-  * Download the 32 or 64 bit version of eclipse mars into the `files/` directory:
+  * Download the 32 or 64 bit version of eclipse mars into the `files/` directory:  
     http://www.eclipse.org/downloads/packages/release/mars/r
+    
     ```bash
-    wget -O files/eclipse-java-mars-R-linux-gtk.tar.gz http://url/to/32bit/version  # 32bit
-    wget -O files/eclipse-java-mars-R-linux-gtk-x86-64.tar.gz  http://url/to/64bit/version  # 64bit
+    wget -O files/eclipse32.tar.gz http://url/to/32bit/version  # 32bit
+    wget -O files/eclipse64.tar.gz  http://url/to/64bit/version  # 64bit
     ```
-    Alternatively, you can name them whatever you want and update the
-    `eclipse32.tar.gz` or `eclipse64.tar.gz` symlinks in `files/`
   * A file containing the jdk documentation from oracle located in `files/jdk8-docs.tar.gz`
     This archive should have a `jdk8-docs` directory in it containing the javadocs.
 
