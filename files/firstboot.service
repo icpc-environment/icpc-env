@@ -1,0 +1,15 @@
+[Unit]
+Description=Initial configuration of the image
+Before=getty@tty1.service getty@tty7.service lightdm.service
+After=cups.service
+
+[Service]
+type=oneshot
+TimeoutSec=0
+StandardInput=tty
+StandardOutput=tty
+ExecStart=/icpc/scripts/icpc_setup
+
+[Install]
+WantedBy=graphical.target
+WantedBy=multi-user.target

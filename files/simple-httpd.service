@@ -1,0 +1,9 @@
+[Unit]
+Description=Simple web server for documentation
+After=network.target
+
+[Service]
+ExecStart=/bin/busybox httpd -u www-data -p 80 -h /opt/localwww -f
+
+[Install]
+WantedBy=multi-user.target
