@@ -7,8 +7,12 @@ After=cups.service
 Type=oneshot
 RemainAfterExit=yes
 TimeoutSec=0
+TTYReset=yes
+TTYVHangup=yes
+TTYPath=/dev/tty2
 StandardInput=tty
 StandardOutput=tty
+ExecStart=/bin/chvt 2
 ExecStart=/icpc/scripts/icpc_setup
 
 [Install]

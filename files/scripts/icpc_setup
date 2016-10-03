@@ -36,11 +36,6 @@ function add_printer() {
 
 # whiptail redirection trick(3>&1 1>&2 2>&3) taken from:
 # http://stackoverflow.com/a/1970254/841300
-
-#slight delay so we can clear any systemd messages off the screen
-sleep 3
-clear
-
 whiptail --title "ICPC First Time Setup" --msgbox "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root." 20 60
 
 TEAMNAME=$(cat /icpc/TEAM)
