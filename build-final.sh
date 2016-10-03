@@ -81,7 +81,8 @@ function waitforssh() {
   fi
 }
 
-qemu-system-x86_64 -smp 4 -m 1024 -hda $IMGFILE -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE
+qemu-system-x86_64 -smp 1 -m 1024 -hda $IMGFILE -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+
 ALIVE=0
 waitforssh
 
