@@ -1,15 +1,23 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-14.04.3-server-amd64.iso"
-ISO32="ubuntu-14.04.3-server-i386.iso"
-OUT32="unattended-i386.iso"
+ISO64="ubuntu-16.04.1-server-amd64.iso"
 OUT64="unattended-amd64.iso"
-IMG32="base-i386.img"
 IMG64="base-amd64.img"
+
+ISO32="ubuntu-14.04.4-server-i386.iso"
+OUT32="unattended-i386.iso"
+IMG32="base-i386.img"
+
 TMPDIR="tmp"
-KICKSTART="configs/1404_ks.cfg"
-PRESEED="configs/1404_install.seed"
+KICKSTART="configs/1604_ks.cfg"
+PRESEED="configs/1604_install.seed"
+
+# 14.04 settings
+#ISO64="ubuntu-14.04.3-server-amd64.iso"
+#ISO32="ubuntu-14.04.3-server-i386.iso"
+#KICKSTART="configs/1404_ks.cfg"
+#PRESEED="configs/1404_install.seed"
 
 function usage() {
   echo "Usage: create_baseimage.sh (32|64) [-s size]"
@@ -107,6 +115,7 @@ rm -rf "$CONTENTSDIR"
 
 # Install that base image
 rm -f "output/$IMG"
+set -x
 qemu-img create -f raw -o size="$IMGSIZE" "output/$IMG"
-qemu-system-x86_64 -m 1024 -hda "output/$IMG" -cdrom $OUTISO -boot order=d --enable-kvm -global isa-fdc.driveA=
+qemu-system-x86_64 -m 1024 -drive file="output/$IMG",index=0,media=disk,format=raw -cdrom $OUTISO -boot order=d --enable-kvm -global isa-fdc.driveA= -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 # -global isa-fdc.driveA= is used to disable floppy drive
