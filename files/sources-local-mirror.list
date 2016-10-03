@@ -1,15 +1,15 @@
-deb http://10.0.2.2/ubuntu/ trusty-updates main restricted
-deb http://10.0.2.2/ubuntu/ trusty main restricted
-deb http://10.0.2.2/ubuntu/ trusty universe
-deb http://10.0.2.2/ubuntu/ trusty-updates universe
-deb http://10.0.2.2/ubuntu/ trusty multiverse
-deb http://10.0.2.2/ubuntu/ trusty-updates multiverse
-deb http://10.0.2.2/ubuntu/ trusty-backports main restricted universe multiverse
+deb http://10.0.2.2/ubuntu/ xenial-updates main restricted
+deb http://10.0.2.2/ubuntu/ xenial main restricted
+deb http://10.0.2.2/ubuntu/ xenial universe
+deb http://10.0.2.2/ubuntu/ xenial-updates universe
+deb http://10.0.2.2/ubuntu/ xenial multiverse
+deb http://10.0.2.2/ubuntu/ xenial-updates multiverse
+deb http://10.0.2.2/ubuntu/ xenial-backports main restricted universe multiverse
 
-deb http://10.0.2.2/ubuntu trusty-security main restricted
-deb http://10.0.2.2/ubuntu trusty-security universe
-deb http://10.0.2.2/ubuntu trusty-security multiverse
+deb http://10.0.2.2/ubuntu xenial-security main restricted
+deb http://10.0.2.2/ubuntu xenial-security universe
+deb http://10.0.2.2/ubuntu xenial-security multiverse
 
 # Don't need software from either of these
-#deb http://10.0.2.2/partner/ubuntu trusty partner
-#deb http://10.0.2.2/extras/ubuntu trusty main
+#deb http://10.0.2.2/partner/ubuntu xenial partner
+#deb http://10.0.2.2/extras/ubuntu xenial main
