@@ -2,6 +2,12 @@
 - name: make sure web dir exists
   file: state=directory path=/opt/localwww
 
+- name: make sure busybox is installed(we're using its webserver)
+  apt: pkg=busybox state=present
+
 - name: add simple-httpd init script
-  copy: src=files/simple-httpd-upstart.conf dest=/etc/init/simple-httpd.conf
+  copy: src=files/simple-httpd.service dest=/etc/systemd/system/simple-httpd.service
   notify: restart simple-httpd
+
+- name: enable simple-httpd service
+  service: name=simple-httpd enabled=yes
