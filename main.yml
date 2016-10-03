@@ -6,6 +6,14 @@
   tasks:
     - name: Use local apt mirror
       copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
+    - name: copy pam_environment to make sure the proxy is disabled for icpcadmin(and root)
+      copy: src=files/pam_environment dest={{ item }}/.pam_environment
+      with_items:
+        - /root
+        - /home/imageadmin
+
+    - name: copy updated pam sudo config so it reads .pam_environment
+      copy: src=files/pam_sudo dest=/etc/pam.d/sudo
 
     - name: disable fsync for dpkg
       copy: src=files/02-dpkg-no-sync dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync

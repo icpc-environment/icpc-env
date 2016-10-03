@@ -1,0 +1,8 @@
+http_proxy      OVERRIDE=""
+https_proxy     OVERRIDE=""
+ftp_proxy       OVERRIDE=""
+no_proxy        OVERRIDE=""
+HTTP_PROXY      OVERRIDE=""
+HTTPS_PROXY     OVERRIDE=""
+FTP_PROXY       OVERRIDE=""
+NO_PROXY        OVERRIDE=""
