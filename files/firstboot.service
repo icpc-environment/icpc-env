@@ -4,7 +4,8 @@ Before=getty@tty1.service getty@tty7.service lightdm.service
 After=cups.service
 
 [Service]
-type=oneshot
+Type=oneshot
+RemainAfterExit=yes
 TimeoutSec=0
 StandardInput=tty
 StandardOutput=tty
