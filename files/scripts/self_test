@@ -33,7 +33,7 @@ function check_return() {
   fi
 }
 function check_service() {
-  service $1 status 2>/dev/null | grep 'start/running' >/dev/null
+  systemctl is-active $1 >/dev/null 2>&1
   check_return $?
 }
 
@@ -44,11 +44,11 @@ NOTEAM="${RED}Not Set${RESET}"
 TEAMNAME="${TEAMNAME:-$NOTEAM}"
 echo $TEAMNAME
 print_check "DOMjudge Autologin Configured"
-cat /etc/squid3/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
+cat /etc/squid/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
 if [ $? -eq 0 ]; then
   echo "${GREEN}Yes${RESET}"
   print_check "    Team Login"
-  DJTEAM=$(cat /etc/squid3/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
+  DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
   echo $DJTEAM
 else
   echo "${ORANGE}No${RESET}"
@@ -77,7 +77,7 @@ check_return $?
 
 
 print_check "Making sure the squid proxy is running"
-check_service 'squid3'
+check_service 'squid'
 
 print_check "Testing access to google is blocked with a proxy error"
 wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://google.com 2>/dev/null | grep "<h1>Access Denied</h1>" > /dev/null

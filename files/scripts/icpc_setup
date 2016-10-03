@@ -37,6 +37,10 @@ function add_printer() {
 # whiptail redirection trick(3>&1 1>&2 2>&3) taken from:
 # http://stackoverflow.com/a/1970254/841300
 
+#slight delay so we can clear any systemd messages off the screen
+sleep 3
+clear
+
 whiptail --title "ICPC First Time Setup" --msgbox "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root." 20 60
 
 TEAMNAME=$(cat /icpc/TEAM)
@@ -49,8 +53,8 @@ whiptail --title "Configure Automatic Login" --yesno "Do you want to configure t
 DJAUTOLOGIN=$?
 if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
   # Load existing values
-  DJTEAM=$(cat /etc/squid3/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
-  DJPASS=$(cat /etc/squid3/autologin.conf | awk '/X-DOMjudge-Pass/{print $3}' | tr -d '"' | base64 -d)
+  DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
+  DJPASS=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Pass/{print $3}' | tr -d '"' | base64 -d)
   DJTEAM="${DJTEAM:-$TEAMNAME}"  # Set default to team name if unset
 
   DJTEAM=$(whiptail --title "DOMjudge Login" --inputbox "Please enter the team's DOMjudge login" 10 60 $TEAMNAME 3>&1 1>&2 2>&3)
@@ -59,23 +63,23 @@ if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
   #base64 encode the password to prevent any issues
   b64pass=$(echo -n "$DJPASS" | base64)
 
-  cat > /etc/squid3/autologin.conf <<EOF
+  cat > /etc/squid/autologin.conf <<EOF
 request_header_add X-DOMjudge-Autologin true autologin
 request_header_add X-DOMjudge-Login "$DJTEAM" autologin
 request_header_add X-DOMjudge-Pass "$b64pass" autologin
 EOF
 else
   # clear out any existing credentials
-  echo "# Placeholder" > /etc/squid3/autologin.conf
+  echo "# Placeholder" > /etc/squid/autologin.conf
 fi
 echo "Reconfiguring squid, please wait a moment..."
 # make sure the contestant user can't read the credentials
-chmod 640 /etc/squid3/autologin.conf
-chown root:root /etc/squid3/autologin.conf
+chmod 640 /etc/squid/autologin.conf
+chown root:root /etc/squid/autologin.conf
 
 # restart squid to pick up on the changes(start then stop in case squid isn't running)
-service squid3 stop
-service squid3 start
+service squid stop
+service squid start
 
 whiptail --title "Configure Printers" --yesno "Do you want to configure any printers at this time?\n\nNo changes will be made to the printing system if you choose no." 10 60
 CONFIG_PRINTERS=$?
