@@ -1,19 +1,17 @@
 ---
 - name: install docs
   apt: pkg={{ item }} state=present
-  environment: proxy_env
+  environment: '{{proxy_env}}'
   with_items:
     - python-doc      # 32 mb
     - python3-doc     # 37.2 mb
     - stl-manual      # 2.5mb
     - fp-docs         # 32mb
-    #- openjdk-8-doc   # 246 mb
+    - openjdk-8-doc   # 246 mb
+    - openjdk-8-source   # 60 mb
     - ghc-doc         # 146 mb
     - monodoc-browser # 80mb
-    #- scala-doc       # 216mb
-
-- name: copy java docs
-  unarchive: copy=yes src=files/jdk8-docs.tar.gz dest=/opt creates=/opt/jdk8-docs
+    - scala-doc       # 413mb somehow
 
 - name: create simple index page for links to docs
   copy: src=files/language-docs.html dest=/opt/localwww/index.html
@@ -23,15 +21,15 @@
   with_items:
     - src: '/usr/share/doc/stl-manual/html/'
       dest: 'stl-doc'
-    - src: '/opt/jdk8-docs/'
+    - src: '/usr/share/doc/openjdk-8-doc/api/'
       dest: 'java-doc'
-    - src: '/usr/share/doc/scala/api/scala-library/'
+    - src: '/usr/share/doc/scala-2.11/api/library/'
       dest: 'scala-doc'
     - src: '/usr/share/doc/python-doc/html/'
       dest: 'py2-doc'
     - src: '/usr/share/doc/python3-doc/html/'
       dest: 'py3-doc'
-    - src: '/usr/share/doc/fp-docs/2.6.2/'
+    - src: '/usr/share/doc/fp-docs/3.0.0/'
       dest: 'fpc-doc'
     - src: '/usr/share/doc/ghc-doc/'
       dest: 'haskell-doc'
