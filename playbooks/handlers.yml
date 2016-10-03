@@ -11,8 +11,8 @@
 - name: update grub
   command: /usr/sbin/update-grub
 
-- name: restart squid3
-  service: name=squid3 state=restarted
+- name: restart squid
+  service: name=squid state=restarted
 
 - name: restart simple-httpd
   service: name=simple-httpd state=restarted

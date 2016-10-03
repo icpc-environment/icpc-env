@@ -1,10 +1,10 @@
 ---
   - name: apt repo for (github) atom
     apt_repository: repo='ppa:webupd8team/atom' update_cache=yes
-    environment: proxy_env
+    environment: '{{proxy_env}}'
   - name: install tools
     apt: pkg={{ item }} state=present
-    environment: proxy_env
+    environment: '{{proxy_env}}'
     with_items:
         - atom           # Text editor from github
         - vim-gnome      # graphical vim
@@ -12,7 +12,7 @@
         - gedit          # Simple gnome text editor w/ syntax highlighting
         # Monodevelop and friends: 140mb
         - monodevelop
-        - monodevelop-debugger-gdb
+        #- monodevelop-debugger-gdb
         - gdb
         # codeblocks: 92mb
         - codeblocks

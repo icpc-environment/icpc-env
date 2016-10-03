@@ -3,9 +3,19 @@
   hosts: all
   sudo: yes
   user: imageadmin
+  gather_facts: false
+  vars:
+    # Ubuntu 16.04 doesn't ship with python 2 by default(which ansible needs)
+    ansible_python_interpreter: /usr/bin/python2.7
   tasks:
-    - name: Use local apt mirror
-      copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
+
+    - name: apt-get update
+      raw: apt-get update -qq
+    - name: install python 2.7 and nfs-common
+      raw: apt-get install -qq python2.7 nfs-common
+    - name: gather facts now that we have python 2
+      setup:
+
     - name: copy pam_environment to make sure the proxy is disabled for icpcadmin(and root)
       copy: src=files/pam_environment dest={{ item }}/.pam_environment
       with_items:
@@ -15,6 +25,12 @@
     - name: copy updated pam sudo config so it reads .pam_environment
       copy: src=files/pam_sudo dest=/etc/pam.d/sudo
 
+    - name: mount nfs share from host(saves us downloading files from apt all the time)
+      command: mount -t nfs 10.0.2.2:/srv/icpc_cache /var/cache/apt
+
+    #- name: Use local apt mirror
+    #  copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
+
     - name: disable fsync for dpkg
       copy: src=files/02-dpkg-no-sync dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync
     - name: disable apt cache
@@ -22,25 +38,25 @@
 
     - name: be sure apt cache is updated
       apt: update_cache=yes
-      environment: proxy_env
+      environment: '{{proxy_env}}'
 
     - include: 'playbooks/gui.yml'
-    - include: 'playbooks/_clean.yml'
+    #- include: 'playbooks/_clean.yml'
 
 
     - include: 'playbooks/devel_tools.yml'
-    - include: 'playbooks/_clean.yml'
+    #- include: 'playbooks/_clean.yml'
     - include: 'playbooks/compilers.yml'
-    - include: 'playbooks/_clean.yml'
+    #- include: 'playbooks/_clean.yml'
     - include: 'playbooks/eclipse.yml'
-    - include: 'playbooks/_clean.yml'
+    #- include: 'playbooks/_clean.yml'
 
     - include: 'playbooks/localweb.yml'
 
     - include: 'playbooks/icpc.yml'
     - include: 'playbooks/lang_docs.yml'
     - include: 'playbooks/vmtouch.yml'
-    - include: 'playbooks/_clean.yml'
+    #- include: 'playbooks/_clean.yml'
 
     - include: 'playbooks/firewall.yml'
 
@@ -55,4 +71,22 @@
       copy: content="{{git_revision.stdout}}" dest=/icpc/version
 
   handlers:
-    - include: 'playbooks/handlers.yml'
+    # bug in ansible I think, see https://github.com/ansible/ansible/issues/13485
+    #- include: 'playbooks/handlers.yml'
+    - name: update timezone
+      command: dpkg-reconfigure --frontend noninteractive tzdata
+
+    - name: clear user password
+      command: passwd -d contestant
+
+    - name: fix permissions
+      file: owner=icpcadmin group=icpcadmin dest=/home/icpcadmin recurse=yes
+
+    - name: update grub
+      command: /usr/sbin/update-grub
+
+    - name: restart squid
+      service: name=squid state=restarted
+
+    - name: restart simple-httpd
+      service: name=simple-httpd state=restarted

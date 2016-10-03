@@ -22,7 +22,7 @@
 # ICPC tools we need
 - name: install ICPC tools we need
   apt: pkg={{item}} state=present
-  environment: proxy_env
+  environment: '{{proxy_env}}'
   with_items:
       - ufw
       - imagemagick
@@ -75,7 +75,11 @@
   copy: dest=/etc/sudoers.d/icpcadmins src=icpcadmins.sudo mode=0440
 
 - name: set up firstboot Configuration
-  copy: src=files/firstboot.conf dest=/etc/init/firstboot.conf
+  #copy: src=files/firstboot.conf dest=/etc/init/firstboot.conf
+  copy: src=files/firstboot.service dest=/etc/systemd/system/firstboot.service
+
+- name: enable firstboot service
+  service: name=firstboot enabled=yes
 
 - name: create mountpoint
   file: path=/mnt/usbdrive state=directory
@@ -84,5 +88,5 @@
     name=/mnt/usbdrive
     src='LABEL=ICPC'
     fstype=vfat
-    opts="defaults,uid=contestant,gid=contestant,nobootwait"
+    opts="defaults,uid=contestant,gid=contestant"
     state=present
