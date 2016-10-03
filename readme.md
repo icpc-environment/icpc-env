@@ -44,7 +44,7 @@ cd icpcenv
   * Install required packages
 
     ```bash
-    sudo apt-get install qemu-system-x86 uml-utlities ansible
+    sudo apt-get install qemu-system-x86 uml-utlities ansible mkisofs
     ```
   * Generate an ssh keypair(without a password) that will be used during building the image
     
