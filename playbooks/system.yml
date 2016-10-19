@@ -2,8 +2,15 @@
 - name: disable udev persistent net generator
   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
 
+# https://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
+- name: disable "predicatable network interface names"
+  file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
+
+- name: push a better default network interfaces file
+  copy: src=files/network-interfaces dest=/etc/network/interfaces
+
 - name: disable console blanking
-  lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0"' state=present
+  lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0 net.ifnames=0"' state=present
   notify: update grub
 
 - name: journald write to /dev/tty1
