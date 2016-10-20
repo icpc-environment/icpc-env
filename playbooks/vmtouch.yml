@@ -6,5 +6,8 @@
 - name: install vmtouch
   command: chdir=/tmp/vmtouch creates=/usr/bin/vmtouch make install
 
-- name: add cronjob to run these on reboot
-  copy: src=warm-fs-cache.conf dest=/etc/init mode=0644
+- name: add init script so this runs on boot
+  copy: src=files/warm-fs-cache.service dest=/etc/systemd/system/warm-fs-cache.service
+
+- name: enable warm-fs-cache service
+  service: name=warm-fs-cache enabled=yes
