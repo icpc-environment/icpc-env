@@ -12,6 +12,7 @@
     - firefox
     - alacarte # menu editor
     - htop
+    - dstat # performance tool
 
 - name: Remove unneeded packages
   apt: pkg={{ item }} purge=yes state=absent
