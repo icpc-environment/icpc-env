@@ -3,7 +3,8 @@ Description=Warm up file system cache
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/nice -n 19 /usr/bin/find / > /dev/null 2>&1; /usr/bin/nice -n 19 /icpc/scripts/vmtouch.sh > /dev/null 2>&1
+ExecStart=/usr/bin/nice -n 19 /usr/bin/find / -path /proc -prune -o -path /sys -prune -o -print
+ExecStart=/usr/bin/nice -n 19 /icpc/scripts/vmtouch.sh
 
 [Install]
 WantedBy=multi-user.target
