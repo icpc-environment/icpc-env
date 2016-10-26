@@ -12,7 +12,11 @@
     - firefox
     - alacarte # menu editor
     - htop
-    - dstat # performance tool
+# performance tools
+    - dstat
+    - iotop
+    - sysstat
+    - dstat
 
 - name: Remove unneeded packages
   apt: pkg={{ item }} purge=yes state=absent
