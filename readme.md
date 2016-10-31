@@ -5,7 +5,7 @@ This repository contains the tools necessary to build the ACM ICPC Southeast Reg
 ## Key Features
 This image has been tuned and tweaked over the years, but it currently supports the following:
 
-* A wide array of programming languages: c, c++, java, haskell, pascal, python2/3, scala, fortran, ADA, c#, lua, go, ruby
+* A wide array of programming languages: c, c++, java, haskell, pascal, python2/3, scala, fortran, ADA, c#, f#, D, lua, go, ruby
 * Multiple IDEs and developer tools: Eclipse(with PyDev/CDT), Monodevelop, codeblocks, gvim, emacs, atom, gedit
 * Local web server with copies of language documentation for: STL, Scala, Java, Python2/3, Pascal, Haskell
 * Automatically populate the linux disk cache on boot to speed up response time for certain programs
