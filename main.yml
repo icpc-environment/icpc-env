@@ -1,7 +1,7 @@
 ---
 - name: Do Everything
   hosts: all
-  sudo: yes
+  become: true
   user: imageadmin
   gather_facts: false
   vars:
@@ -65,7 +65,7 @@
 
     # Copy some build information to the image
     - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
-      sudo: false
+      become: false
       register: git_revision
       delegate_to: 127.0.0.1
     - name: copy version info
