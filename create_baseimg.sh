@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-16.04.1-server-amd64.iso"
+ISO64="ubuntu-16.04.3-server-amd64.iso"
 OUT64="unattended-amd64.iso"
 IMG64="base-amd64.img"
 
