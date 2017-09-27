@@ -1,0 +1,13 @@
+[Unit]
+Description=AutoSSH tunnel service for remote control
+After=network.target
+
+[Service]
+User=jumpy
+Environment="AUTOSSH_GATETIME=0"
+ExecStart=/usr/bin/autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -NR 0:localhost:22 jumpy@ssh.ser2017.cloudcontest.org -i /root/.ssh/id_ed25519
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

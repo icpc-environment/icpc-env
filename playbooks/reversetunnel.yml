@@ -1,0 +1,31 @@
+---
+- name: install autossh
+  apt: pkg=autossh state=present
+
+- name: create ssh tunnel user
+  user: name=jumpy state=present
+
+- name: create .ssh directory
+  file: dest=/home/jumpy/.ssh state=directory
+
+- name: set up private key
+  copy:
+    content: "{{ jumpbox_key }}"
+    mode: 0400
+    owner: jumpy
+    group: jumpy
+    dest: /home/jumpy/.ssh/id_ed25519
+
+- name: set up authorized key for root to log in to the server over the reverse tunnel
+  authorized_key:
+    user: root
+    key:
+
+- name: create autossh service
+  template: src=files/autossh.service.j2 dest=/etc/systemd/system/autossh.service
+
+- name: enable autossh service
+  service: enabled=yes name=autossh
+
+- name: make sure ssh is enabled
+  service: enabled=yes name=ssh
