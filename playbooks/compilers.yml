@@ -33,6 +33,34 @@
         - nodejs                    # javascript
         - gdc                       # D
         - scala                     # Scala
+        - rustc                     # Rust
+        - ocaml-nox                 # OCaml (~220mb)
+
+  - name: install apt-transport-https so we can install dart
+    apt: pkg="apt-transport-https" state=present
+
+  - name: install dart repo key
+    apt_key:
+      url: https://dl-ssl.google.com/linux/linux_signing_key.pub
+      id: 7FAC5991
+
+  - name: install dart repo
+    apt_repository:
+      repo: "deb [arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main"
+      state: present
+      filename: 'google-dart'
+
+  - name: install dart
+    apt: pkg=dart state=present
+
+  - name: add dart to path
+    copy: dest=/etc/profile.d/dart_path.sh src=files/dart_path.sh
+
+  - name: install kotlin
+    unarchive: src=files/kotlin-compiler-1.1.4-3.zip dest=/opt creates=/opt/kotlinc
+
+  - name: add kotlin to path
+    copy: dest=/etc/profile.d/kotlin_path.sh src=files/kotlin_path.sh
 
   # Frees up around 375mb
 #  - name: remove jdk files that we downloaded
