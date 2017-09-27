@@ -79,7 +79,7 @@ function waitforssh() {
 function runansible() {
   echo "Running ansible"
   echo "Started at " `date`
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i "localhost:$SSHPORT," --diff --sudo -u imageadmin --private-key $SSHKEY main.yml
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i "localhost:$SSHPORT," --diff --become -u imageadmin --private-key $SSHKEY main.yml
   echo "Ansible finished at " `date`
 
   echo "Rebooting..."
