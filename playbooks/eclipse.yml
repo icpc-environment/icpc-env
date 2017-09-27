@@ -8,7 +8,7 @@
     when: ansible_userspace_architecture == 'i386'
 
   - name: install eclipse(64bit)
-    unarchive: src=files/eclipse-64.tar.gz dest=/opt creates=/opt/eclipse
+    unarchive: src=files/eclipse-java-oxygen-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
     when: ansible_userspace_architecture == 'x86_64'
 
   - name: eclipse shortcut
