@@ -1,7 +1,7 @@
 ---
 - name: install docs
   apt: pkg={{ item }} state=present
-  environment: '{{proxy_env}}'
+  # environment: '{{proxy_env}}'
   with_items:
     - python-doc      # 32 mb
     - python3-doc     # 37.2 mb

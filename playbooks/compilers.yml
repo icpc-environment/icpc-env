@@ -12,7 +12,7 @@
 #    debconf: name='oracle-java8-installer' question='shared/accepted-oracle-license-v1-1' value='true' vtype='select'
   - name: install our compilers and tools
     apt: pkg={{ item }} state=present
-    environment: '{{proxy_env}}'
+    # environment: '{{proxy_env}}'
     with_items:
         - build-essential           # c/c++
         - ghc                       # haskell

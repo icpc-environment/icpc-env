@@ -38,7 +38,7 @@
 
     - name: be sure apt cache is updated
       apt: update_cache=yes
-      environment: '{{proxy_env}}'
+      # environment: '{{proxy_env}}'
 
     - include: 'playbooks/gui.yml'
     #- include: 'playbooks/_clean.yml'
