@@ -16,10 +16,20 @@
     group: jumpy
     dest: /home/jumpy/.ssh/id_ed25519
 
-- name: set up authorized key for root to log in to the server over the reverse tunnel
+- name: automatically trust the jumpbox server
+  known_hosts:
+    name: {{ jumpbox_host }}
+    key: "{{ item }}"
+    path: /etc/ssh/ssh_known_hosts
+  with_items: "{{ jumpbox_host_fingerprints }}"
+
+- name: set up authorized key for someone to log in to this team machine over the reverse tunnel
   authorized_key:
-    user: root
-    key:
+    user: "{{ item }}"
+    key: "{{ jumpbox_authorized_key }}"
+  with_items:
+    - root
+    - icpcadmin
 
 - name: create autossh service
   template: src=files/autossh.service.j2 dest=/etc/systemd/system/autossh.service
