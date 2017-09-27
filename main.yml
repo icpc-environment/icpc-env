@@ -40,27 +40,28 @@
       apt: update_cache=yes
       # environment: '{{proxy_env}}'
 
-    - include: 'playbooks/gui.yml'
-    #- include: 'playbooks/_clean.yml'
+    - import_tasks: 'playbooks/gui.yml'
+    #- import_tasks: 'playbooks/_clean.yml'
 
 
-    - include: 'playbooks/devel_tools.yml'
-    #- include: 'playbooks/_clean.yml'
-    - include: 'playbooks/compilers.yml'
-    #- include: 'playbooks/_clean.yml'
-    - include: 'playbooks/eclipse.yml'
-    #- include: 'playbooks/_clean.yml'
+    - import_tasks: 'playbooks/devel_tools.yml'
+    #- import_tasks: 'playbooks/_clean.yml'
+    - import_tasks: 'playbooks/compilers.yml'
+    #- import_tasks: 'playbooks/_clean.yml'
+    - import_tasks: 'playbooks/eclipse.yml'
+    #- import_tasks: 'playbooks/_clean.yml'
 
-    - include: 'playbooks/localweb.yml'
+    - import_tasks: 'playbooks/localweb.yml'
 
-    - include: 'playbooks/icpc.yml'
-    - include: 'playbooks/lang_docs.yml'
-    - include: 'playbooks/vmtouch.yml'
-    #- include: 'playbooks/_clean.yml'
+    - import_tasks: 'playbooks/icpc.yml'
+    - import_tasks: 'playbooks/lang_docs.yml'
+    - import_tasks: 'playbooks/vmtouch.yml'
+    #- import_tasks: 'playbooks/_clean.yml'
 
-    - include: 'playbooks/firewall.yml'
+    - import_tasks: 'playbooks/firewall.yml'
 
-    - include: 'playbooks/system.yml'
+    - import_tasks: 'playbooks/system.yml'
+    - import_tasks: 'playbooks/reversetunnel.yml'
 
     # Copy some build information to the image
     - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
