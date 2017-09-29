@@ -19,6 +19,7 @@
         - fpc                       # pascal
         - python                    # python 2.7
         - python3                   # python 3
+        - pypy                      # pypy python compiler
         - gnat                      # gnu ada
         - gfortran                  # fortran
         - mono-complete             # c#
