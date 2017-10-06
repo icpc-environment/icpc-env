@@ -16,13 +16,6 @@
     group: jumpy
     dest: /home/jumpy/.ssh/id_ed25519
 
-- name: automatically trust the jumpbox server
-  known_hosts:
-    name: "{{ jumpbox_host }}"
-    key: "{{ item }}"
-    path: /etc/ssh/ssh_known_hosts
-  with_items: "{{ jumpbox_host_fingerprints }}"
-
 - name: set up authorized key for someone to log in to this team machine over the reverse tunnel
   authorized_key:
     user: "{{ item }}"
