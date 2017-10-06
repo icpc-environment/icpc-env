@@ -3,7 +3,7 @@
   apt: pkg=autossh state=present
 
 - name: create ssh tunnel user
-  user: name=jumpy state=present
+  user: name=jumpy state=present system=yes
 
 - name: create .ssh directory
   file: dest=/home/jumpy/.ssh state=directory
