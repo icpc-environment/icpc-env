@@ -50,9 +50,9 @@ echo -e "\n\n==== Rust Version ====" | tee -a $VFILE
 rustc --version 2>&1 | tee -a $VFILE
 
 echo -e "\n\n==== NodeJS Version ====" | tee -a $VFILE
-node --version 2>&1 | tee -a $VFILE
+nodejs --version 2>&1 | tee -a $VFILE
 
 echo -e "\n\n==== OCaml Version ====" | tee -a $VFILE
-ocaml --version 2>&1 | tee -a $VFILE
+ocaml -version 2>&1 | tee -a $VFILE
 
 echo -e "Software versions written to: $VFILE\n\n"
