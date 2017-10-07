@@ -152,7 +152,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
 fi
 # Run self test
 clear
-/icpc/scripts/self_test | tee /icpc/self_test_report
+su - -c /icpc/scripts/self_test | tee /icpc/self_test_report
 
 if [ "$DO_PRINTPAGE" -eq 1 ]; then
   su - contestant -c '/icpc/scripts/printfile /icpc/self_test_report'
