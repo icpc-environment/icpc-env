@@ -40,9 +40,6 @@
       apt: update_cache=yes
       # environment: '{{proxy_env}}'
 
-    - name: install hardware enablement kernel
-      apt: pkg=linux-generic-hwe-16.04 state=present
-
     - import_tasks: 'playbooks/gui.yml'
     #- import_tasks: 'playbooks/_clean.yml'
 
