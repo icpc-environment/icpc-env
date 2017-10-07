@@ -47,3 +47,6 @@ d-i partman-basicfilesystems/no_mount_point true
 
 # Don't use UUIDs in /etc/fstab (maybe?)
 #d-i partman/mount_style select traditional
+
+# Use the hwe kernel
+d-i base-installer/kernel/override-image string linux-generic-hwe-16.04
