@@ -100,7 +100,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
     $WGET -O/tmp/sites.cfg http://configs.cloudcontest.org/sites >/tmp/downloaderror 2>&1
     mapfile -t </tmp/sites.cfg SITES
     if [ ${#SITES[@]} -gt 0 ]; then
-      SITE=$(whiptail --title "Select your contest site" --menu "Choose your school to load printer configurations from.\n\nPlease contact kjohns07@cs.fit.edu to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
+      SITE=$(whiptail --title "Select your contest site" --menu "Choose your school to load printer configurations from.\n\nPlease contact kj@ubergeek42.com to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
       # Try to download the site config file
       $WGET -O/tmp/printers.cfg http://configs.cloudcontest.org/${SITE}_printers.cfg >>/tmp/downloaderror 2>&1
       if [ $? -ne 0 ]; then
