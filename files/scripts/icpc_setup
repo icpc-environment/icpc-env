@@ -27,7 +27,7 @@ function add_printer() {
   esac
   #-o media=letter
   #-o media=a4
-  lpadmin -p Printer${NUMPRINTERS} -v socket://$1 -E -m $DRIVER
+  lpadmin -p Printer${NUMPRINTERS} -v $1 -E -m $DRIVER
   lpadmin -p Printer${NUMPRINTERS} -c ContestPrinter
   cupsenable Printer${NUMPRINTERS}
   accept Printer${NUMPRINTERS}
@@ -109,10 +109,10 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
       else
         # config downloaded successfully!
         SUMMARY="The following printers were added successfully:\n\n"
-        while read printerip driver
+        while read deviceuri driver
         do
-          SUMMARY="${SUMMARY}    $printerip with driver $driver\n"
-          add_printer $printerip $driver
+          SUMMARY="${SUMMARY}    $deviceuri with driver $driver\n"
+          add_printer $deviceuri $driver
         done < /tmp/printers.cfg
         whiptail --title "Loaded printers from config file" --msgbox "$SUMMARY" 20 60
         rm -f /tmp/printers.cfg
@@ -132,7 +132,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
       break;
   	else
       PRINTDRV=$(whiptail --title "Select a driver" --radiolist "Please choose the driver you want to use with the printer:\n    $printerIP\n\nNote: Use space to select, enter to continue" 15 60 2 ps "Generic PostScript Printer" on pcl "Generic PCL Laser Printer" off 3>&1 1>&2 2>&3)
-      add_printer $printerIP $PRINTDRV
+      add_printer socket://$printerIP $PRINTDRV
   	fi
   done
 
