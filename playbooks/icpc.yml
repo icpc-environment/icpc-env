@@ -62,6 +62,9 @@
 - name: disable proxy for icpcadmin
   copy: src=files/pam_environment dest=/home/icpcadmin/.pam_environment
 
+- name: use polkit to disable mounting anything
+  copy: src=files/99-deny-polkit-mount.pkla dest=/etc/polkit-1/localauthority/50-local.d/disable-mount.pkla mode=0644 owner=root group=root
+
 - name: create team reset group
   group: name='teamreset' state='present'
 - name: create team reset user

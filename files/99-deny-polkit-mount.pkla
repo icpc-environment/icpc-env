@@ -1,0 +1,6 @@
+[Block access to udisks for contestant]
+Identity=unix-user:contestant
+Action=org.freedesktop.udisks2.*
+ResultAny=no
+ResultInactive=no
+ResultActive=no
