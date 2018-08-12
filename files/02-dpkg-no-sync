@@ -1,2 +1,0 @@
-# No need to call sync after each package install
-force-unsafe-io

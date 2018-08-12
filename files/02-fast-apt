@@ -1,8 +1,0 @@
-# Disable some apt-caching
-Dir::Cache {
-	srcpkgcache "";
-	pkgcache "";
-}
-
-# No translations
-Acquire::Language "none";

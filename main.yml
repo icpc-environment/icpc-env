@@ -32,9 +32,19 @@
     #  copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
 
     - name: disable fsync for dpkg
-      copy: src=files/02-dpkg-no-sync dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync
+      copy: dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync content="force-unsafe-io"
     - name: disable apt cache
-      copy: src=files/02-fast-apt dest=/etc/apt/apt.conf.d/02-fast-apt
+      # copy: src=files/02-fast-apt dest=/etc/apt/apt.conf.d/02-fast-apt
+      copy:
+        dest: /etc/apt/apt.conf.d/02-fast-apt
+        content: |
+          # Disable some apt-caching
+          Dir::Cache {
+            srcpkgcache "";
+            pkgcache "";
+          }
+          # No translations
+          Acquire::Language "none";
 
     - name: be sure apt cache is updated
       apt: update_cache=yes
