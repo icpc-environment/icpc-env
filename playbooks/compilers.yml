@@ -24,9 +24,6 @@
         - rustc                     # Rust
         - ocaml-nox                 # OCaml (~220mb)
 
-  - name: install apt-transport-https so we can install dart
-    apt: pkg="apt-transport-https" state=present
-
   - name: install dart repo key
     apt_key:
       url: https://dl-ssl.google.com/linux/linux_signing_key.pub
