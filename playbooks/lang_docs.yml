@@ -7,8 +7,8 @@
     - python3-doc     # 37.2 mb
     - stl-manual      # 2.5mb
     - fp-docs         # 32mb
-    - openjdk-8-doc   # 246 mb
-    - openjdk-8-source   # 60 mb
+    - openjdk-11-doc   # 246 mb
+    - openjdk-11-source   # 60 mb
     - ghc-doc         # 146 mb
     - monodoc-browser # 80mb
     - scala-doc       # 413mb somehow
@@ -21,7 +21,7 @@
   with_items:
     - src: '/usr/share/doc/stl-manual/html/'
       dest: 'stl-doc'
-    - src: '/usr/share/doc/openjdk-8-doc/api/'
+    - src: '/usr/share/doc/openjdk-11-doc/api/'
       dest: 'java-doc'
     - src: '/usr/share/doc/scala-2.11/api/library/'
       dest: 'scala-doc'

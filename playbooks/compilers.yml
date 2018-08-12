@@ -14,7 +14,7 @@
         - mono-complete             # c#
         - fsharp                    # fsharp
         - lua5.2                    # lua
-        - openjdk-8-jdk             # jdk8
+        - openjdk-11-jdk            # jdk11
         - gccgo                     # go reference compiler
         - golang                    # go using gcc
         - ruby                      # ruby
