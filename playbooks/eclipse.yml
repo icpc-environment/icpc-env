@@ -1,15 +1,6 @@
 ---
-  # See https://bugs.eclipse.org/bugs/show_bug.cgi?id=456786
-  - name: install webkit for eclipse internal browser to work properly
-    apt: pkg=libwebkitgtk-3.0-0 state=installed
-
-  - name: install eclipse(32bit)
-    unarchive: src=files/eclipse-32.tar.gz dest=/opt creates=/opt/eclipse
-    when: ansible_userspace_architecture == 'i386'
-
   - name: install eclipse(64bit)
-    unarchive: src=files/eclipse-java-oxygen-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
-    when: ansible_userspace_architecture == 'x86_64'
+    unarchive: src=files/eclipse-java-photon-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
 
   - name: eclipse shortcut
     copy: src=files/eclipse/Eclipse.desktop dest=/usr/share/applications/Eclipse.desktop
