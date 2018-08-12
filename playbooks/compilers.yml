@@ -41,9 +41,9 @@
   - name: add dart to path
     copy: dest=/etc/profile.d/dart_path.sh src=files/dart_path.sh
 
-  - name: install kotlin
-    unarchive: src=files/kotlin-compiler-1.1.4-3.zip dest=/opt creates=/opt/kotlinc
 
+  - name: install kotlin
+    unarchive: src=files/kotlin-compiler-1.2.60.zip dest=/opt creates=/opt/kotlinc
   - name: add kotlin to path
     copy: dest=/etc/profile.d/kotlin_path.sh src=files/kotlin_path.sh
 
