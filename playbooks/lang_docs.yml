@@ -29,7 +29,7 @@
       dest: 'py2-doc'
     - src: '/usr/share/doc/python3-doc/html/'
       dest: 'py3-doc'
-    - src: '/usr/share/doc/fp-docs/3.0.0/'
+    - src: '/usr/share/doc/fp-docs/3.0.4/'
       dest: 'fpc-doc'
     - src: '/usr/share/doc/ghc-doc/'
       dest: 'haskell-doc'
