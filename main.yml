@@ -3,18 +3,12 @@
   hosts: all
   become: true
   user: imageadmin
-  gather_facts: false
+  gather_facts: true
   vars:
-    # Ubuntu 16.04 doesn't ship with python 2 by default(which ansible needs)
-    ansible_python_interpreter: /usr/bin/python2.7
+    ansible_python_interpreter: /usr/bin/python3
   tasks:
-
-    - name: apt-get update
-      raw: apt-get update -qq
-    - name: install python 2.7 and nfs-common
-      raw: apt-get install -qq python2.7 nfs-common
-    - name: gather facts now that we have python 2
-      setup:
+    - name: install nfs so we can use it as a package cache
+      apt: pkg=nfs-common state=present
 
     - name: copy pam_environment to make sure the proxy is disabled for icpcadmin(and root)
       copy: src=files/pam_environment dest={{ item }}/.pam_environment
@@ -26,7 +20,7 @@
       copy: src=files/pam_sudo dest=/etc/pam.d/sudo
 
     - name: mount nfs share from host(saves us downloading files from apt all the time)
-      command: mount -t nfs 10.0.2.2:/srv/icpc_cache /var/cache/apt
+      command: warn=False mount -t nfs 10.0.2.2:/srv/icpc_cache /var/cache/apt
 
     #- name: Use local apt mirror
     #  copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
@@ -48,7 +42,6 @@
 
     - name: be sure apt cache is updated
       apt: update_cache=yes
-      # environment: '{{proxy_env}}'
 
     - import_tasks: 'playbooks/gui.yml'
     #- import_tasks: 'playbooks/_clean.yml'
