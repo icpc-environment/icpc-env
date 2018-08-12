@@ -1,15 +1,4 @@
 ---
-#  - name: apt repo for java
-#    apt_repository: repo='ppa:webupd8team/java'
-#    environment: '{{proxy_env}}'
-#
-#  - name: ppa for backported packages mostly
-#    apt_repository: repo='ppa:kj42/icpc' state=present
-#
-#  - name: preseed java7 license acceptance
-#    debconf: name='oracle-java7-installer' question='shared/accepted-oracle-license-v1-1' value='true' vtype='select'
-#  - name: preseed java8 license acceptance
-#    debconf: name='oracle-java8-installer' question='shared/accepted-oracle-license-v1-1' value='true' vtype='select'
   - name: install our compilers and tools
     apt: pkg={{ item }} state=present
     # environment: '{{proxy_env}}'
@@ -25,8 +14,6 @@
         - mono-complete             # c#
         - fsharp                    # fsharp
         - lua5.2                    # lua
-        #- oracle-java7-installer   # java7
-        #- oracle-java8-installer    # java8
         - openjdk-8-jdk             # jdk8
         - gccgo                     # go reference compiler
         - golang                    # go using gcc
@@ -63,12 +50,6 @@
   - name: add kotlin to path
     copy: dest=/etc/profile.d/kotlin_path.sh src=files/kotlin_path.sh
 
-  # Frees up around 375mb
-#  - name: remove jdk files that we downloaded
-#    file: path={{item}} state=absent
-#    with_items:
-#      - /var/cache/oracle-jdk7-installer
-#      - /var/cache/oracle-jdk8-installer
 
 #  - name: check for scala
 #    stat: path=/usr/bin/scala
