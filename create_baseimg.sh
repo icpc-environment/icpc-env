@@ -1,47 +1,28 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-16.04.3-server-amd64.iso"
+ISO64="ubuntu-18.04.1-server-amd64.iso"
 OUT64="unattended-amd64.iso"
 IMG64="base-amd64.img"
 
-ISO32="ubuntu-14.04.4-server-i386.iso"
-OUT32="unattended-i386.iso"
-IMG32="base-i386.img"
-
 TMPDIR="tmp"
-KICKSTART="configs/1604_ks.cfg"
-PRESEED="configs/1604_install.seed"
-
-# 14.04 settings
-#ISO64="ubuntu-14.04.3-server-amd64.iso"
-#ISO32="ubuntu-14.04.3-server-i386.iso"
-#KICKSTART="configs/1404_ks.cfg"
-#PRESEED="configs/1404_install.seed"
+KICKSTART="configs/1804_ks.cfg"
+PRESEED="configs/1804_install.seed"
 
 function usage() {
   echo "Usage: create_baseimage.sh (32|64) [-s size]"
-  echo "Usage: create_baseimage.sh (i386|amd64) [-s size]"
   echo ""
-  echo "32,i386       Build a 32bit base image"
-  echo "64,amd64      Build a 64bit base image"
   echo "-s|--size n   Size of the resulting image(default 7200M)"
   exit 1
 }
 
+ISO=$ISO64
+OUTISO=$OUT64
+IMG=$IMG64
+
 while [[ $# -ge 1 ]]; do
   key="$1"
   case $key in
-    32|i386)
-      ISO=$ISO32
-      OUTISO=$OUT32
-      IMG=$IMG32
-      ;;
-    64|amd64)
-      ISO=$ISO64
-      OUTISO=$OUT64
-      IMG=$IMG64
-      ;;
     -s|--size)
       IMGSIZE=$2
       shift
@@ -53,13 +34,8 @@ while [[ $# -ge 1 ]]; do
     shift
 done
 
-# Make sure one of the bitness options was set
-if [ -z "$ISO" ]; then
-  usage
-fi
-
-# Default image size 7200M(fits on an 8G flash drive)
-IMGSIZE=${IMGSIZE:-7200M}
+# Default image size 14200M(fits on an 16G flash drive)
+IMGSIZE=${IMGSIZE:-14200M}
 
 CONTENTSDIR="$TMPDIR/contents"
 rm -rf "$CONTENTSDIR"
@@ -100,6 +76,7 @@ EOF
 
 cat <<EOF > "$CONTENTSDIR/isolinux/isolinux.cfg"
 # D-I config version 2.0
+path
 include menu.cfg
 default vesamenu.c32
 prompt 0
@@ -107,8 +84,10 @@ prompt 0
 timeout 50
 ui gfxboot bootlogo
 EOF
-
+echo "en" > "$CONTENTSDIR/isolinux/lang"
+set -x
 mkisofs -r -V "ATTENDLESS_UBUNTU" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -quiet -o $OUTISO $CONTENTSDIR
+set +x
 
 # cleanup
 rm -rf "$CONTENTSDIR"
@@ -117,5 +96,5 @@ rm -rf "$CONTENTSDIR"
 rm -f "output/$IMG"
 set -x
 qemu-img create -f raw -o size="$IMGSIZE" "output/$IMG"
-qemu-system-x86_64 -m 1024 -drive file="output/$IMG",index=0,media=disk,format=raw -cdrom $OUTISO -boot order=d --enable-kvm -global isa-fdc.driveA= -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -m 1024 -drive file="output/$IMG",index=0,media=disk,format=raw -cdrom $OUTISO -boot order=d -net user,hostfwd=tcp::5222-:22,hostfwd=tcp::5280-:80 -net nic --enable-kvm -global isa-fdc.driveA= -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 # -global isa-fdc.driveA= is used to disable floppy drive
