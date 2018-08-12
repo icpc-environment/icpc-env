@@ -26,14 +26,11 @@
   with_items:
       - ufw
       - imagemagick
-      - gksu
       - git
       - ntp
       - cups
       - cups-bsd
-      - pdftk
       - enscript
-#      - mtools # TODO: used for mklabel, shouldn't need anymore(as it's done by kickstart/kickseed)
 
 - name: remove existing skel directory
   file: path=/etc/skel state=absent
