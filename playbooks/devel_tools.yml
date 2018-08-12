@@ -12,6 +12,11 @@
   - name: apt repo for IntelliJ IDEA
     apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com bionic main' update_cache=yes
 
+  - name: key for monodevelop apt repo
+    apt_key: keyserver=keyserver.ubuntu.com id=3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+  - name: apt repo for monodevelop
+    apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
+
     # environment: '{{proxy_env}}'
   - name: install tools
     apt: pkg={{ item }} state=present
