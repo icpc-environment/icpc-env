@@ -1,10 +1,6 @@
 ---
-- name: get vmtouch code
-  git: dest=/tmp/vmtouch repo=https://github.com/hoytech/vmtouch
-- name: compile vmtouch
-  command: chdir=/tmp/vmtouch creates=/tmp/vmtouch make
 - name: install vmtouch
-  command: chdir=/tmp/vmtouch creates=/usr/bin/vmtouch make install
+  apt: pkg=vmtouch state=present
 
 - name: add init script so this runs on boot
   copy: src=files/warm-fs-cache.service dest=/etc/systemd/system/warm-fs-cache.service
