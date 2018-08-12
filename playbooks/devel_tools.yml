@@ -1,6 +1,12 @@
 ---
   - name: apt repo for (github) atom
     apt_repository: repo='ppa:webupd8team/atom' update_cache=yes
+
+  - name: apt key for vscode
+    apt_key: url=https://packages.microsoft.com/keys/microsoft.asc state=present
+  - name: apt repo for vscode
+    apt_repository: repo="deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" update_cache=yes filename="vscode"
+
   - name: apt repo for IntelliJ IDEA
     apt_repository: repo='ppa:mmk2410/intellij-idea' update_cache=yes
     # environment: '{{proxy_env}}'
@@ -9,6 +15,7 @@
     # environment: '{{proxy_env}}'
     with_items:
         - atom           # Text editor from github
+        - code           # Visual Studio code
         - vim-gnome      # graphical vim
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
