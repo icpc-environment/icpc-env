@@ -6,33 +6,9 @@ PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-function usage() {
-  echo "Usage: build-final.sh (32|64)"
-  echo "Usage: build-final.sh (i386|amd64)"
-  echo ""
-  echo "32,i386       Build a 32bit contestant image"
-  echo "64,amd64      Build a 64bit contestant image"
-  exit 1
+BASEIMG="base-amd64.img"
 }
 
-while [[ $# -ge 1 ]]; do
-  key="$1"
-  case $key in
-    32|i386)
-      BASEIMG="base-i386.img"
-      ;;
-    64|amd64)
-      BASEIMG="base-amd64.img"
-      ;;
-    *)
-      usage
-      ;;
-    esac
-    shift
-done
-if [ -z "$BASEIMG" ]; then
-  usage
-fi
 
 function runssh() {
   ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
