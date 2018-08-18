@@ -35,7 +35,7 @@ if [ -z "$BASEIMG" ]; then
 fi
 
 function runssh() {
-  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT $@ 2>/dev/null
+  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
 }
 
 function cleanup() {
@@ -44,7 +44,7 @@ function cleanup() {
     runssh sudo poweroff
   else
     echo "Forcing shutdown(poweroff)"
-    kill $(cat $PIDFILE)
+    kill "$(cat $PIDFILE)"
   fi
   rm -f $PIDFILE
 }
