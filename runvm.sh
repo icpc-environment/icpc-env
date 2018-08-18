@@ -78,9 +78,12 @@ function waitforssh() {
 
 function runansible() {
   echo "Running ansible"
-  echo "Started at " `date`
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i "localhost:$SSHPORT," --diff --become -u imageadmin --private-key $SSHKEY main.yml
-  echo "Ansible finished at " `date`
+  echo "Started at $(date)"
+  INVENTORY_FILE=$(mktemp)
+  echo "vm ansible_port=$SSHPORT ansible_host=127.0.0.1" > $INVENTORY_FILE
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY main.yml
+  rm -f $INVENTORY_FILE
+  echo "Ansible finished at $(date)"
 
   echo "Rebooting..."
   ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT sudo reboot

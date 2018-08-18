@@ -87,7 +87,11 @@ ALIVE=0
 waitforssh
 
 echo "Running ansible"
-ANSIBLE_HOST_KEY_CHECKING=False time ansible-playbook -i "localhost:$SSHPORT," --diff --become -u imageadmin --private-key $SSHKEY main.yml
+INVENTORY_FILE=$(mktemp)
+echo "vm ansible_port=$SSHPORT ansible_host=127.0.0.1" > $INVENTORY_FILE
+ANSIBLE_HOST_KEY_CHECKING=False time ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY main.yml
+rm -f $INVENTORY_FILE
+
 ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -p$SSHPORT sudo reboot
 # Wait 5 seconds for reboot to happen so we don't ssh back in before it actually reboots
 sleep 5

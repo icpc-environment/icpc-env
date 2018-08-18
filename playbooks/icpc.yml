@@ -32,13 +32,21 @@
       - cups-bsd
       - enscript
 
+- name: copy local git repos to server
+  synchronize:
+    src: home_dirs/{{item}}/.git
+    dest: /tmp/{{item}}.git
+  with_items:
+    - contestant
+    - admin
+
 - name: remove existing skel directory
   file: path=/etc/skel state=absent
 - name: setup user skeleton directory
-  git: dest=/etc/skel repo={{ git_user_home }}
+  git: dest=/etc/skel repo=file:///tmp/contestant.git
 
 - name: setup admin skeleton directory
-  git: dest=/home/icpcadmin repo={{ git_admin_home }}
+  git: dest=/home/icpcadmin repo=file:///tmp/admin.git
   notify:
       - fix permissions
 

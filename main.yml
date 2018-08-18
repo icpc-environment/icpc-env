@@ -1,6 +1,6 @@
 ---
 - name: Do Everything
-  hosts: all
+  hosts: vm
   become: true
   user: imageadmin
   gather_facts: true
