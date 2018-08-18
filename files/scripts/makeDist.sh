@@ -11,12 +11,6 @@ rm -rf /home/icpcadmin/.git
 rm -rf /home/imageadmin
 userdel imageadmin
 
-# remove vmtouch git repo
-rm -rf /tmp/vmtouch
-
-# Remove scala deb
-rm -rf /tmp/scala.deb
-
 # Delete proxy settings for apt(if any)
 rm -f /etc/apt/apt.conf.d/01proxy
 
