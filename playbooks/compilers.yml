@@ -35,15 +35,21 @@
       filename: 'google-dart'
   - name: install dart
     apt: pkg=dart state=present
-  - name: add dart to path
-    copy: dest=/etc/profile.d/dart_path.sh src=files/dart_path.sh
 
 
   - name: install kotlin
     unarchive: src=files/kotlin-compiler-1.2.60.zip dest=/opt creates=/opt/kotlinc
-  - name: add kotlin to path
-    copy: dest=/etc/profile.d/kotlin_path.sh src=files/kotlin_path.sh
-
+  - name: create symlinks for kotlin
+    file:
+      src: /opt/kotlinc/bin/{{item}}
+      dest: /usr/local/bin/{{item}}
+      state: link
+    with_items:
+      - kotlin
+      - kotlinc
+      - kotlinc-js
+      - kotlinc-jvm
+      - kotlin-dce-js
 
 #  - name: check for scala
 #    stat: path=/usr/bin/scala
