@@ -23,6 +23,12 @@
         - scala                     # Scala
         - rustc                     # Rust
         - ocaml-nox                 # OCaml (~220mb)
+        - erlang                    # Erlang (~115mb)
+        - groovy                    # Groovy (~45mb)
+        - nim                       # Nim (~12mb)
+        - clojure                   # Clojure (~5mb)
+        - swi-prolog                # SWI Prolog (~35mb)
+        - gobjc                     # Objective-C (~25mb)
 
   - name: install dart repo key
     apt_key:
