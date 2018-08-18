@@ -44,22 +44,16 @@
       apt: update_cache=yes
 
     - import_tasks: 'playbooks/gui.yml'
-    #- import_tasks: 'playbooks/_clean.yml'
-
 
     - import_tasks: 'playbooks/devel_tools.yml'
-    #- import_tasks: 'playbooks/_clean.yml'
     - import_tasks: 'playbooks/compilers.yml'
-    #- import_tasks: 'playbooks/_clean.yml'
     - import_tasks: 'playbooks/eclipse.yml'
-    #- import_tasks: 'playbooks/_clean.yml'
 
     - import_tasks: 'playbooks/localweb.yml'
 
     - import_tasks: 'playbooks/icpc.yml'
     - import_tasks: 'playbooks/lang_docs.yml'
     - import_tasks: 'playbooks/vmtouch.yml'
-    #- import_tasks: 'playbooks/_clean.yml'
 
     - import_tasks: 'playbooks/firewall.yml'
 
