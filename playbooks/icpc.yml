@@ -57,12 +57,33 @@
   notify:
       - clear user password
 
+# This will get cleared when the user is re-created
+- name: create gitconfig for contestant(to make updating the home directory easier)
+  copy:
+    dest: /home/contestant/.gitconfig
+    owner: contestant
+    group: contestant
+    content: |
+      [user]
+      	email = contestant@icpcenv
+      	name = icpcenv
+
 - name: create icpcadmin group
   group: name='icpcadmin' state='present'
 - name: create icpcadmin user
   user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{icpcadmin_pass}}' shell='/bin/bash'
 - name: set up authorized keys for icpcadmin
   authorized_key: user='icpcadmin' key="{{ lookup('file', 'configs/ssh_key.pub') }}"
+
+- name: create gitconfig for icpcadmin(to make updating the home directory easier)
+  copy:
+    dest: /home/icpcadmin/.gitconfig
+    owner: icpcadmin
+    group: icpcadmin
+    content: |
+      [user]
+      	email = icpcadmin@icpcenv
+      	name = icpcenv
 
 - name: disable proxy for icpcadmin
   copy: src=files/pam_environment dest=/home/icpcadmin/.pam_environment

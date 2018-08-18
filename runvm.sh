@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SSHPORT=2222
-SSHKEY="configs/ssh_key"
+SSHKEY="$PWD/configs/ssh_key"
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
@@ -73,6 +73,28 @@ function launchssh() {
   ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT
 }
 
+function saveuserhome() {
+  echo "pulling contestant home directory changes from inside vm"
+  pushd home_dirs/contestant
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote --exit-code virtualmachine
+  if [[ $? != 0 ]]; then
+    git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/contestant
+  fi
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git fetch virtualmachine
+  popd
+}
+
+function saveadminhome() {
+  echo "pulling admin home directory changes from inside vm"
+  pushd home_dirs/admin
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote --exit-code virtualmachine
+  if [[ $? != 0 ]]; then
+    git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/imageadmin
+  fi
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git fetch virtualmachine
+  popd
+}
+
 qemu-system-x86_64 -smp 1 -m 1024 -drive file="output/$BASEIMG",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 ALIVE=0
 waitforssh
@@ -83,6 +105,8 @@ while [ $CMD != 0 ]; do
   echo "Select an action"
   echo "    1. Launch SSH Session"
   echo "    2. Run ansible again"
+  echo "    3. Save contestant home directory"
+  echo "    4. Save admin home directory"
   echo "    0. Halt VM"
   read -p "Action(Default 1): " CMD
   CMD=${CMD:-1}
@@ -90,6 +114,8 @@ while [ $CMD != 0 ]; do
     0) break ;;
     1) launchssh ;;
     2) runansible ;;
+    3) saveuserhome ;;
+    4) saveadminhome ;;
     *) launchssh ;;
   esac
 done
