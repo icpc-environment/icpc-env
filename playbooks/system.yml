@@ -7,7 +7,7 @@
   file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
 
 - name: push a better default network interfaces file
-  copy: src=files/network-interfaces dest=/etc/network/interfaces
+  copy: src=files/01-netcfg.yaml dest=/etc/netplan/01-netcfg.yaml
 
 - name: disable console blanking
   lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0 net.ifnames=0"' state=present
