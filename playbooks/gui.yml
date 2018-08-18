@@ -1,7 +1,6 @@
 ---
 - name: install xfce
   apt: pkg={{ item }} state=present
-  # environment: '{{proxy_env}}'
   with_items:
     - xserver-xorg
     - xfce4
@@ -21,7 +20,6 @@
 
 - name: Remove unneeded packages
   apt: pkg={{ item }} purge=yes state=absent
-  # environment: '{{proxy_env}}'
   with_items:
     - byobu
     - xscreensaver

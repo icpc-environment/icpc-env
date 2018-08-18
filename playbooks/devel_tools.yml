@@ -17,10 +17,8 @@
   - name: apt repo for monodevelop
     apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
 
-    # environment: '{{proxy_env}}'
   - name: install tools
     apt: pkg={{ item }} state=present
-    # environment: '{{proxy_env}}'
     with_items:
         - atom           # Text editor from github
         - code           # Visual Studio code

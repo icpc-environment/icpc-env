@@ -1,7 +1,6 @@
 ---
   - name: install our compilers and tools
     apt: pkg={{ item }} state=present
-    # environment: '{{proxy_env}}'
     with_items:
         - build-essential           # c/c++
         - ghc                       # haskell

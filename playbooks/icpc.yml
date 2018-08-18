@@ -22,7 +22,6 @@
 # ICPC tools we need
 - name: install ICPC tools we need
   apt: pkg={{item}} state=present
-  # environment: '{{proxy_env}}'
   with_items:
       - ufw
       - imagemagick
