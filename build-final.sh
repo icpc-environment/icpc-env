@@ -5,38 +5,8 @@ SSHKEY="configs/ssh_key"
 PIDFILE="tmp/qemu.pid"
 ALIVE=0
 
-function usage() {
-  echo "Usage: build-final.sh (32|64)"
-  echo "Usage: build-final.sh (i386|amd64)"
-  echo ""
-  echo "32,i386       Build a 32bit contestant image"
-  echo "64,amd64      Build a 64bit contestant image"
-  exit 1
-}
-
-IMGFILE32="output/$(date +%Y-%m-%d)_image-i386.img"
-IMGFILE64="output/$(date +%Y-%m-%d)_image-amd64.img"
-while [[ $# -ge 1 ]]; do
-  key="$1"
-  case $key in
-    32|i386)
-      IMGFILE=$IMGFILE32
-      BASEIMG="base-i386.img"
-      ;;
-    64|amd64)
-      IMGFILE=$IMGFILE64
-      BASEIMG="base-amd64.img"
-      ;;
-    *)
-      usage
-      ;;
-    esac
-    shift
-done
-if [ -z "$IMGFILE" ]; then
-  usage
-fi
-
+IMGFILE="output/$(date +%Y-%m-%d)_image-amd64.img"
+BASEIMG="base-amd64.img"
 cp output/$BASEIMG $IMGFILE
 
 function runssh() {
@@ -49,7 +19,7 @@ function cleanup() {
     runssh sudo poweroff
   else
     echo "Forcing shutdown(poweroff)"
-    kill $(cat $PIDFILE)
+    kill "$(cat $PIDFILE)"
   fi
   rm -f $PIDFILE
 }

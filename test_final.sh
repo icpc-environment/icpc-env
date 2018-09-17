@@ -6,33 +6,7 @@ PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-function usage() {
-  echo "Usage: test-final.sh (32|64)"
-  echo "Usage: test-final.sh (i386|amd64)"
-  echo ""
-  echo "32,i386       Test a 32bit contestant image"
-  echo "64,amd64      Test a 64bit contestant image"
-  exit 1
-}
-
-while [[ $# -ge 1 ]]; do
-  key="$1"
-  case $key in
-    32|i386)
-      BASEIMG="*_image-i386.img"
-      ;;
-    64|amd64)
-      BASEIMG="*_image-amd64.img"
-      ;;
-    *)
-      usage
-      ;;
-    esac
-    shift
-done
-if [ -z "$BASEIMG" ]; then
-  usage
-fi
+BASEIMG="*_image-amd64.img"
 
 function launchssh() {
   echo "Launching ssh session"
@@ -40,7 +14,7 @@ function launchssh() {
 }
 function cleanup() {
   echo "Forcing shutdown(poweroff)"
-  kill $(cat $PIDFILE)
+  kill "$(cat $PIDFILE)"
   rm -f $PIDFILE
 }
 
