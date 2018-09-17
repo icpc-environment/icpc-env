@@ -131,8 +131,11 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
   	if [ -z "$printerIP" ]; then
       break;
   	else
+      if [[ ! $printerIP =~ "://" ]]; then
+        printerIP="socket://$printerIP"
+      fi
       PRINTDRV=$(whiptail --title "Select a driver" --radiolist "Please choose the driver you want to use with the printer:\n    $printerIP\n\nNote: Use space to select, enter to continue" 15 60 2 ps "Generic PostScript Printer" on pcl "Generic PCL Laser Printer" off 3>&1 1>&2 2>&3)
-      add_printer socket://$printerIP $PRINTDRV
+      add_printer $printerIP $PRINTDRV
   	fi
   done
 
