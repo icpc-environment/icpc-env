@@ -7,9 +7,21 @@
 
   # Eclipse plugins(for c/c++ and python)
   - name: install cdt plugin
-    script: files/eclipse/cdt.sh
+    shell: |
+      /opt/eclipse/eclipse -nosplash \
+          -application org.eclipse.equinox.p2.director \
+          -repository http://download.eclipse.org/tools/cdt/releases/9.5/,http://download.eclipse.org/releases/photon/ \
+          -destination /opt/eclipse \
+          -installIU org.eclipse.cdt.feature.group \
+          -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
+
   - name: install pydev plugin
-    script: files/eclipse/pydev.sh
+    shell: |
+      /opt/eclipse/eclipse -nosplash \
+          -application org.eclipse.equinox.p2.director \
+          -repository http://pydev.org/updates/ \
+          -destination /opt/eclipse \
+          -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
 
   # This is somewhat large, ~750mb
   #- name: eclipse recommenders

@@ -1,3 +1,0 @@
-# icpcadmin can run any command without a password
-icpcadmin ALL=NOPASSWD: ALL
-teamreset ALL=NOPASSWD: ALL
