@@ -13,11 +13,29 @@ d-i debian-installer/exit/poweroff boolean true
 # run a command we copied earlier
 d-i preseed/late_command string in-target /tmp/setupkeys.sh
 
+# Format the disk gpt partition layout
+d-i partman-basicfilesystems/choose_label string gpt
+d-i partman-basicfilesystems/default_label string gpt
+d-i partman-partitioning/choose_label string gpt
+d-i partman-partitioning/default_label string gpt
+d-i partman/choose_label string gpt
+d-i partman/default_label string gpt
+partman-partitioning partman-partitioning/choose_label select gpt
+
 # Don't specify mountpoint here, we'll get it with ansible since we want it
 # mounted by LABEL not UUID
 #        mountpoint{ /mnt/usbdrive }
 d-i partman-auto/expert_recipe string \
     boot-root ::                      \
+      1 1 1 free                      \
+        $bios_boot{ }                 \
+        method{ biosgrub }            \
+      .                               \
+      128 128 128 fat32               \
+        $primary{ }                   \
+        method{ efi }                 \
+        format{ }                     \
+      .                               \
       192 192 192 fat32               \
         $primary{ }                   \
         method{ format }              \
@@ -47,6 +65,3 @@ d-i partman-basicfilesystems/no_mount_point true
 
 # Don't use UUIDs in /etc/fstab (maybe?)
 #d-i partman/mount_style select traditional
-
-# Use the hwe kernel
-#d-i base-installer/kernel/override-image string linux-generic-hwe-16.04

@@ -43,6 +43,12 @@
     - name: be sure apt cache is updated
       apt: update_cache=yes
 
+    - name: set up efi booting
+      apt: pkg={{item}} state=present
+      with_items: [ grub-efi, grub-efi-amd64-signed ]
+    - name: install efi files
+      command: grub-install --no-nvram --uefi-secure-boot --target=x86_64-efi /dev/sda
+
     - import_tasks: 'playbooks/gui.yml'
 
     - import_tasks: 'playbooks/devel_tools.yml'
