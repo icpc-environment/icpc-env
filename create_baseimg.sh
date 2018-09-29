@@ -34,8 +34,8 @@ while [[ $# -ge 1 ]]; do
     shift
 done
 
-# Default image size 14200M(fits on an 16G flash drive)
-IMGSIZE=${IMGSIZE:-14200M}
+# Default image size 14700M(fits on an 16G flash drive)
+IMGSIZE=${IMGSIZE:-14700M}
 
 CONTENTSDIR="$TMPDIR/contents"
 rm -rf "$CONTENTSDIR"
