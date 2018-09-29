@@ -11,12 +11,15 @@
     - xfce4-terminal
     - firefox
     - alacarte # menu editor
-    - htop
 # performance tools
+    - htop
     - dstat
     - iotop
     - sysstat
     - dstat
+# misc admin tools
+    - net-tools   # for ifconfig/old tools
+    - curl        # debugging connection things
 
 - name: Remove unneeded packages
   apt: pkg={{ item }} purge=yes state=absent
