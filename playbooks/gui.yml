@@ -20,6 +20,7 @@
 # misc admin tools
     - net-tools   # for ifconfig/old tools
     - curl        # debugging connection things
+    - ncdu
 
 - name: Remove unneeded packages
   apt: pkg={{ item }} purge=yes state=absent
