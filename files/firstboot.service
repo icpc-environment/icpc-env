@@ -1,7 +1,7 @@
 [Unit]
 Description=Initial configuration of the image
-Before=getty@tty1.service getty@tty7.service lightdm.service
-After=cups.service
+Before=lightdm.service
+After=cups.service getty@tty2.service
 
 [Service]
 Type=oneshot
@@ -12,8 +12,7 @@ TTYVHangup=yes
 TTYPath=/dev/tty2
 StandardInput=tty
 StandardOutput=tty
-ExecStart=/bin/chvt 2
-ExecStart=/icpc/scripts/icpc_setup
+ExecStart=/bin/bash -c '/bin/chvt 2; /icpc/scripts/icpc_setup'
 
 [Install]
 WantedBy=graphical.target
