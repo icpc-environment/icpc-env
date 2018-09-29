@@ -54,16 +54,16 @@ if os.path.exists(teamfile):
 else:
     team = "[none]"
 
-netDevice = commands.getoutput("/sbin/ifconfig | grep eth | awk '{ print substr($0,0,4)}'")
-eth0 = commands.getoutput("/sbin/ifconfig " + netDevice + " | head -1 | sed 's/.*HWaddr //'")
+netDevice = commands.getoutput("ip route show default | awk '/default/ {print $5}'")
+macAddress = commands.getoutput("cat /sys/class/net/" + netDevice + "/address")
 hostname = commands.getoutput("hostname")
 
 # -MLetter  we assume US printers and generate letter size pages and not A4 pages
 options = "-MLetter -2 --landscape --pretty-print "
 
 # The header is too wide, but footers are a pain
-header = "$n; page $% of $=; time=$C; user=$(USER); site=" + site + "; team=" + team + "; host=" + hostname + "; mac=" + eth0
-header = "$n; page $% of $=; team=" + team + "; mac=" + eth0
+header = "$n; page $% of $=; time=$C; user=$(USER); site=" + site + "; team=" + team + "; host=" + hostname + "; mac=" + macAddress
+header = "$n; page $% of $=; team=" + team + "; mac=" + macAddress
 
 # Though I encourage just one argument (the name of one file);
 # all command line arguments are tacked on at the end
