@@ -62,7 +62,7 @@
 #- lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner contestant -j REJECT" insertafter="-A ufw-before-output -m owner --uid-owner proxy -j ACCEPT"
 
 - name: prevent the 'contestant' user from using the network(except through the proxy or to localhost)
-  lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+  lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
 
 - name: copy block page for squid to use
   copy: src=files/squid/block.html dest=/opt/localwww/block.html
