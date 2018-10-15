@@ -1,6 +1,6 @@
 #!/bin/bash
 # Load some useful things into the kernels cache
-VMTOUCH="/usr/local/bin/vmtouch -t"
+VMTOUCH="/usr/bin/vmtouch -t"
 
 $VMTOUCH /opt/eclipse # 251M
 $VMTOUCH /usr/lib/jvm # 312M
