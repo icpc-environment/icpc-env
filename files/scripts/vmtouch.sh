@@ -7,11 +7,13 @@ $VMTOUCH /usr/lib/jvm # 312M
 $VMTOUCH /usr/include #  33M
 
 
-# If we have more than 2 Gb of memory, cache some other stuff
+# If we have more than 5 Gb of memory, cache some other stuff
 phymem=$(awk '/MemTotal/{print $2}' /proc/meminfo)
-if  [ "$phymem" -gt "2000000" ]; then
+if  [ "$phymem" -gt "5000000" ]; then
     $VMTOUCH /lib         # 229M
     $VMTOUCH /usr/lib     #   2G
+    $VMTOUCH /opt/atom    # 525M
+    $VMTOUCH /opt/intellij-idea-community # 968M
 fi
 
 # Do these last to make sure they end up in memory
