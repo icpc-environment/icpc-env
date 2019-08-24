@@ -11,6 +11,7 @@
     - xfce4-terminal
     - firefox
     - alacarte # menu editor
+    - mupdf # lighweight pdf viewer
 # performance tools
     - htop
     - dstat
