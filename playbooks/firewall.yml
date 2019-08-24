@@ -63,6 +63,8 @@
 
 - name: prevent the 'contestant' user from using the network(except through the proxy or to localhost)
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+- name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
+  lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertbefore="uid-owner contestant -j REJECT" state=present
 
 - name: copy block page for squid to use
   copy: src=files/squid/block.html dest=/opt/localwww/block.html
