@@ -7,6 +7,11 @@ SNAPSHOT="-snapshot"
 ALIVE=0
 
 BASEIMG="base-amd64.img"
+
+trap ctrl_c INT
+function ctrl_c() {
+  cleanup
+  exit 0
 }
 
 
@@ -28,7 +33,7 @@ function cleanup() {
 function waitforssh() {
   # wait for it to boot
   echo -n "Waiting for ssh "
-  TIMEOUT=60
+  TIMEOUT=600
   X=0
 
   while [[ $X -lt $TIMEOUT ]]; do
@@ -39,7 +44,7 @@ function waitforssh() {
       break
     fi
     echo -n "."
-    sleep 1
+    sleep 5
   done
   echo ""
 
@@ -89,7 +94,7 @@ function saveadminhome() {
   pushd home_dirs/admin
   GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote --exit-code virtualmachine
   if [[ $? != 0 ]]; then
-    git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/imageadmin
+    git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/icpcadmin
   fi
   GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git fetch virtualmachine
   popd
@@ -98,7 +103,7 @@ function saveadminhome() {
 qemu-system-x86_64 -smp 1 -m 1024 -drive file="output/$BASEIMG",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 ALIVE=0
 waitforssh
-runansible
+# runansible
 
 CMD=1
 while [ $CMD != 0 ]; do
