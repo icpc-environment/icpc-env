@@ -28,6 +28,18 @@
         - clojure                   # Clojure (~5mb)
         - swi-prolog                # SWI Prolog (~35mb)
         - gobjc                     # Objective-C (~25mb)
+        # R project for statistical computing (~88mb)
+        # - r-base
+        # - r-base-dev
+
+# TODO more languages
+# typescript(npm install; so it lives on top of nodejs)
+# scratch(~50mb)
+# crystal?
+# php
+# swift
+# octave?
+# elixir(an erlang runtime language)
 
   - name: install dart repo key
     apt_key:
