@@ -18,3 +18,12 @@
 
 - name: systemd disable status messages on console
   copy: src=files/systemd-system.conf dest=/etc/systemd/system.conf
+
+- name: disable swap
+  command: swapoff -v /swapfile
+
+- name: disable swapfile in fstab
+  lineinfile: dest=/etc/fstab regexp="^/swapfile" state=absent
+
+- name: remove the swapfile that may have been created
+  file: path=/swapfile state=absent
