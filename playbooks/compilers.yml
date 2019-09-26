@@ -13,7 +13,7 @@
         - gfortran                  # fortran
         - mono-complete             # c#
         - fsharp                    # fsharp
-        - lua5.2                    # lua
+        - lua5.3                    # lua
         - openjdk-11-jdk            # jdk11
         - gccgo                     # go reference compiler
         - golang                    # go using gcc
