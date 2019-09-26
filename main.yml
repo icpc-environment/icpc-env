@@ -37,7 +37,7 @@
           Acquire::Language "none";
 
     - name: be sure apt cache is updated
-      apt: update_cache=yes
+      apt: update_cache=yes upgrade=dist
 
     - name: set up efi booting
       apt:
