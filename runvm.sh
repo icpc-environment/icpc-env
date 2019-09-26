@@ -38,7 +38,7 @@ function waitforssh() {
 
   while [[ $X -lt $TIMEOUT ]]; do
     let X+=1
-    OUT=$(ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT echo "ok" 2>/dev/null)
+    OUT=$(runssh echo "ok" 2>/dev/null)
     if [[ "$OUT" == "ok" ]]; then
       ALIVE=1
       break
@@ -67,7 +67,7 @@ function runansible() {
   echo "Ansible finished at $(date)"
 
   echo "Rebooting..."
-  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT sudo reboot
+  runssh sudo reboot
   # Wait 5 seconds for reboot to happen so we don't ssh back in before it actually reboots
   sleep 5
   ALIVE=0
@@ -100,16 +100,15 @@ function saveadminhome() {
   popd
 }
 
-qemu-system-x86_64 -smp 1 -m 1024 -drive file="output/$BASEIMG",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 ALIVE=0
 waitforssh
-# runansible
 
 CMD=1
 while [ $CMD != 0 ]; do
   echo "Select an action"
   echo "    1. Launch SSH Session"
-  echo "    2. Run ansible again"
+  echo "    2. Run ansible"
   echo "    3. Save contestant home directory"
   echo "    4. Save admin home directory"
   echo "    0. Halt VM"
