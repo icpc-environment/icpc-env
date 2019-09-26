@@ -22,13 +22,9 @@
     - name: mount nfs share from host(saves us downloading files from apt all the time)
       command: warn=False mount -t nfs 10.0.2.2:/srv/icpc_cache /var/cache/apt
 
-    #- name: Use local apt mirror
-    #  copy: src=files/sources-local-mirror.list dest=/etc/apt/sources.list backup=yes
-
     - name: disable fsync for dpkg
       copy: dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync content="force-unsafe-io"
     - name: disable apt cache
-      # copy: src=files/02-fast-apt dest=/etc/apt/apt.conf.d/02-fast-apt
       copy:
         dest: /etc/apt/apt.conf.d/02-fast-apt
         content: |
@@ -76,8 +72,6 @@
       copy: content="{{git_revision.stdout}}" dest=/icpc/version
 
   handlers:
-    # bug in ansible I think, see https://github.com/ansible/ansible/issues/13485
-    #- include: 'playbooks/handlers.yml'
     - name: update timezone
       command: dpkg-reconfigure --frontend noninteractive tzdata
 

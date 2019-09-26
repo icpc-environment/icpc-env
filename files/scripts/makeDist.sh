@@ -46,5 +46,5 @@ mkdir -p /var/lib/apt/lists/partial
 # enable the firewall
 ufw --force enable
 
-# Delete /etc/machine-id so the images generate a new one on boot
+# Delete /etc/machine-id so the image generates a new one on boot
 echo "" > /etc/machine-id
