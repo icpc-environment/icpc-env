@@ -56,13 +56,14 @@
 
 
   - name: install kotlin
-    unarchive: src=files/kotlin-compiler-1.2.60.zip dest=/opt creates=/opt/kotlinc
+    unarchive: src=files/kotlin-compiler-1.3.50.zip dest=/opt creates=/opt/kotlinc
   - name: create symlinks for kotlin
     file:
       src: /opt/kotlinc/bin/{{item}}
       dest: /usr/local/bin/{{item}}
       state: link
     with_items:
+      - kapt
       - kotlin
       - kotlinc
       - kotlinc-js
