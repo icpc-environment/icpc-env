@@ -18,8 +18,9 @@
     apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
 
   - name: install tools
-    apt: pkg={{ item }} state=present
-    with_items:
+    apt:
+      state: present
+      pkg:
         - atom           # Text editor from github
         - code           # Visual Studio code
         - vim-gnome      # graphical vim

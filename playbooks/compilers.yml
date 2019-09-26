@@ -1,7 +1,8 @@
 ---
   - name: install our compilers and tools
-    apt: pkg={{ item }} state=present
-    with_items:
+    apt:
+      state: present
+      pkg:
         - build-essential           # c/c++
         - ghc                       # haskell
         - fpc                       # pascal

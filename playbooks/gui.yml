@@ -1,37 +1,40 @@
 ---
 - name: install xfce
-  apt: pkg={{ item }} state=present
-  with_items:
-    - xserver-xorg
-    - xfce4
-    - lightdm
-    - lightdm-gtk-greeter   # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space)
-    - xfce4-power-manager
-    - xubuntu-default-settings
-    - xfce4-terminal
-    - firefox
-    - alacarte # menu editor
-    - mupdf # lighweight pdf viewer
-# performance tools
-    - htop
-    - dstat
-    - iotop
-    - sysstat
-    - dstat
-# misc admin tools
-    - net-tools   # for ifconfig/old tools
-    - curl        # debugging connection things
-    - ncdu
+  apt:
+    state: present
+    pkg:
+      - xserver-xorg
+      - xfce4
+      - lightdm
+      - lightdm-gtk-greeter   # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space autocomplete in eclipse)
+      - xfce4-power-manager
+      - xubuntu-default-settings
+      - xfce4-terminal
+      - firefox
+      - alacarte # menu editor
+      - mupdf # lighweight pdf viewer
+      # performance tools
+      - htop
+      - dstat
+      - iotop
+      - sysstat
+      - dstat
+      # misc admin tools
+      - net-tools   # for ifconfig/old tools
+      - curl        # debugging connection things
+      - ncdu
 
 - name: Remove unneeded packages
-  apt: pkg={{ item }} purge=yes state=absent
-  with_items:
-    - byobu
-    - xscreensaver
-    - xscreensaver-data
-    - yelp
-    - desktop-base
-    - vlc-data
+  apt:
+    state: absent
+    purge: yes
+    pkg:
+      - byobu
+      - xscreensaver
+      - xscreensaver-data
+      - yelp
+      - desktop-base
+      - vlc-data
 
 - name: setup lightdm
   copy: src=files/lightdm.conf dest=/etc/lightdm/lightdm.conf

@@ -1,8 +1,9 @@
 ---
 
 - name: install local squid proxy + squidguard
-  apt: pkg={{item}} state=present
-  with_items:
+  apt:
+    state: present
+    pkg:
     - squid3
     - squidguard
 

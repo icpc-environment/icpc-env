@@ -1,16 +1,17 @@
 ---
 - name: install docs
-  apt: pkg={{ item }} state=present
-  with_items:
-    - python-doc      # 32 mb
-    - python3-doc     # 37.2 mb
-    - stl-manual      # 2.5mb
-    - fp-docs         # 32mb
-    - openjdk-11-doc   # 246 mb
-    - openjdk-11-source   # 60 mb
-    - ghc-doc         # 146 mb
-    - monodoc-browser # 80mb
-    - scala-doc       # 413mb somehow
+  apt:
+    state: present
+    pkg:
+      - python-doc      # 32 mb
+      - python3-doc     # 37.2 mb
+      - stl-manual      # 2.5mb
+      - fp-docs         # 32mb
+      - openjdk-11-doc   # 246 mb
+      - openjdk-11-source   # 60 mb
+      - ghc-doc         # 146 mb
+      - monodoc-browser # 80mb
+      - scala-doc       # 413mb somehow
 
 - name: create simple index page for links to docs
   copy: src=files/language-docs.html dest=/opt/localwww/index.html

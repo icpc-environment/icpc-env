@@ -36,8 +36,9 @@
 
 # ICPC tools we need
 - name: install ICPC tools we need
-  apt: pkg={{item}} state=present
-  with_items:
+  apt:
+    state: present
+    pkg:
       - ufw
       - imagemagick
       - git
