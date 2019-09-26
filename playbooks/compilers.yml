@@ -42,6 +42,16 @@
 # octave?
 # elixir(an erlang runtime language)
 
+  # Lua package is broken, see
+  # https://bugs.launchpad.net/ubuntu/+source/lua5.3/+bug/1707212
+  # https://askubuntu.com/questions/850317/installing-lua5-2-vs-lua5-3-on-ubuntu-16-10
+  - name: symlink lua5.3 properly(the package is broken)
+    file:
+      state: link
+      src: /usr/bin/{{item}}5.3
+      dest: /usr/bin/{{item}}
+    with_items: [lua, luac]
+
   - name: install dart repo key
     apt_key:
       url: https://dl-ssl.google.com/linux/linux_signing_key.pub
