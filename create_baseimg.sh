@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-18.04.1-server-amd64.iso"
-OUT64="unattended-amd64.iso"
+ISO64="ubuntu-18.04.3-server-amd64.iso"
+OUT64="unattended-ubuntu-18.04.3-amd64.iso"
 IMG64="base-amd64.img"
 
 TMPDIR="tmp"
@@ -10,9 +10,9 @@ KICKSTART="configs/1804_ks.cfg"
 PRESEED="configs/1804_install.seed"
 
 function usage() {
-  echo "Usage: create_baseimage.sh (32|64) [-s size]"
+  echo "Usage: create_baseimage.sh [-s size]"
   echo ""
-  echo "-s|--size n   Size of the resulting image(default 7200M)"
+  echo "-s|--size n   Size of the resulting image(default 14700M)"
   exit 1
 }
 
@@ -96,5 +96,11 @@ rm -rf "$CONTENTSDIR"
 rm -f "output/$IMG"
 set -x
 qemu-img create -f raw -o size="$IMGSIZE" "output/$IMG"
-qemu-system-x86_64 -m 1024 -drive file="output/$IMG",index=0,media=disk,format=raw -cdrom $OUTISO -boot order=d -net user,hostfwd=tcp::5222-:22,hostfwd=tcp::5280-:80 -net nic --enable-kvm -global isa-fdc.driveA= -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
-# -global isa-fdc.driveA= is used to disable floppy drive
+qemu-system-x86_64 \
+  --enable-kvm -m 1024 -global isa-fdc.driveA= \
+  -drive file="output/$IMG",index=0,media=disk,format=raw \
+  -cdrom $OUTISO -boot order=d \
+  -net nic -net user,hostfwd=tcp::5222-:22,hostfwd=tcp::5280-:80 \
+  -vga qxl -vnc :0 -spice port=5901,disable-ticketing \
+  -usbdevice tablet
+# -global isa-fdc.driveA= is used to disable floppy drive(gets rid of a warning message)
