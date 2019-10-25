@@ -71,6 +71,12 @@
     - name: copy version info
       copy: content="{{git_revision.stdout}}" dest=/icpc/version
 
+    - name: zero out the disk so it's more optimal
+      shell: |
+        dd if=/dev/zero of=/empty bs=1M || true
+        rm -f /empty
+        sync
+
   handlers:
     - name: update timezone
       command: dpkg-reconfigure --frontend noninteractive tzdata

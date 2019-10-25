@@ -73,6 +73,7 @@ set -x
 ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/makeDist.sh"
 ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -p$SSHPORT sudo shutdown --poweroff --no-wall +1
 
-
+# Dig holes in the file to make it sparse
+fallocate -d $IMGFILE
 echo "Image file created: $IMGFILE($(du -h $IMGFILE | cut -f1))"
 exit 0

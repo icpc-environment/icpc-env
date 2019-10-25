@@ -48,3 +48,8 @@ ufw --force enable
 
 # Delete /etc/machine-id so the image generates a new one on boot
 echo "" > /etc/machine-id
+
+# Free up space(just to make the image smaller)
+dd if=/dev/zero of=/empty bs=1M || true
+rm -f /empty
+sync
