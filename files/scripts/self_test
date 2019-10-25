@@ -92,7 +92,7 @@ wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://google.com 2>/dev/
 check_return $?
 
 print_check "Testing access to ser.cs.fit.edu is successful with proxy"
-wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- --no-check-certificate http://ser.cs.fit.edu 2>/dev/null | grep "ACM ICPC" > /dev/null
+wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- --no-check-certificate http://ser.cs.fit.edu 2>/dev/null | grep "ICPC" > /dev/null
 check_return $?
 
 print_check "Testing direct internet access is disabled"
