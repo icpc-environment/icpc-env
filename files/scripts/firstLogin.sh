@@ -9,11 +9,10 @@ else
   # Set the wallpaper to the "template"
   xfconf-query -c xfce4-desktop -p /backdrop/screen0 -rR
   xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s $UTILDIR/wallpaper.png
-fi  
+fi
 
 # Reload xfdesktop to get the background image showing
 sleep 5
-killall xfdesktop
-xfdesktop &
+timeout 5 xfdesktop --reload
 sleep 5
-killall xfdesktop
+timeout 5 xfdesktop --reload
