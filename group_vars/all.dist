@@ -4,8 +4,8 @@ icpc_timezone: 'America/New_York'
 git_user_home:  'https://github.com/icpc-environment/contestant_home.git'
 git_admin_home: 'https://github.com/icpc-environment/admin_home.git'
 
-# Generated with crypt.crypt('icpcadmin', '$1$vzSeODBo4fg$')
-icpcadmin_pass: $1$vzSeODBo$bfTHMSAQpnl5AM.MdTaMY0
+# Plaintext password for icpc admin
+icpcadmin_pass: icpcadmin
 
 allowed_domains:
   - ser.cs.fit.edu
