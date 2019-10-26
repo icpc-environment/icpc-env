@@ -20,7 +20,7 @@
   copy: src=files/systemd-system.conf dest=/etc/systemd/system.conf
 
 - name: disable swap
-  command: swapoff -v /swapfile
+  shell: swapoff -v /swapfile || true
 
 - name: disable swapfile in fstab
   lineinfile: dest=/etc/fstab regexp="^/swapfile" state=absent
