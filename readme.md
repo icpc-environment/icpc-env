@@ -36,8 +36,8 @@ depending on connection speed and various other factors.
 
 1. Clone this repository:
 ```bash
-git clone http://github.com/icpc-env/icpc-environment.git icpcenv
-cd icpcenv
+git clone https://github.com/icpc-environment/icpc-env.git
+cd icpc-env
 ```
 
 2. Make sure dependencies are met
