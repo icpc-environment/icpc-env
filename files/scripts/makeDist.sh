@@ -8,6 +8,8 @@ rm -rf /etc/skel/.git
 rm -rf /home/icpcadmin/.git
 
 # Cleanup 'imageadmin' things
+killall -9 -u imageadmin
+sleep 5
 rm -rf /home/imageadmin
 userdel imageadmin
 
