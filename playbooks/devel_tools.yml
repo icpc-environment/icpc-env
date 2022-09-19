@@ -1,9 +1,4 @@
 ---
-  - name: apt key for atom
-    apt_key: url=https://packagecloud.io/AtomEditor/atom/gpgkey state=present
-  - name: apt repo for (github) atom
-    apt_repository: repo='deb [arch=amd64] https://packagecloud.io/AtomEditor/atom/any/ any main' update_cache=yes filename="atom"
-
   - name: apt key for vscode
     apt_key: url=https://packages.microsoft.com/keys/microsoft.asc state=present
   - name: apt repo for vscode
@@ -23,7 +18,6 @@
     apt:
       state: present
       pkg:
-        - atom           # Text editor from github
         - code           # Visual Studio code
         - vim-gnome      # graphical vim
         - emacs          # emacs(with x)

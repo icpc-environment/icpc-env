@@ -12,7 +12,6 @@ phymem=$(awk '/MemTotal/{print $2}' /proc/meminfo)
 if  [ "$phymem" -gt "5000000" ]; then
     $VMTOUCH /lib         # 229M
     $VMTOUCH /usr/lib     #   2G
-    $VMTOUCH /opt/atom    # 525M
     $VMTOUCH /opt/intellij-idea-community # 968M
 fi
 
