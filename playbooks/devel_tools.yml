@@ -33,7 +33,6 @@
         #- netbeans
         - geany
         - geany-plugins
-        - jq
         - intellij-idea-community     # IntelliJ IDEA community(~968mb installed in /opt/intellij-idea-community)
         # - pycharm-community         # PyCharm Community(523mb installed in /opt/pycharm-community)
         # - clion                     # Clion(1028mb installed in /opt/clion)

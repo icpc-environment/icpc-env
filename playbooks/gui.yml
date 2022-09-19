@@ -13,16 +13,6 @@
       - firefox
       - alacarte # menu editor
       - mupdf # lighweight pdf viewer
-      # performance tools
-      - htop
-      - dstat
-      - iotop
-      - sysstat
-      - dstat
-      # misc admin tools
-      - net-tools   # for ifconfig/old tools
-      - curl        # debugging connection things
-      - ncdu
 
 - name: Remove unneeded packages
   apt:

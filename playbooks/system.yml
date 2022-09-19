@@ -1,4 +1,19 @@
 ---
+- name: useful packages for admins
+  apt:
+    pkg:
+      # performance tools
+      - htop
+      - dstat
+      - iotop
+      - sysstat
+      - dstat
+      # misc admin tools
+      - net-tools   # for ifconfig/old tools
+      - curl        # debugging connection things
+      - ncdu
+      - jq
+
 - name: disable udev persistent net generator
   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
 
