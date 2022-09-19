@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #usage: pcpr North.java
 #usage: pcpr --output=files.ps *.java
@@ -36,7 +36,7 @@
 
 import sys
 import os
-import commands
+import subprocess
 
 
 sitefile = "/icpc/SITE"
@@ -45,18 +45,18 @@ user = os.environ["USER"]
 #host = os.environ["HOSTNAME"]
 
 if os.path.exists(sitefile):
-    site = commands.getoutput("cat " + teamfile)
+    site = subprocess.getoutput("cat " + teamfile)
 else:
     site = "[none]"
 
 if os.path.exists(teamfile):
-    team = commands.getoutput("cat " + teamfile)
+    team = subprocess.getoutput("cat " + teamfile)
 else:
     team = "[none]"
 
-netDevice = commands.getoutput("ip route show default | awk '/default/ {print $5}'")
-macAddress = commands.getoutput("cat /sys/class/net/" + netDevice + "/address")
-hostname = commands.getoutput("hostname")
+netDevice = subprocess.getoutput("ip route show default | awk '/default/ {print $5}'")
+macAddress = subprocess.getoutput("cat /sys/class/net/" + netDevice + "/address")
+hostname = subprocess.getoutput("hostname")
 
 # -MLetter  we assume US printers and generate letter size pages and not A4 pages
 options = "-MLetter -2 --landscape --pretty-print "
@@ -64,6 +64,7 @@ options = "-MLetter -2 --landscape --pretty-print "
 # The header is too wide, but footers are a pain
 header = "$n; page $% of $=; time=$C; user=$(USER); site=" + site + "; team=" + team + "; host=" + hostname + "; mac=" + macAddress
 header = "$n; page $% of $=; team=" + team + "; mac=" + macAddress
+header = "$n; page $% of $=; team=" + team
 
 # Though I encourage just one argument (the name of one file);
 # all command line arguments are tacked on at the end
