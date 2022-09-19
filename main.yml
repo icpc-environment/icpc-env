@@ -43,8 +43,21 @@
       apt:
         pkg: [ grub-efi, grub-efi-amd64-signed ]
         state: present
-    - name: install efi files
+    - name: run grub-install for efi
       command: grub-install --no-nvram --uefi-secure-boot --target=x86_64-efi /dev/sda
+
+    - name: delete some useless snaps
+      community.general.snap:
+        name: "{{ item }}"
+        state: absent
+      with_items: [lxd, core18]
+
+    # remove cloud init, because it's a security issue (a cd/other usb drive could give someone root)
+    - name: remove cloud-init
+      apt:
+        pkg: cloud-init
+        state: absent
+        purge: yes
 
     - import_tasks: 'playbooks/gui.yml'
 
@@ -63,19 +76,29 @@
     - import_tasks: 'playbooks/system.yml'
     - import_tasks: 'playbooks/reversetunnel.yml'
 
+    - name: autoremove/autoclean apt
+      block:
+        - apt: autoremove=yes
+        - apt: autoclean=yes
+        - shell: apt-get clean
+
+    - name: ensure systemd-timesyncd is running (to make sure ntp is working properly)
+      # This will/should fail if ntp is installed
+      service: name=systemd-timesyncd state=started
+
     # Copy some build information to the image
-    - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
+    - shell: 'echo "Built on $(date +"%Y-%m-%d %H:%M:%S")\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)\n"'
       become: false
       register: git_revision
       delegate_to: 127.0.0.1
     - name: copy version info
-      copy: content="{{git_revision.stdout}}" dest=/icpc/version
+      copy: content="{{git_revision.stdout}}\n" dest=/icpc/version
 
-    - name: zero out the disk so it's more optimal
-      shell: |
-        dd if=/dev/zero of=/empty bs=1M || true
-        rm -f /empty
-        sync
+    # - name: zero out the disk so it's more optimal (this is part of the makeDist script)
+    #   shell: |
+    #     dd if=/dev/zero of=/empty bs=1M || true
+    #     rm -f /empty
+    #     sync
 
   handlers:
     - name: update timezone
@@ -92,6 +115,9 @@
 
     - name: restart squid
       service: name=squid state=restarted
+
+    - name: restart ssh
+      service: name=ssh state=restarted
 
     - name: restart simple-httpd
       service: name=simple-httpd state=restarted
