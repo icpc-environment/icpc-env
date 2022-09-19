@@ -16,6 +16,15 @@ if [ -f /icpc/setup-complete ] && [ "$1" != "-f" ] && [ "$1" != "--force" ]; the
 fi
 WGET="wget -e use_proxy=no --timeout=5"
 
+trim() {
+    local var="$*"
+    # remove leading whitespace characters
+    var="${var#"${var%%[![:space:]]*}"}"
+    # remove trailing whitespace characters
+    var="${var%"${var##*[![:space:]]}"}"
+    printf '%s' "$var"
+}
+
 # Printers
 NUMPRINTERS=0
 function add_printer() {
@@ -26,6 +35,9 @@ function add_printer() {
     pcl)
       DRIVER="drv:///sample.drv/generpcl.ppd"
       ;;
+    everywhere)
+      DRIVER="everywhere"
+      ;;
     *) # Default to whatever they entered
       DRIVER="$2"
       ;;
@@ -35,7 +47,7 @@ function add_printer() {
   lpadmin -p Printer${NUMPRINTERS} -v $1 -E -m $DRIVER
   lpadmin -p Printer${NUMPRINTERS} -c ContestPrinter
   cupsenable Printer${NUMPRINTERS}
-  accept Printer${NUMPRINTERS}
+  cupsaccept Printer${NUMPRINTERS}
   let NUMPRINTERS++
 }
 
@@ -64,22 +76,40 @@ if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
   b64pass=$(echo -n "$DJPASS" | base64)
 
   cat > /etc/squid/autologin.conf <<EOF
+# only ask about domjudge autologin if there are autologin urls defined
+if grep -q 'acl autologin url_regex' /etc/squid/squid.conf ; then
+  whiptail --title "Configure Automatic Login" --yesno "Do you want to configure the DOMjudge login credentials for the team?\n\nChoosing no will clear any existing login credentials." 10 60
+  DJAUTOLOGIN=$?
+  if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
+    # Load existing values
+    DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
+    DJPASS=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Pass/{print $3}' | tr -d '"' | base64 -d)
+    DJTEAM="${DJTEAM:-$TEAMNAME}"  # Set default to team name if unset
+
+    DJTEAM=$(whiptail --title "DOMjudge Login" --inputbox "Please enter the team's DOMjudge login" 10 60 $TEAMNAME 3>&1 1>&2 2>&3)
+    DJPASS=$(whiptail --title "DOMjudge Password" --passwordbox "Please enter the team's DOMjudge password" 10 60 $DJPASS 3>&1 1>&2 2>&3)
+
+    #base64 encode the password to prevent any issues
+    b64pass=$(echo -n "$DJPASS" | base64)
+
+    cat > /etc/squid/autologin.conf <<EOF
 request_header_add X-DOMjudge-Autologin true autologin
 request_header_add X-DOMjudge-Login "$DJTEAM" autologin
 request_header_add X-DOMjudge-Pass "$b64pass" autologin
 EOF
-else
-  # clear out any existing credentials
-  echo "# Placeholder" > /etc/squid/autologin.conf
-fi
-echo "Reconfiguring squid, please wait a moment..."
-# make sure the contestant user can't read the credentials
-chmod 640 /etc/squid/autologin.conf
-chown root:root /etc/squid/autologin.conf
+  else
+    # clear out any existing credentials
+    echo "# Placeholder" > /etc/squid/autologin.conf
+  fi
+  echo "Reconfiguring squid, please wait a moment..."
+  # make sure the contestant user can't read the credentials
+  chmod 640 /etc/squid/autologin.conf
+  chown root:root /etc/squid/autologin.conf
 
-# restart squid to pick up on the changes(start then stop in case squid isn't running)
-service squid stop
-service squid start
+  # restart squid to pick up on the changes(start then stop in case squid isn't running)
+  service squid stop
+  service squid start
+fi
 
 whiptail --title "Configure Printers" --yesno "Do you want to configure any printers at this time?\n\nNo changes will be made to the printing system if you choose no." 10 60
 CONFIG_PRINTERS=$?
@@ -105,7 +135,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
     $WGET -O/tmp/sites.cfg http://configs.cloudcontest.org/sites >/tmp/downloaderror 2>&1
     mapfile -t </tmp/sites.cfg SITES
     if [ ${#SITES[@]} -gt 0 ]; then
-      SITE=$(whiptail --title "Select your contest site" --menu "Choose your school to load printer configurations from.\n\nPlease contact kj@ubergeek42.com to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
+      SITE=$(whiptail --title "Select your contest site" --menu "Choose the printer configurations you would like to load.\n\nPlease contact kj@ubergeek42.com to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
       # Try to download the site config file
       $WGET -O/tmp/printers.cfg http://configs.cloudcontest.org/${SITE}_printers.cfg >>/tmp/downloaderror 2>&1
       if [ $? -ne 0 ]; then
@@ -139,7 +169,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
       if [[ ! $printerIP =~ "://" ]]; then
         printerIP="socket://$printerIP"
       fi
-      PRINTDRV=$(whiptail --title "Select a driver" --radiolist "Please choose the driver you want to use with the printer:\n    $printerIP\n\nNote: Use space to select, enter to continue" 15 60 2 ps "Generic PostScript Printer" on pcl "Generic PCL Laser Printer" off 3>&1 1>&2 2>&3)
+      PRINTDRV=$(whiptail --title "Select a driver" --radiolist "Please choose the driver you want to use with the printer:\n    $printerIP\n\nNote: Use space to select, enter to continue" 15 60 3 ps "Generic PostScript Printer" on pcl "Generic PCL Laser Printer" off everywhere "Generic IPP Everywhere Printer" off 3>&1 1>&2 2>&3)
       add_printer $printerIP $PRINTDRV
   	fi
   done
@@ -150,7 +180,7 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
   if [ $? -eq 0 ]; then
   	lpadmin -d ContestPrinter
   	cupsenable ContestPrinter
-  	accept ContestPrinter
+  	cupsaccept ContestPrinter
 
     whiptail --title "Print Test Page?" --yesno "Would you like to send a test page to the printer?\n\n" 10 60 --defaultno
     if [ $? -eq 0 ]; then
