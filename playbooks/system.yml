@@ -42,3 +42,8 @@
 
 - name: remove the swapfile that may have been created
   file: path=/swapfile state=absent
+- name: disable avahi-daemon (and socket), because we don't need mDNS
+  service: name={{ item }} state=stopped enabled=no
+  with_items:
+    - avahi-daemon.socket
+    - avahi-daemon.service
