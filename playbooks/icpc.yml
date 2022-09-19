@@ -42,7 +42,7 @@
       - ufw
       - imagemagick
       - git
-      - ntp
+      # - ntp # we use systemd-timesyncd instead (and installing ntp will break that)
       - cups
       - cups-bsd
       - enscript
@@ -124,7 +124,7 @@
       icpcadmin ALL=NOPASSWD: ALL
       teamreset ALL=NOPASSWD: ALL
 
-- name: set up firstboot Configuration
+- name: set up firstboot configuration
   copy: src=files/firstboot.service dest=/etc/systemd/system/firstboot.service
 
 - name: enable firstboot service
