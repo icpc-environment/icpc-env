@@ -1,21 +1,41 @@
 ---
   - name: install eclipse(64bit)
-    unarchive: src=files/eclipse-java-2019-06-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
+    unarchive: src=files/eclipse-java-2021-12-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
 
   - name: eclipse shortcut
-    copy: src=files/eclipse/Eclipse.desktop dest=/usr/share/applications/Eclipse.desktop
+    copy:
+      dest: /usr/share/applications/Eclipse.desktop
+      content: |
+        [Desktop Entry]
+        Version=1.0
+        Type=Application
+        Name=Eclipse
+        Comment=Eclipse
+        Exec=/opt/eclipse/eclipse
+        Icon=/opt/eclipse/icon.xpm
+        Terminal=false
+        StartupNotify=false
+        Categories=Application;Development;X-Development;
 
-  # Eclipse plugins(for c/c++ and python)
-  - name: install cdt plugin
+  - name: get installed eclipse plugins
     shell: |
       /opt/eclipse/eclipse -nosplash \
           -application org.eclipse.equinox.p2.director \
-          -repository http://download.eclipse.org/tools/cdt/releases/9.8,http://download.eclipse.org/releases/2019-06/ \
+          -listInstalledRoots
+    register: eclipse_installed_pkgs
+  # Eclipse plugins(for c/c++ and python)
+  - name: install cdt plugin
+    when: '"org.eclipse.cdt.platform.feature.group" not in eclipse_installed_pkgs.stdout'
+    shell: |
+      /opt/eclipse/eclipse -nosplash \
+          -application org.eclipse.equinox.p2.director \
+          -repository http://download.eclipse.org/tools/cdt/releases/10.5,http://download.eclipse.org/releases/2021-12/ \
           -destination /opt/eclipse \
           -installIU org.eclipse.cdt.feature.group \
           -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
 
   - name: install pydev plugin
+    when: '"org.python.pydev.feature.feature.group" not in eclipse_installed_pkgs.stdout'
     shell: |
       /opt/eclipse/eclipse -nosplash \
           -application org.eclipse.equinox.p2.director \
@@ -24,11 +44,39 @@
           -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
 
   # This is somewhat large, ~750mb
+  # apparently these aren't a thing anymore?
   #- name: eclipse recommenders
   #  unarchive: src=files/eclipse/eclipse-recommenders-neon.zip dest=/opt creates=/opt/eclipse-recommenders
 
   # See this for how to set global eclipse configurations
   - name: configure eclipse
-    copy: src=files/eclipse/eclipse_plugincustomization.ini dest=/opt/eclipse/eclipse_plugincustomization.ini
+    copy:
+      dest: /opt/eclipse/eclipse_plugincustomization.ini
+      content: |
+        # README
+        # To find values for this file, just run eclipse, export preferences
+        # Then make changes to some preferences, export to second file
+        # Compare the differences, then chop off the instance/ at the beginning and put it here
+        # Following the examples above.
+
+        # Set up eclipse recommenders for java to use a local source
+        # code recommenders are dead now?
+        #org.eclipse.recommenders.models.rcp/repository.url.list=file\:///opt/eclipse-recommenders/
+
+        # don't show the splash screen
+        org.eclipse.ui/showIntro=false
+
+        # disable error reporting(It's usually a pop up on first run)
+        org.eclipse.epp.logging.aeri.ui/action=IGNORE
+        org.eclipse.epp.logging.aeri.ui/configured=true
+
+        # default to jdk 11 compliance level (otherwise it's 17 for eclipse 2021-12)
+        org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.source=11
+        org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.compliance=11
+        org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
+
+        # set the available jdks...(this from export/import...)
+        org.eclipse.jdt.launching/org.eclipse.jdt.launching.PREF_VM_XML=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?>\n<vmSettings defaultVM\="57,org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType13,1643424725527">\n    <vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType">\n        <vm id\="1643424421549" name\="jre" path\="/opt/eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.linux.x86_64_17.0.1.v20211116-1657/jre"/>\n        <vm id\="1643424725527" name\="java-1.11.0-openjdk-amd64" path\="/usr/lib/jvm/java-1.11.0-openjdk-amd64"/>\n        <vm id\="1643424725530" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/>\n        <vm id\="1643424725531" name\="default-java" path\="/usr/lib/jvm/default-java"/>\n    </vmType>\n    <vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType">\n        <vm id\="1643424421549" name\="jre" path\="/opt/eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.linux.x86_64_17.0.1.v20211116-1657/jre"/>\n        <vm id\="1643424725527" javadocURL\="https\://docs.oracle.com/en/java/javase/11/docs/api/" name\="java-1.11.0-openjdk-amd64" path\="/usr/lib/jvm/java-1.11.0-openjdk-amd64"/>\n        <vm id\="1643424725530" javadocURL\="https\://docs.oracle.com/en/java/javase/11/docs/api/" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/>\n        <vm id\="1643424725531" javadocURL\="https\://docs.oracle.com/en/java/javase/11/docs/api/" name\="default-java" path\="/usr/lib/jvm/default-java"/>\n    </vmType>\n</vmSettings>\n
+
   - name: fixup the eclipse.ini file to use our custom configuration
     lineinfile: dest=/opt/eclipse/eclipse.ini insertafter="-vmargs" line="-Declipse.pluginCustomization=/opt/eclipse/eclipse_plugincustomization.ini"
