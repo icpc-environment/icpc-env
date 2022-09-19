@@ -17,6 +17,9 @@
         StartupNotify=false
         Categories=Application;Development;X-Development;
 
+  # Check if plugin is installed by looking for the IU in:
+  # /opt/eclipse/eclipse -nosplash -application org.eclipse.equinox.p2.director -listInstalledRoots
+  # output is IU/version number. last line is a timestamp
   - name: get installed eclipse plugins
     shell: |
       /opt/eclipse/eclipse -nosplash \
