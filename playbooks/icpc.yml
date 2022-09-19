@@ -47,6 +47,9 @@
       - cups-bsd
       - enscript
 
+- name: stop/disable cups-browsed from autodiscovering printers
+  service: name=cups-browsed state=stopped enabled=no
+
 - name: copy local git repos to server
   synchronize:
     src: home_dirs/{{item}}/.git
