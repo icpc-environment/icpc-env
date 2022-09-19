@@ -43,11 +43,6 @@
           -destination /opt/eclipse \
           -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
 
-  # This is somewhat large, ~750mb
-  # apparently these aren't a thing anymore?
-  #- name: eclipse recommenders
-  #  unarchive: src=files/eclipse/eclipse-recommenders-neon.zip dest=/opt creates=/opt/eclipse-recommenders
-
   # See this for how to set global eclipse configurations
   - name: configure eclipse
     copy:
@@ -58,10 +53,6 @@
         # Then make changes to some preferences, export to second file
         # Compare the differences, then chop off the instance/ at the beginning and put it here
         # Following the examples above.
-
-        # Set up eclipse recommenders for java to use a local source
-        # code recommenders are dead now?
-        #org.eclipse.recommenders.models.rcp/repository.url.list=file\:///opt/eclipse-recommenders/
 
         # don't show the splash screen
         org.eclipse.ui/showIntro=false
