@@ -17,7 +17,8 @@ lpadmin -x ContestPrinter
 ufw --force enable
 
 rm -f /icpc/setup_complete
-rm -f /icpc/TEAM
+rm -f /icpc/TEAM*
+rm -f /icpc/SITE
 
 # reset squid autologin
 echo "# Placeholder" > /etc/squid/autologin.conf
