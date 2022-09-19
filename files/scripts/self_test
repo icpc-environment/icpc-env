@@ -7,7 +7,6 @@ BLUE=$(tput bold; tput setaf 4)
 ORANGE=$(tput setaf 3)
 RESET=$(tput sgr0)
 
-# check that cups is running
 function print_ok() {
   echo "${GREEN}Pass${RESET}"
 }
@@ -17,7 +16,14 @@ function print_fail() {
 function print_check() {
   printf "%-60s" "$1"
 }
+function language_supported() {
+  if grep -q "^$1\$" /icpc/supported_languages ; then
+    return 0
+  fi
+  return 1
+}
 function print_version() {
+  language_supported "$1" || return
   print_check "$1"
   shift
   VERSION=$($@ 2>&1| grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?([_-p][0-9]+)?' |awk '{print length, $0}'|sort -rn |cut -d " " -f2- | head -n1)
@@ -26,6 +32,7 @@ function print_version() {
   echo $VERSION
 }
 function print_first_version() {
+  language_supported "$1" || return
   print_check "$1"
   shift
   VERSION=$($@ 2>&1| grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?([_-p][0-9]+)?' | head -n1)
@@ -51,15 +58,25 @@ TEAMNAME="$(cat /icpc/TEAM 2>/dev/null)"
 NOTEAM="${RED}Not Set${RESET}"
 TEAMNAME="${TEAMNAME:-$NOTEAM}"
 echo $TEAMNAME
-print_check "DOMjudge Autologin Configured"
-cat /etc/squid/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
-if [ $? -eq 0 ]; then
-  echo "${GREEN}Yes${RESET}"
-  print_check "    Team Login"
-  DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
-  echo $DJTEAM
-else
-  echo "${ORANGE}No${RESET}"
+
+print_check "Site ID"
+SITENAME="$(cat /icpc/SITE 2>/dev/null)"
+NOSITE="${RED}Not Set${RESET}"
+SITENAME="${SITENAME:-$NOSITE}"
+echo $SITENAME
+
+# only check domjudge autologin if there are autologin urls defined
+if grep -q 'acl autologin url_regex' /etc/squid/squid.conf ; then
+  print_check "DOMjudge Autologin Configured"
+  cat /etc/squid/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
+  if [ $? -eq 0 ]; then
+    echo "${GREEN}Yes${RESET}"
+    print_check "    Team Login"
+    DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
+    echo $DJTEAM
+  else
+    echo "${ORANGE}No${RESET}"
+  fi
 fi
 
 echo
@@ -91,9 +108,22 @@ print_check "Testing access to google is blocked with a proxy error"
 wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://google.com 2>/dev/null | grep "<h1>Access Denied</h1>" > /dev/null
 check_return $?
 
-print_check "Testing access to ser.cs.fit.edu is successful with proxy"
-wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- --no-check-certificate http://ser.cs.fit.edu 2>/dev/null | grep "ICPC" > /dev/null
-check_return $?
+while IFS="" read -r url ; do
+  [ -z "$url" ] && continue
+  print_check "Testing access to $url is successful with proxy"
+  wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate $url 2>/dev/null | grep -i "html" > /dev/null
+  check_return $?
+  break # only check one url from the list
+done < /var/lib/squidguard/db/icpcsites-urllist
+
+while IFS="" read -r url ; do
+  [ -z "$url" ] && continue
+  print_check "Testing access to http://$url is successful with proxy"
+  wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate http://$url 2>/dev/null | grep -i "html" > /dev/null
+  check_return $?
+  break # only check one domain from the list
+done < /var/lib/squidguard/db/icpcsites-domainlist
+
 
 print_check "Testing direct internet access is disabled"
 su - contestant -c 'wget -T 5 -t 1 -e use_proxy=no -O- http://google.com >/dev/null 2>&1' 2>/dev/null
@@ -105,7 +135,7 @@ fi
 
 echo
 echo "${BLUE}Compiler Versions${RESET}"
-ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell)
+ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell 2>/dev/null)
 print_version       "ada"       "gnat --version"
 print_version       "c"         "gcc --version"
 print_version       "c++"       "g++ --version"
@@ -128,9 +158,10 @@ print_version       "nim"       "nim --version"
 print_version       "ocaml"     "ocaml -version"
 print_version       "pascal"    "fpc -version"
 print_version       "prolog"    "swipl --version"
-print_version       "python 2"  "python --version"
+print_version       "python2"   "python --version"
 print_version       "pypy"      "pypy --version"
-print_version       "python 3"  "python3 --version"
+print_version       "python3"   "python3 --version"
+print_first_version "pypy3"     "pypy3 --version"
 print_version       "ruby"      "ruby --version"
 print_version       "rust"      "rustc --version"
 print_version       "scala"     "scala -version"
