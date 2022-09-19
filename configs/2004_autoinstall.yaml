@@ -1,0 +1,86 @@
+#cloud-config
+
+# Set up ssh/sudo access to the installer environment(so debugging any issues during installation is possible)
+users:
+  - name: default
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9pjASmP4wQkhJ1VEbl0l1Vgn3lsOzctRS2m0wBVlaO ICPC ImageAdmin Key
+  - name: imageadmin
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9pjASmP4wQkhJ1VEbl0l1Vgn3lsOzctRS2m0wBVlaO ICPC ImageAdmin Key
+
+# Docs on autoinstall are found here: https://ubuntu.com/server/docs/install/autoinstall-reference
+# Additional useful resources:
+# https://utcc.utoronto.ca/~cks/space/blog/linux/Ubuntu2004ISOAutoinst - how to bundle autoinstall with the cdrom
+# https://utcc.utoronto.ca/~cks/space/blog/linux/Ubuntu2004AutoinstFormat - good example of autoinstall setup
+autoinstall:
+  version: 1
+  # Locale and keyboard layout
+  locale: en_US.UTF-8
+  keyboard:
+      layout: us
+      variant: ''
+      toggle: null
+  user-data:
+    timezone: America/New_York
+  network:
+      # network: # this extra level was required for ubuntu 20.04 GA (it was fixed in later point releases)
+    version: 2
+    ethernets:
+      # We disable persistent network interface naming on the kernel command line, so this is always eth0
+      eth0: {dhcp4: true}
+  storage:
+    # Disable swap
+    swap: {size: 0}
+    config:
+      # Docs on this section are found here: https://curtin.readthedocs.io/en/latest/topics/storage.html
+      # This makes 4 partitions
+      # 1 - bios_grub (space for grub stage2 to live)    1MiB
+      # 2 - EFI partition
+      # 3 - ICPC fat32 partition (to make files easy to load after the contest ends without booting the usb drive)
+      # 4 - linux root partition
+      - {type: disk, id: disk0, grub_device: true, ptable: gpt, wipe: superblock-recursive}
+      - {type: partition, device: disk0, number: 1, id: partition-bios, flag: bios_grub, size: 1M}
+      - {type: partition, device: disk0, number: 2, id: partition-efi, flag: boot, size: 128M}
+      - {type: partition, device: disk0, number: 3, id: partition-icpc, name: icpc, size: 192M}
+      - {type: partition, device: disk0, number: 4, id: partition-root, flag: linux, size: -1}
+      - {type: format, volume: partition-efi, id: format-efi, fstype: fat32, label: EFI}
+      - {type: format, volume: partition-icpc, id: format-icpc, fstype: fat32, label: ICPC}
+      - {type: format, volume: partition-root, id: format-root, fstype: ext4, extra_options: ['-m', '0']}
+      - {type: mount, device: format-efi, id: mount-efi, path: /boot/efi}
+      - {type: mount, device: format-root, id: mount-root, path: /, options: 'noatime,nodiratime,errors=remount-ro'}
+  identity:
+      hostname: icpc
+      username: imageadmin
+      # This crypted password corresponds to 'imageadmin'
+      password: $6$D1vml7SluH/Pfw43$upy5UKqf6iZtLGXRXcAUAqCDMpFMWiZcve9tj16/5l1eD8j5YWoVYCmLvxl6eXrRmSKSngIiH5.NJBNMx.SZg0
+
+  # Set up ssh with a public key we'll use to bootstrap the rest of the system
+  ssh:
+      install-server: yes
+      authorized-keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9pjASmP4wQkhJ1VEbl0l1Vgn3lsOzctRS2m0wBVlaO ICPC ImageAdmin Key
+      allow-pw: yes
+
+  packages: []
+  late-commands:
+      # This fixes a weird issue with qemu not wanting to boot the system unless you
+      # hold down shift, and manually pick the os to boot.
+      # Disable graphical grub console
+      # - sed -i -e 's/#\(GRUB_TERMINAL.*\)/\1/' /target/etc/default/grub
+
+      # Enable passwordless sudo
+      - echo '%sudo ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/icpc
+      # TODO: what was the value of GRUB_CMDLINE_LINUX before this line nukes it?
+      - cp /target/etc/default/grub /target/etc/default/grub.orig
+      - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0"/' /target/etc/default/grub
+      # Do these matter(or did they get nuked above?)
+      - sed -ie 's/quiet splash//' /target/etc/default/grub
+
+      - curtin in-target update-grub2
+      # The original version of subiquity had a bug where specifying --target /target was required
+      # - curtin in-target --target /target update-grub2
+
+      # Poweroff because otherwise it'll reboot
+      - poweroff
