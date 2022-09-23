@@ -1,24 +1,52 @@
 ---
-- name: install xfce
+- name: install the packages necessary to make xfce run
   apt:
     state: present
     pkg:
       - xserver-xorg
-      - xfce4
       - lightdm
       - lightdm-gtk-greeter   # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space autocomplete in eclipse)
-      - xfce4-power-manager
+# suggests:
+# colord cups-common gvfs liblcms2-utils librsvg2-bin lm-sensors bindfs
+# desktop-base xfonts-100dpi | xfonts-75dpi xfonts-scalable xinput
+# firmware-amd-graphics xserver-xorg-video-r128 xserver-xorg-video-mach64
+# firmware-misc-nonfree
+
+
+- name: install xfce and friends(without their recommended packages)
+  apt:
+    state: present
+    install_recommends: false
+    pkg:
+      # Turns it into something resembling xubuntu(themes/etc)
       - xubuntu-default-settings
+      - xfce4
+      # recommends for xfce4
+      - desktop-base
+      - tango-icon-theme
+      - thunar-volman
+      # power management/terminal
+      - xfce4-power-manager
       - xfce4-terminal
-      - firefox
-      - alacarte # menu editor
-      - mupdf # lighweight pdf viewer
+
+
+
+- name: install gui apps
+  apt:
+    state: present
+    pkg:
+      - firefox   # Web browser
+      - alacarte  # Menu editor
+      - mupdf     # Lighweight pdf viewer
+      - mate-calc # GUI calculator
 
 - name: Remove unneeded packages
   apt:
     state: absent
     purge: yes
     pkg:
+      - gdm3
+      - gnome-shell
       - byobu
       - xscreensaver
       - xscreensaver-data
@@ -31,3 +59,9 @@
 
 - name: configure xorg/x11
   copy: src=files/xorg.conf dest=/etc/X11/xorg.conf
+
+# delete some template stuff (it creates OpenDocument Text.odt, OpenDocument Sheets.ods and something else in the home directory)
+- name: delete the xdg template creator autostart
+  file:
+    state: absent
+    path: /etc/xdg/xdg-ubuntu-autostart/xdg-xubuntu-templates.desktop
