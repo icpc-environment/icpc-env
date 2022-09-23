@@ -7,8 +7,6 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: install nfs so we can use it as a package cache
-      apt: pkg=nfs-common state=present
 
     - name: copy pam_environment to make sure the proxy is disabled for icpcadmin(and root)
       copy: src=files/pam_environment dest={{ item }}/.pam_environment
@@ -19,8 +17,6 @@
     - name: copy updated pam sudo config so it reads .pam_environment
       copy: src=files/pam_sudo dest=/etc/pam.d/sudo
 
-    - name: mount nfs share from host(saves us downloading files from apt all the time)
-      command: warn=False mount -t nfs 10.0.2.2:/srv/icpc_cache /var/cache/apt
 
     - name: disable fsync for dpkg
       copy: dest=/etc/dpkg/dpkg.cfg.d/02-dpkg-no-sync content="force-unsafe-io"
