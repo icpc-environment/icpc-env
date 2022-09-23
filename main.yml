@@ -66,7 +66,6 @@
     - import_tasks: 'playbooks/devel_tools.yml'
 
     - import_tasks: 'playbooks/icpc.yml'
-    - import_tasks: 'playbooks/lang_docs.yml'
     - import_tasks: 'playbooks/vmtouch.yml'
 
     - import_tasks: 'playbooks/firewall.yml'
