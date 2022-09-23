@@ -24,8 +24,8 @@ sleep 5
 $UTILDIR/scripts/deleteUser.sh
 
 # reset the TEAM and SITE
-echo "" > $UTILDIR/TEAM
-echo "fit" > $UTILDIR/SITE
+echo "default team" > $UTILDIR/TEAM
+echo "default site" > $UTILDIR/SITE
 
 # Remove the team wallpaper
 rm -f $UTILDIR/teamWallpaper.png
