@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Language Documentation</title></head>
+<body>
+
+{% for k,v in lang_docs.items() %}
+<h2>{{ k }}</h2>
+<a href="{{ v['id'] }}/{{v['index']}}">{{v['name']}}</a>
+{% endfor %}
+
+</body>
+</html>

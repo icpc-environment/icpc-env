@@ -1,0 +1,21 @@
+---
+- name: Haskell
+  apt:
+    state: present
+    pkg:
+      - ghc
+      - ghc-doc         # 146 mb
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Haskell']"
+            value:
+              name: Haskell Documentation
+              id: haskell
+              path: /usr/share/doc/ghc-doc
+              index: index.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

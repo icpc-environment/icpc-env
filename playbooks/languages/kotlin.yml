@@ -1,0 +1,21 @@
+---
+- name: install unzip so we can extract kotlin
+  apt:
+    pkg: unzip
+    state: present
+- name: install kotlin
+  unarchive: src=files/kotlin-compiler-1.4.0.zip dest=/opt creates=/opt/kotlinc
+- name: create symlinks for kotlin
+  file:
+    src: /opt/kotlinc/bin/{{ binary_name }}
+    dest: /usr/local/bin/{{ binary_name }}
+    state: link
+  loop_control:
+    loop_var: binary_name
+  with_items:
+    - kapt
+    - kotlin
+    - kotlinc
+    - kotlinc-js
+    - kotlinc-jvm
+    - kotlin-dce-js

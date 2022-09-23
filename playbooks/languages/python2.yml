@@ -1,0 +1,22 @@
+---
+- name: Python 2
+  apt:
+    state: present
+    pkg:
+      - python
+      - pypy
+      - python2-doc    # 50 mb
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Python 2']"
+            value:
+              name: Python 2 Documentation
+              id: py2
+              path: /usr/share/doc/python2-doc/html
+              index: index.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

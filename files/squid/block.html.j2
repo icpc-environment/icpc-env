@@ -77,13 +77,9 @@
           <hr>
           <h3>Local Documentation</h3>
           <table style="width:100%">
-            <tr><td>C++</td><td><a href="http://localhost/stl-doc/">STL Manual</a></td></tr>
-            <tr><td>Java</td><td><a href="http://localhost/java-doc/">Java API Documentation</a></td></tr>
-            <tr><td>Scala</td><td><a href="http://localhost/scala-doc/">Scala Standard Library Documentation</a></td></tr>
-            <tr><td>Python</td><td><a href="http://localhost/py2-doc/">Python 2 Documentation</a><br>
-            <a href="http://localhost/py3-doc/">Python 3 Documentation</a></td></tr>
-            <tr><td>Pascal</td><td><a href="http://localhost/fpc-doc/fpctoc.html">FPC Documentation</a></td></tr>
-            <tr><td>Haskell</td><td><a href="http://localhost/haskell-doc/">Haskell Documentation</a></td></tr>
+          {% for k,v in lang_docs.items() %}
+            <tr><td>{{ k }}</td><td><a href="http://localhost/{{ v['id'] }}/{{v['index']}}">{{v['name']}}</a></td></tr>
+          {% endfor %}
           </table>
           <p>A complete list of reference material available on your machine can be found here:<br><a href="http://localhost/">Local Language Reference</a></p>
 

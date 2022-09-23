@@ -1,0 +1,6 @@
+---
+- name: Erlang (~115mb)
+  apt:
+    state: present
+    pkg:
+      - erlang

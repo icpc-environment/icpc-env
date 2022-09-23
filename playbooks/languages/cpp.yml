@@ -1,0 +1,21 @@
+---
+- name: cpp
+  apt:
+    state: present
+    pkg:
+      - g++
+      - stl-manual      # 2.5mb
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['C++']"
+            value:
+              name: STL Manual
+              id: stl_docs
+              path: /usr/share/doc/stl-manual/html
+              index: index.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

@@ -1,0 +1,21 @@
+---
+- name: scala
+  apt:
+    state: present
+    pkg:
+      - scala
+      - scala-doc       # 413mb somehow
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Scala']"
+            value:
+              name: Scala Documentation
+              id: scala
+              path: /usr/share/doc/scala-2.11/api/library
+              index: index.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

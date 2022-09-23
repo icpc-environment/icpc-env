@@ -1,0 +1,6 @@
+---
+- name: ruby
+  apt:
+    state: present
+    pkg:
+      - ruby

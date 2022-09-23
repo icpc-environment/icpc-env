@@ -1,0 +1,6 @@
+---
+- name: SWI Prolog (~35mb)
+  apt:
+    state: present
+    pkg:
+      - swi-prolog

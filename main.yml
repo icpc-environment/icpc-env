@@ -61,11 +61,9 @@
 
     - import_tasks: 'playbooks/gui.yml'
 
-    - import_tasks: 'playbooks/devel_tools.yml'
-    - import_tasks: 'playbooks/compilers.yml'
-    - import_tasks: 'playbooks/eclipse.yml'
-
     - import_tasks: 'playbooks/localweb.yml'
+    - import_tasks: 'playbooks/compilers.yml'
+    - import_tasks: 'playbooks/devel_tools.yml'
 
     - import_tasks: 'playbooks/icpc.yml'
     - import_tasks: 'playbooks/lang_docs.yml'

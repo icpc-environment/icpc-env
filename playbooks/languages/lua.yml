@@ -1,0 +1,6 @@
+---
+- name: lua
+  apt:
+    state: present
+    pkg:
+      - lua5.3

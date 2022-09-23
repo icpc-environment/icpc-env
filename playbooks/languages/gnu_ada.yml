@@ -1,0 +1,6 @@
+---
+- name: GNU Ada
+  apt:
+    state: present
+    pkg:
+      - gnat

@@ -1,0 +1,36 @@
+# IntelliJ repository
+- name: apt key for IntelliJ IDEA
+  apt_key: url=https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc state=present
+- name: apt repo for IntelliJ IDEA
+  apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com bionic main' update_cache=yes
+
+# IntelliJ IDEA community(~968mb installed in /opt/intellij-idea-community)
+- name: install IntelliJ IDEs
+  when: "'intellij-idea' in devtools"
+  apt:
+    state: present
+    pkg:
+    - intellij-idea-community
+
+# PyCharm Community(523mb installed in /opt/pycharm-community)
+- name: install PyCharm
+  when: "'intellij-pycharm' in devtools"
+  apt:
+    state: present
+    pkg:
+    - pycharm-community
+
+# Clion(1028mb installed in /opt/clion)
+- name: install clion
+  when: "'intellij-clion' in devtools"
+  block:
+    - name: install clion
+      apt:
+        state: present
+        pkg:
+        - clion
+    # TODO: figure out how to configure the license for clion
+    - name: hide clion shortcut (we don't have a working license key for it)
+      shell: mv /usr/share/applications/clion.desktop /usr/share/applications/clion.desktop.disabled
+      args:
+        creates: /usr/share/applications/clion.desktop.disabled

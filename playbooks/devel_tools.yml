@@ -4,35 +4,72 @@
   - name: apt repo for vscode
     apt_repository: repo="deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" update_cache=yes filename="vscode"
 
-  - name: apt key for IntelliJ IDEA
-    apt_key: url=https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc state=present
-  - name: apt repo for IntelliJ IDEA
-    apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com bionic main' update_cache=yes
-
-  - name: key for monodevelop apt repo
-    apt_key: keyserver=keyserver.ubuntu.com id=3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-  - name: apt repo for monodevelop
-    apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
-
-  - name: install tools
+  - name: install generic/common development tools
     apt:
       state: present
       pkg:
         - code           # Visual Studio code
-        - vim-gnome      # graphical vim
+        - vim-gtk3       # graphical vim
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
-        # Monodevelop and friends: 140mb
-        - monodevelop
-        #- monodevelop-debugger-gdb
         - gdb
-        # codeblocks: 92mb
+
+  - name: install codeblocks
+    when: "'codeblocks' in devtools"
+    apt:
+      state: present
+      pkg:
         - codeblocks
         - codeblocks-contrib
-        # netbeans --noinstall-recommends: 175mb(440mb otherwise)
-        #- netbeans
+
+  - name: install netbeans
+    when: "'netbeans' in devtools"
+    # netbeans --noinstall-recommends: 175mb(440mb otherwise)
+    apt:
+      state: present
+      pkg:
+        - netbeans
+
+  - name: install geany
+    when: "'geany' in devtools"
+    apt:
+      state: present
+      pkg:
         - geany
         - geany-plugins
-        - intellij-idea-community     # IntelliJ IDEA community(~968mb installed in /opt/intellij-idea-community)
-        # - pycharm-community         # PyCharm Community(523mb installed in /opt/pycharm-community)
-        # - clion                     # Clion(1028mb installed in /opt/clion)
+
+  - include_tasks: 'devel_tools/eclipse.yml'
+    when: "'eclipse' in devtools"
+
+  - include_tasks: 'devel_tools/intellij.yml'
+    when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
+
+  - name: install monodevelop
+    when: "('monodevelop' in devtools)"
+    block:
+    - name: key for monodevelop apt repo
+      apt_key: keyserver=keyserver.ubuntu.com id=3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+    - name: apt repo for monodevelop
+      apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
+    - name: install monodevelop
+      apt:
+        state: present
+        pkg:
+          # Monodevelop and friends: 140mb
+          - monodevelop
+          #- monodevelop-debugger-gdb
+
+  # - name: clone spacemacs
+  #   git: dest=/opt/spacemacs/emacs.d repo=https://github.com/syl20bnr/spacemacs
+  # - name: create some instructions for spacemacs
+  #   copy:
+  #     dest: /opt/spacemacs/readme.md
+  #     content: |
+  #       You can find spacemacs downloaded from github in /opt/spacemacs/emacs.d
+  #       To use it, you probably want to do something like this:
+  #       ```
+  #       cp -a /opt/spacemacs/emacs.d ~/.emacs.d
+  #       ```
+  # This seems not to really work, since on startup of spacemacs it wants to update/download a bunch of packages...
+  # It's possible to mirror the pacakges and stuff(see https://github.com/d12frosted/elpa-mirror), but it's around 1.1GiB
+  # Probably best to implement some kind of trusted mirror site and allow teams access to that(also for docs)

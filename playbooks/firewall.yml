@@ -68,4 +68,4 @@
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
 
 - name: copy block page for squid to use
-  copy: src=files/squid/block.html dest=/opt/localwww/block.html
+  template: src=files/squid/block.html.j2 dest=/opt/localwww/block.html

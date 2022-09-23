@@ -1,0 +1,7 @@
+---
+- name: c#
+  apt:
+    state: present
+    pkg:
+      - mono-complete
+      - monodoc-browser # 80mb

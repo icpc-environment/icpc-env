@@ -1,105 +1,27 @@
 ---
-  - name: install our compilers and tools
+  - name: install build-essential, because it has lots of common useful packages
     apt:
+      pkg: build-essential
       state: present
-      pkg:
-        - build-essential           # c/c++
-        - ghc                       # haskell
-        - fpc                       # pascal
-        - python                    # python 2.7
-        - python3                   # python 3
-        - pypy                      # pypy python compiler
-        - gnat                      # gnu ada
-        - gfortran                  # fortran
-        - mono-complete             # c#
-        - fsharp                    # fsharp
-        - lua5.3                    # lua
-        - openjdk-11-jdk            # jdk11
-        - gccgo                     # go reference compiler
-        - golang                    # go using gcc
-        - ruby                      # ruby
-        - nodejs                    # javascript
-        - gdc                       # D
-        - scala                     # Scala
-        - rustc                     # Rust
-        - ocaml-nox                 # OCaml (~220mb)
-        - erlang                    # Erlang (~115mb)
-        - groovy                    # Groovy (~45mb)
-        - nim                       # Nim (~12mb)
-        - clojure                   # Clojure (~5mb)
-        - swi-prolog                # SWI Prolog (~35mb)
-        - gobjc                     # Objective-C (~25mb)
-        # R project for statistical computing (~88mb)
-        # - r-base
-        # - r-base-dev
 
-# TODO more languages
-# typescript(npm install; so it lives on top of nodejs)
-# scratch(~50mb)
-# crystal?
-# php
-# swift
-# octave?
-# elixir(an erlang runtime language)
+  - name: create a lang docs fact
+    set_fact:
+      lang_docs: {}
 
-  # Lua package is broken, see
-  # https://bugs.launchpad.net/ubuntu/+source/lua5.3/+bug/1707212
-  # https://askubuntu.com/questions/850317/installing-lua5-2-vs-lua5-3-on-ubuntu-16-10
-  - name: symlink lua5.3 properly(the package is broken)
+  - name: include various languages
+    include_tasks: "languages/{{ item }}.yml"
+    loop: "{{ languages }}"
+
+  - name: dump the lang_docs fact
+    debug:
+      var: lang_docs
+
+  - name: create symlinks to docs
     file:
       state: link
-      src: /usr/bin/{{item}}5.3
-      dest: /usr/bin/{{item}}
-    with_items: [lua, luac]
+      src: "{{item.value.path}}"
+      dest: /opt/localwww/{{item.value.id}}
+    loop: "{{ lang_docs | dict2items }}"
 
-  - name: install dart repo key
-    apt_key:
-      url: https://dl-ssl.google.com/linux/linux_signing_key.pub
-      id: 7FAC5991
-  - name: install dart repo
-    apt_repository:
-      repo: "deb [arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main"
-      state: present
-      filename: 'google-dart'
-  - name: install dart
-    apt: pkg=dart state=present
-
-
-  - name: install kotlin
-    unarchive: src=files/kotlin-compiler-1.3.50.zip dest=/opt creates=/opt/kotlinc
-  - name: create symlinks for kotlin
-    file:
-      src: /opt/kotlinc/bin/{{item}}
-      dest: /usr/local/bin/{{item}}
-      state: link
-    with_items:
-      - kapt
-      - kotlin
-      - kotlinc
-      - kotlinc-js
-      - kotlinc-jvm
-      - kotlin-dce-js
-
-#  - name: check for scala
-#    stat: path=/usr/bin/scala
-#    register: has_scala
-
-#  - name: get scala deb file
-#    #copy: src=files/scala.deb dest=/tmp/scala.deb
-#    get_url: url=http://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb dest=/tmp/scala.deb
-#    when: not has_scala.stat.exists and scala_deb_url is undefined
-
-#  - name: get scala deb file
-#    get_url: url={{scala_deb_url}} dest=/tmp/scala.deb
-#    when: not has_scala.stat.exists and scala_deb_url is defined
-
-#  - name: install scala
-#    apt: deb=/tmp/scala.deb
-#    when: not has_scala.stat.exists
-
-#  - name: remove some bits of the scala docs we probably don't need
-#    file: path={{item}} state=absent
-#    with_items:
-#      - /usr/share/doc/scala/api/scala-compiler
-#      - /usr/share/doc/scala/api/scala-reflect
-#      - /tmp/scala.deb
+  - name: create simple index page for links to docs
+    template: src=files/language-docs.html.j2 dest=/opt/localwww/index.html

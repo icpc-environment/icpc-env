@@ -1,0 +1,22 @@
+---
+- name: Python 3
+  apt:
+    state: present
+    pkg:
+      - python3
+      - pypy3
+      - python3-doc     # 37.2 mb
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Python 3']"
+            value:
+              name: Python 3 Documentation
+              id: py3
+              path: /usr/share/doc/python3-doc/html
+              index: index.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

@@ -1,0 +1,6 @@
+---
+- name: javascript
+  apt:
+    state: present
+    pkg:
+      - nodejs

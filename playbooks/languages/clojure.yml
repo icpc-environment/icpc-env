@@ -1,0 +1,6 @@
+---
+- name: Clojure
+  apt:
+    state: present
+    pkg:
+      - clojure

@@ -1,0 +1,7 @@
+---
+- name: R project for statistical computing (~88mb)
+  apt:
+    state: present
+    pkg:
+      - r-base
+      - r-base-dev

@@ -1,0 +1,6 @@
+---
+- name: Fortran
+  apt:
+    state: present
+    pkg:
+      - gfortran

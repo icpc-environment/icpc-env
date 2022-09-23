@@ -1,0 +1,6 @@
+---
+- name: Groovy (~45mb)
+  apt:
+    state: present
+    pkg:
+      - groovy

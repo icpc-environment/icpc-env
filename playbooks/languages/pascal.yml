@@ -1,0 +1,21 @@
+---
+- name: Pascal
+  apt:
+    state: present
+    pkg:
+      - fpc
+      - fp-docs         # 32mb
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Pascal']"
+            value:
+              name: FPC Documentation
+              id: pascal
+              path: /usr/share/doc/fp-docs/3.0.4
+              index: fpctoc.html
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"
