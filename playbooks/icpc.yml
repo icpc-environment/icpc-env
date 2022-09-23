@@ -58,6 +58,7 @@
 
 - name: copy local git repos to server
   synchronize:
+    use_ssh_args: yes
     src: home_dirs/{{item}}/.git
     dest: /tmp/{{item}}.git
   with_items:
@@ -96,8 +97,41 @@
   group: name='icpcadmin' state='present'
 - name: create icpcadmin user
   user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
-- name: set up authorized keys for icpcadmin
-  authorized_key: user='icpcadmin' key="{{ lookup('file', 'configs/ssh_key.pub') }}"
+
+- name: copy ssh ca
+  copy:
+    src: files/secrets/server_ca.pub
+    dest: /etc/ssh/ca.pub
+    mode: 0644
+
+- name: configure ssh ca to be enabled for allowing users to log in
+  copy:
+    content:
+      TrustedUserCAKeys /etc/ssh/ca.pub
+    dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
+    mode: 0644
+
+- name: configure ssh ca to be trusted for host verification
+  shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
+
+- name: Install a set of host keys that are signed by the ssh CA
+  copy:
+    src: files/secrets/contestant.icpcnet.internal_{{ item }}
+    dest: /etc/ssh/ssh_{{ item }}
+  with_items:
+    - host_ed25519_key
+    - host_ed25519_key.pub
+    - host_ed25519_key-cert.pub
+
+- name: sshd host certificate
+  copy:
+    content: |
+      HostKey /etc/ssh/ssh_host_ed25519_key
+      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
+    mode: 0644
+  notify: restart ssh
+
 
 - name: create gitconfig for icpcadmin(to make updating the home directory easier)
   copy:
