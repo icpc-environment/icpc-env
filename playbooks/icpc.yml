@@ -5,6 +5,12 @@
 - name: copy icpc scripts
   copy: src=files/scripts dest=/icpc mode=0755
 
+- name: add a supported_languages file
+  copy:
+    dest: /icpc/supported_languages
+    content: |
+      {% for l in languages %}{{ l }}{% endfor %}
+
 - name: create printfile symlink(to match world finals image)
   file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
 

@@ -24,7 +24,7 @@ function language_supported() {
 }
 function print_version() {
   language_supported "$1" || return
-  print_check "$1"
+  print_check "${3:-$1}"
   shift
   VERSION=$($@ 2>&1| grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?([_-p][0-9]+)?' |awk '{print length, $0}'|sort -rn |cut -d " " -f2- | head -n1)
   UNKNOWN="${RED}Unknown${RESET}"
@@ -33,7 +33,7 @@ function print_version() {
 }
 function print_first_version() {
   language_supported "$1" || return
-  print_check "$1"
+  print_check "${3:-$1}"
   shift
   VERSION=$($@ 2>&1| grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?([_-p][0-9]+)?' | head -n1)
   UNKNOWN="${RED}Unknown${RESET}"
@@ -138,7 +138,7 @@ echo "${BLUE}Compiler Versions${RESET}"
 ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell 2>/dev/null)
 print_version       "ada"       "gnat --version"
 print_version       "c"         "gcc --version"
-print_version       "c++"       "g++ --version"
+print_version       "cpp"       "g++ --version" "c++"
 print_version       "c#"        "mono --version"
 print_version       "clojure"   "clojure -e (clojure-version)"
 print_version       "dart"      "dart --version"
@@ -161,7 +161,7 @@ print_version       "prolog"    "swipl --version"
 print_version       "python2"   "python --version"
 print_version       "pypy"      "pypy --version"
 print_version       "python3"   "python3 --version"
-print_first_version "pypy3"     "pypy3 --version"
+print_first_version "python3"   "pypy3 --version" "pypy3"
 print_version       "ruby"      "ruby --version"
 print_version       "rust"      "rustc --version"
 print_version       "scala"     "scala -version"
