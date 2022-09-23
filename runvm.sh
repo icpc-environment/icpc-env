@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SSHPORT=2222
-SSHKEY="$PWD/configs/ssh_key"
+SSHKEY="$PWD/configs/imageadmin-ssh_key"
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
@@ -16,7 +16,7 @@ function ctrl_c() {
 
 
 function runssh() {
-  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
+  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
 }
 
 function cleanup() {
@@ -62,7 +62,7 @@ function runansible() {
   echo "Started at $(date)"
   INVENTORY_FILE=$(mktemp)
   echo "vm ansible_port=$SSHPORT ansible_host=127.0.0.1" > $INVENTORY_FILE
-  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY main.yml
+  ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" main.yml
   rm -f $INVENTORY_FILE
   echo "Ansible finished at $(date)"
 
@@ -75,32 +75,41 @@ function runansible() {
 }
 function launchssh() {
   echo "Launching ssh session"
-  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT
+  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT
 }
 
 function saveuserhome() {
   echo "pulling contestant home directory changes from inside vm"
   pushd home_dirs/contestant
-  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote --exit-code virtualmachine
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes " git ls-remote --exit-code virtualmachine
   if [[ $? != 0 ]]; then
     git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/contestant
   fi
-  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git fetch virtualmachine
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes " git fetch virtualmachine
+
+  echo "run: 'cd home_dirs/contestant && git merge virtualmachine/master' to pull these changes in"
   popd
 }
 
 function saveadminhome() {
   echo "pulling admin home directory changes from inside vm"
   pushd home_dirs/admin
-  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git ls-remote --exit-code virtualmachine
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes " git ls-remote --exit-code virtualmachine
   if [[ $? != 0 ]]; then
     git remote add virtualmachine ssh://imageadmin@localhost:$SSHPORT/home/icpcadmin
   fi
-  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git fetch virtualmachine
+  GIT_SSH_COMMAND="ssh -i $SSHKEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes " git fetch virtualmachine
+
+  echo "run: 'cd home_dirs/contestant && git merge virtualmachine/master' to pull these changes in"
   popd
 }
 
-qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+function setresolution() {
+  echo "Setting resolution to 1440x900(temporarily)"
+  runssh sudo -u contestant env DISPLAY=:0 xrandr --size 1440x900
+}
+
+qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 ALIVE=0
 waitforssh
 
@@ -111,6 +120,7 @@ while [ $CMD != 0 ]; do
   echo "    2. Run ansible"
   echo "    3. Save contestant home directory"
   echo "    4. Save admin home directory"
+  echo "    5. Set resolution(1440x900)"
   echo "    0. Halt VM"
   read -p "Action(Default 1): " CMD
   CMD=${CMD:-1}
@@ -120,6 +130,7 @@ while [ $CMD != 0 ]; do
     2) runansible ;;
     3) saveuserhome ;;
     4) saveadminhome ;;
+    5) setresolution ;;
     *) launchssh ;;
   esac
 done

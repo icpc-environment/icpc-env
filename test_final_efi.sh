@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SSHPORT=2222
-SSHKEY="configs/ssh_key"
+SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
@@ -10,7 +10,7 @@ BASEIMG="*_image-amd64.img"
 
 function launchssh() {
   echo "Launching ssh session"
-  ssh -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -p$SSHPORT
+  ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -i $SSH_ICPCADMIN_KEY -p$SSHPORT
 }
 function cleanup() {
   echo "Forcing shutdown(poweroff)"
@@ -19,7 +19,7 @@ function cleanup() {
 }
 
 set -x
-qemu-system-x86_64 -machine q35 -smp 1 -m 1024 --enable-kvm \
+qemu-system-x86_64 -machine q35 -smp 2 -m 4096 --enable-kvm \
   -hda output/$BASEIMG \
   -global driver=cfi.pflash01,property=secure,value=on \
   -drive if=pflash,format=raw,unit=0,file=efi/OVMF_CODE.fd,readonly=on \
