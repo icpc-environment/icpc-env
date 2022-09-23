@@ -1,0 +1,11 @@
+[Unit]
+Description=Wireguard Setup
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/wg_setup
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

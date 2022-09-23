@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+# Try to start wireguard if we have a config for it
+if [ -f /etc/wireguard/contest.conf ]; then
+  wg-quick up contest || true
+fi
+
+# Nothing to do if the VPN is already up/contestmanager.icpcnet.internal is reachable
+if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
+  exit 0
+fi
+
+echo "contestmanager.icpcnet.internal not reachable, reconfiguring VPN"
+
+# Network is broken/not configured yet, bring it down so we can try to re-initialize it
+wg-quick down contest || true
+
+wg_config=$(/usr/bin/ssh \
+  -o "ServerAliveInterval 30" \
+  -o "ServerAliveCountMax 3" \
+  {{ wireguard_client_user }}@{{ wireguard_host }} \
+  -p {{ wireguard_port }} \
+  -i /root/.ssh/id_ed25519)
+
+if [ $? != 0 ]; then
+  exit 1 # failed, exit so it tries again
+fi
+
+echo "$wg_config" > /etc/wireguard/contest.conf
+wg-quick up contest

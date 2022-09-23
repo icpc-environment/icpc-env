@@ -1,0 +1,36 @@
+---
+- name: install wireguard-tools
+  apt: pkg=wireguard-tools state=present
+
+- name: set up private key
+  copy:
+    content: "{{ jumpbox_key }}"
+    mode: 0400
+    owner: root
+    group: root
+    dest: /root/.ssh/id_ed25519
+- name: set up private key certificate
+  copy:
+    content: "{{ jumpbox_key_cert }}"
+    mode: 0400
+    owner: root
+    group: root
+    dest: /root/.ssh/id_ed25519-cert.pub
+
+- name: copy the wg_setup script
+  template:
+    src: files/wg_setup.j2
+    dest: /usr/local/bin/wg_setup
+    mode: 0755
+
+- name: create wireguard service to initialize vpn details (fetch credentials and whatnot)
+  template: src=files/wg-setup.service.j2 dest=/etc/systemd/system/wg-setup.service
+
+- name: enable wg-setup service
+  service: enabled=yes name=wg-setup
+
+- name: add some aliases for the vpn server to our /etc/hosts file
+  lineinfile:
+    dest: /etc/hosts
+    line: '{{ contestmanager_ip }} contestmanager.icpcnet.internal contestmanager'
+    state: present
