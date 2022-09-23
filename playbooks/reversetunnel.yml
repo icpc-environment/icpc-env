@@ -32,3 +32,14 @@
 
 - name: make sure ssh is enabled
   service: enabled=yes name=ssh
+
+- name: hide jumpy from login screen
+  block:
+    - name: ensure directory exists
+      file: path=/var/lib/AccountsService/users state=directory
+    - name: create file configuring it as a system account
+      copy:
+        dest: /var/lib/AccountsService/users/jumpy
+        content: |
+          [User]
+          SystemAccount=true
