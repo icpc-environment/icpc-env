@@ -133,6 +133,12 @@ else
   print_ok
 fi
 
+if [ -f /usr/local/bin/wg_setup ]; then
+  print_check "Checking if the management VPN is alive"
+  ping -c1 contestmanager.icpcnet.internal >/dev/null 2>&1
+  check_return $?
+fi
+
 echo
 echo "${BLUE}Compiler Versions${RESET}"
 ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell 2>/dev/null)
