@@ -13,6 +13,7 @@ function usage() {
   echo "Usage: create_baseimage.sh [-s size]"
   echo ""
   echo "-s|--size n   Size of the resulting image(default 14700M)"
+  echo "--no-usb      Don't create a fat32 partition for easy usb mounting"
   exit 1
 }
 
