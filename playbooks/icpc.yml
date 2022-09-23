@@ -9,7 +9,9 @@
   copy:
     dest: /icpc/supported_languages
     content: |
-      {% for l in languages %}{{ l }}{% endfor %}
+      {%- for l in languages %}
+      {{ l }}
+      {%- endfor %}
 
 - name: create printfile symlink(to match world finals image)
   file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
@@ -176,6 +178,7 @@
 - name: check for ICPC partition
   shell: blkid -L "ICPC"
   register: icpc_partition
+  ignore_errors: true
 
 - name: if there is an icpc partition
   when: icpc_partition.rc == 0
