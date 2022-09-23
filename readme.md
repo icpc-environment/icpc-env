@@ -1,6 +1,6 @@
 # SER ICPC Contest Image Tools
 
-This repository contains the tools necessary to build the ACM ICPC Southeast Regional contestant image. The contestant image is a linux installation optimized for booting off a flash drive that is used by all the teams in our region.
+This repository contains the tools necessary to build the ICPC Southeast Regional contestant image. The contestant image is a linux installation optimized for booting off a flash drive that is used by all the teams in our region.
 
 ## Key Features
 This image has been tuned and tweaked over the years, but it currently supports the following:
@@ -20,9 +20,9 @@ This image has been tuned and tweaked over the years, but it currently supports 
 
 ## Usage Requirements
 * 64bit hardware
-* USB boot capable
+* USB boot capable(BIOS + UEFI supported)
 * 1gb of ram(2+ recommended)
-* 16gb flash drive(USB3.0 preferred)
+* 32gb flash drive(USB3.0 strongly recommended)
 
 ## Build Requirements
 * Linux host system
@@ -46,42 +46,23 @@ cd icpcenv
     ```bash
     sudo apt-get install qemu-system-x86 genisoimage bsdtar ansible
     ```
-  * Generate an ssh keypair(without a password) that will be used during building the image
-
+  * Download the 64 bit version of Ubuntu 20.04 Server:
     ```bash
-    ssh-keygen -f configs/ssh_key -t rsa -C "ICPC Environment Key" -N ""
+    wget https://releases.ubuntu.com/20.04/ubuntu-20.04.5-live-server-amd64.iso
     ```
-
-    Then edit the file config/1804_ks.cfg and insert the public key portion in the appropriate location
-
-  * Download the 64 bit version of Ubuntu 14.04 Server:
-
+  * Download the 64 bit version of eclipse into the `files/` directory:
     ```bash
-    wget http://releases.ubuntu.com/14.04/ubuntu-14.04.3-server-amd64.iso # 64 bit
-    wget http://releases.ubuntu.com/14.04/ubuntu-14.04.3-server-i386.iso  # 32 bit
-    ```
-  * Download the 64 bit version of eclipse mars into the `files/` directory:  
-    http://www.eclipse.org/downloads/packages/release/mars/r
-
-    ```bash
-    wget -O files/eclipse64.tar.gz  http://url/to/64bit/version  # 64bit
+    cd files && wget https://ftp.osuosl.org/pub/eclipse/technology/epp/downloads/release/2022-09/R/eclipse-java-2022-09-R-linux-gtk-x86_64.tar.gz
     ```
 
 3. Run the `create_baseimg.sh` script to create an unattended installation disk for ubuntu,
 perform the installation, and leave the base image ready for processing. During this
-step you can specify how large you want the image to be(Default 7200M to fit on most
-8GB flash drives)
+step you can specify how large you want the image to be(Default 28500M to fit on most
+32G flash drives).
 ```bash
-./create_baseimg.sh # optionally add '-s 14200M'
+# This step takes around 3-5minutes depending on system/internet speed.
+./create_baseimg.sh # optionally add '-s 28500M'
 ```
-
-Set up an NFS Server(for quicker rebuilds).
-```bash
-sudo apt install nfs-kernel-server
-cat /srv/icpc_cache 127.0.0.1(rw,sync,no_subtree_check,no_root_squash,insecure) | sudo tee -a /etc/exports
-sudo exportfs -av
-```
-
 4. Build the actual contestant image. This step takes the base image, boots it up,
 runs ansible to configure everything, performs a few final cleanup steps, and finally
 powers it off. Take a walk, this step takes some time(10-30minutes)
@@ -89,10 +70,10 @@ powers it off. Take a walk, this step takes some time(10-30minutes)
 ./build-final.sh
 ```
 
-5. Take the newly minted image and copy it to a usb drive(as root)
+5. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
 ```
 # WARNING: Make sure to replace /dev/sdx with your actual device
-sudo dd if=output/2015-10-22_image-amd64.img of=/dev/sdx bs=1M
+sudo dd if=output/2020-09-01_image-amd64.img of=/dev/sdx bs=1M status=progress oflag=direct conv=sparse
 ```
 
 ## Customization of the Image
@@ -108,8 +89,8 @@ this file should contain. That's where you'll want to go to edit the contest
 admin password and configure what urls contestants are allowed to access.
 
 If you want to customize the partition layout, you'll need to edit the
-`configs/1404_install.seed` file. By default you'll get a 192MB Fat32 partition
-and the rest of the space will be dedicated to the image itself. 14200M works well
+`configs/2004_autoinnstall.yaml` file. By default you'll get a 192MB Fat32 partition
+and the rest of the space will be dedicated to the image itself. 14700M works well
 as a default size and fits easily on most 16G flash drives you'll encounter.
 
 ### Testing customizations
@@ -124,8 +105,3 @@ terminate the vm.
 Once you have ansible performing all the tasks you need, halt the vm, then
 continue with step 4 above. You should never use an image created by the
 `runvm.sh` script, always build images using `build-final.sh`
-
-## Tips for building
-Running your own local apt mirror will greatly speed up the process(at the
-expense of disk space)
-See `files/sources-local-mirror.list` for the default mirror setup.
