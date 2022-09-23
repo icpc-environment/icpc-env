@@ -1,4 +1,4 @@
-# SER ICPC Contest Image Tools
+# ICPC Contest Image Tools
 
 This repository contains the tools necessary to build the ICPC Southeast Regional contestant image. The contestant image is a linux installation optimized for booting off a flash drive that is used by all the teams in our region.
 
@@ -40,7 +40,7 @@ git clone http://github.com/icpc-env/icpc-environment.git icpcenv
 cd icpcenv
 ```
 
-2. Make sure dependencies are met
+1. Make sure dependencies are met
   * Install required packages
 
     ```bash
@@ -55,22 +55,27 @@ cd icpcenv
     cd files && wget https://ftp.osuosl.org/pub/eclipse/technology/epp/downloads/release/2022-09/R/eclipse-java-2022-09-R-linux-gtk-x86_64.tar.gz
     ```
 
-3. Run the `create_baseimg.sh` script to create an unattended installation disk for ubuntu,
+1. Run `secrets/gen-secrets.sh` to create some ssh keys/other secret data. Follow this with `./fetch-secrets.sh` to put them in the right place for ansible.
+
+1. Copy `group_vars/all.dist` to `group_vars/all` and edit it to your liking. Specifically
+set the icpcadmin password, and firewall expiration properly.
+
+1. Run the `create_baseimg.sh` script to create an unattended installation disk for ubuntu,
 perform the installation, and leave the base image ready for processing. During this
 step you can specify how large you want the image to be(Default 28500M to fit on most
 32G flash drives).
 ```bash
 # This step takes around 3-5minutes depending on system/internet speed.
-./create_baseimg.sh # optionally add '-s 28500M'
+./create_baseimg.sh # optionally add '-s 28500M', or --no-usb
 ```
-4. Build the actual contestant image. This step takes the base image, boots it up,
+1. Build the actual contestant image. This step takes the base image, boots it up,
 runs ansible to configure everything, performs a few final cleanup steps, and finally
 powers it off. Take a walk, this step takes some time(10-30minutes)
 ```bash
 ./build-final.sh
 ```
 
-5. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
+1. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
 ```
 # WARNING: Make sure to replace /dev/sdx with your actual device
 sudo dd if=output/2020-09-01_image-amd64.img of=/dev/sdx bs=1M status=progress oflag=direct conv=sparse
@@ -91,17 +96,19 @@ admin password and configure what urls contestants are allowed to access.
 If you want to customize the partition layout, you'll need to edit the
 `configs/2004_autoinnstall.yaml` file. By default you'll get a 192MB Fat32 partition
 and the rest of the space will be dedicated to the image itself. 14700M works well
-as a default size and fits easily on most 16G flash drives you'll encounter.
+as a default size and fits easily on most 16G flash drives you'll encounter. You can
+also run `create_baseimage.sh` with `--no-usb` to skip getting the 192MB Fat32 partition
+if you don't intend to use these on usb drives the contestants get to keep.
 
 ### Testing customizations
 There is a script available to help with development so you don't have to build
 the full image, wait for it to copy to a usb drive, and then boot.
 
-Follow steps 1,2,3 above, but instead of running the `build-final.sh` script,
-instead run `./runvm.sh`. This will start a VM off the base image, run ansible,
-and then give you the opportunity to re-run ansible, start an ssh session, or
-terminate the vm.
+Follow steps the above until you get to running the `build-final.sh` script;
+instead run `./runvm.sh` instead. This will start a VM off the base image, then
+give you a menu allowing you to run ansible, ssh in, and a few other utility
+functions.
 
 Once you have ansible performing all the tasks you need, halt the vm, then
-continue with step 4 above. You should never use an image created by the
-`runvm.sh` script, always build images using `build-final.sh`
+continue with the `build-final.sh` script. You should never use an image created
+by the `runvm.sh` script, always build images using `build-final.sh`
