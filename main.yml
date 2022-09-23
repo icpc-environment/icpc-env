@@ -65,8 +65,10 @@
     - import_tasks: 'playbooks/vmtouch.yml'
 
     - import_tasks: 'playbooks/firewall.yml'
-
     - import_tasks: 'playbooks/system.yml'
+
+    # Management related things
+    - import_tasks: 'playbooks/ansible-pull.yml'
     - import_tasks: 'playbooks/reversetunnel.yml'
     - import_tasks: 'playbooks/vpn.yml'
     - import_tasks: 'playbooks/monitoring.yml'

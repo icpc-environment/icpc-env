@@ -1,0 +1,20 @@
+---
+# install ansible, configure ansible-pull to run on boot
+- name: install ansible (for ansible-pull)
+  apt: pkg=ansible state=present
+
+- name: copy ansible-pull.service
+  template:
+    src: files/ansible-pull.service.j2
+    dest: /etc/systemd/system/ansible-pull.service
+
+- name: enable ansible-pull.service
+  service: name=ansible-pull.service enabled=yes
+
+- name: add ansible-pull.path (triggers on /icpc/trigger-ansible existing)
+  copy:
+    src: files/ansible-pull.path
+    dest: /etc/systemd/system/ansible-pull.path
+
+- name: enable ansible-pull.path (triggers on /icpc/trigger-ansible existing)
+  service: name=ansible-pull.path enabled=yes state=started

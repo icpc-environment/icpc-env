@@ -1,0 +1,7 @@
+# trigger ansible-pull service if the file /icpc/trigger-update is modified
+# ansible should delete the file when it runs successfully
+[Path]
+PathExists=/icpc/trigger-ansible
+
+[Install]
+WantedBy=multi-user.target

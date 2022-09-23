@@ -1,0 +1,19 @@
+[Unit]
+Description=Execute ansible-pull to do any last minute changes to the system
+After=network.target
+
+[Service]
+Restart=on-failure
+RestartSec=30
+Type=oneshot
+ExecStart=/usr/bin/ansible-pull \
+  --private-key /root/.ssh/id_ed25519 \
+  --directory /root/ansible-pull \
+  --sleep 30 \
+  --clean \
+  --diff \
+  --inventory icpc, \
+  --url ssh://git@{{ ansible_pull_host }}:{{ ansible_pull_port }}/{{ ansible_pull_path }}
+
+[Install]
+WantedBy=multi-user.target
