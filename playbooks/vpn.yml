@@ -4,14 +4,14 @@
 
 - name: set up private key
   copy:
-    content: "{{ jumpbox_key }}"
+    src: files/secrets/jumpy@icpc
     mode: 0400
     owner: root
     group: root
     dest: /root/.ssh/id_ed25519
 - name: set up private key certificate
   copy:
-    content: "{{ jumpbox_key_cert }}"
+    src: files/secrets/jumpy@icpc-cert.pub
     mode: 0400
     owner: root
     group: root

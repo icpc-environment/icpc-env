@@ -10,14 +10,14 @@
 
 - name: set up private key
   copy:
-    content: "{{ jumpbox_key }}"
+    src: files/secrets/jumpy@icpc
     mode: 0400
     owner: jumpy
     group: jumpy
     dest: /home/jumpy/.ssh/id_ed25519
 - name: set up private key certificate (so we can log in to remote things that know about our ssh CA)
   copy:
-    content: "{{ jumpbox_key_cert }}"
+    src: files/secrets/jumpy@icpc-cert.pub
     mode: 0400
     owner: jumpy
     group: jumpy
