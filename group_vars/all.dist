@@ -1,25 +1,94 @@
 ---
 icpc_timezone: 'America/New_York'
 
-git_user_home:  'https://github.com/icpc-environment/contestant_home.git'
-git_admin_home: 'https://github.com/icpc-environment/admin_home.git'
+git_user_home: 'https://github.com/icpc-environment/fuzzy-octo-dangerzone.git'
+git_admin_home: 'https://github.com/icpc-environment/tripping-computing-machine.git'
 
-# Plaintext password for icpc admin
 icpcadmin_pass: icpcadmin
 
+
 allowed_domains:
-  - ser.cs.fit.edu
-  - ser2015.cloudcontest.org
-  - docs.cloudcontest.org
+  # - seusa.vanb.org
+  - seusa21-d1.kattis.com
+  - seusa21-d2.kattis.com
+
+  # sigh...kattis has a bunch of external dependencies
+  - cdnjs.cloudflare.com
+  - cdn.jsdelivr.net
+  - ajax.googleapis.com
+  - fonts.gstatic.com
+  - licensebuttons.net
+
+  # - docs.cloudcontest.org
 
 allowed_urls: []
   # Maybe host language docs here instead? Makes for less on the image itself
 
 # urls we are configured to send autologin credentials to
-squid_autologin_urls:
-  - ^http://ser2015.cloudcontest.org/team/
-  - ^http://ser2015.cloudcontest.org/public/login.php$
+# TODO: allow https as well :/
+squid_autologin_urls: []
+  # - ^http://ser2019.cloudcontest.org/login
 
 # After this date the restrictions for allowed_domains will not apply
 # Must be period separated in the format "YYYY.MM.DD"
-squid_unblock_date: 2015.11.15
+squid_unblock_date: 2022.03.06
+
+# this is the wireguard server's wireguard interface ip address
+# i.e. the address we can use when we want to talk to the vpn server
+contestmanager_ip: fd00:a0a8:34d:2a00::1
+
+# could be contestmanager.icpcnet.internal and run over the wireguard vpn
+# not sure which is likely to be more reliable...
+ansible_pull_host: icpc.cloudcontest.org
+ansible_pull_port: 443
+ansible_pull_path: ~/ansible
+
+# The host details for wireguard. It needs an ssh host/user/port to
+# configure itself with wireguard credentials.
+wireguard_host: icpc.cloudcontest.org
+wireguard_client_user: wg_client
+wireguard_port: 443
+
+# Maybe more accurately named "ssh tunnel host"
+jumpbox_host: icpc.cloudcontest.org
+
+languages:
+  - c
+  - cpp
+  - java
+  - kotlin
+  - python3
+  # - clojure
+  # - c-sharp
+  # - dart
+  # - d
+  # - elixir
+  # - erlang
+  # - fortran
+  # - f-sharp
+  # - gnu_ada
+  # - go
+  # - groovy
+  # - haskell
+  # - js
+  # - lua
+  # - nim
+  # - obj-c
+  # - ocaml
+  # - pascal
+  # - prolog
+  # - python2
+  # - ruby
+  # - rust
+  # - r
+  # - scala
+
+devtools:
+  - intellij-idea
+  - intellij-clion
+  - intellij-pycharm
+  - eclipse
+  - geany
+  - netbeans
+  - codeblocks
+  # - monodevelop
