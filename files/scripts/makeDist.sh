@@ -51,6 +51,11 @@ ufw --force enable
 # Delete /etc/machine-id so the image generates a new one on boot
 echo "" > /etc/machine-id
 
+# make sure wireguard config is wiped so it can be generated for each system on boot
+systemctl stop wg-setup
+wg-quick down contest
+rm -f /etc/wireguard/contest.conf
+
 # Free up space(just to make the image smaller)
 dd if=/dev/zero of=/empty bs=1M || true
 rm -f /empty
