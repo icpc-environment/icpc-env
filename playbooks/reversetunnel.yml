@@ -15,14 +15,14 @@
     owner: jumpy
     group: jumpy
     dest: /home/jumpy/.ssh/id_ed25519
+- name: set up private key certificate (so we can log in to remote things that know about our ssh CA)
+  copy:
+    content: "{{ jumpbox_key_cert }}"
+    mode: 0400
+    owner: jumpy
+    group: jumpy
+    dest: /home/jumpy/.ssh/id_ed25519-cert.pub
 
-- name: set up authorized key for someone to log in to this team machine over the reverse tunnel
-  authorized_key:
-    user: "{{ item }}"
-    key: "{{ jumpbox_authorized_key }}"
-  with_items:
-    - root
-    - icpcadmin
 
 - name: create autossh service
   template: src=files/autossh.service.j2 dest=/etc/systemd/system/autossh.service
