@@ -1,0 +1,138 @@
+---
+- name: install node-exporter
+  apt: pkg=prometheus-node-exporter state=present
+
+- name: also make sure moreutils is installed (for sponge)
+  apt: pkg=moreutils state=present
+
+- name: drop a configuration file for node exporter to disable systemd metrics (it's noisy/slowish)
+  copy:
+    dest: /etc/default/prometheus-node-exporter
+    content: ARGS="--no-collector.systemd"
+#       --collector.disable-defaults
+#       --collector.arp
+#       --collector.bcache
+#       --collector.bonding
+# #     --collector.btrfs
+#       --collector.conntrack
+#       --collector.cpu
+#       --collector.cpufreq
+#       --collector.diskstats
+# #      --collector.dmi
+#       --collector.edac
+#       --collector.entropy
+# #      --collector.exec
+# #      --collector.fiberchannel
+#       --collector.filefd
+#       --collector.filesystem
+#       --collector.hwmon
+#       --collector.infiniband
+#       --collector.ipvs
+#       --collector.loadavg
+#       --collector.mdadm
+#       --collector.meminfo
+#       --collector.netclass
+#       --collector.netdev
+#       --collector.netstat
+#       --collector.nfs
+#       --collector.nfsd
+# #      --collector.nvme
+# #      --collector.os
+# #      --collector.powersupplyclass
+#       --collector.pressure
+# #      --collector.rapl
+# #      --collector.schedstat
+#       --collector.sockstat
+# #      --collector.softnet
+#       --collector.stat
+#       --collector.systemd
+# #      --collector.tapestats
+#       --collector.textfile
+#       --collector.textfile.directory /var/lib/prometheus/node-exporter
+# #      --collector.thermal
+# #      --collector.thermal_zone
+#       --collector.time
+#       --collector.timex
+# #      --collector.udp_queues
+#       --collector.uname
+#       --collector.vmstat
+#       --collector.xfs
+#       --collector.zfs
+
+- name: disable some timers that come with node-exporter that we don't want
+  service: name={{item}} enabled=no
+  with_items:
+    - prometheus-node-exporter-smartmon.timer
+    - prometheus-node-exporter-apt.timer
+    # These are configured, but inactive (conditional false)
+    - prometheus-node-exporter-ipmitool-sensor.timer    # inactive because no /usr/bin/ipmitool binary (and /sys/class/ipmi empty)
+    - prometheus-node-exporter-mellanox-hca-temp.timer  # inactive because no /usr/bin/mget_temp_ext binary (and /sys/class/infiniband missing)
+
+- name: override node-exporter to run nice'd/idle/low io+cpu priority
+  block:
+    - file:
+        path: /etc/systemd/system/prometheus-node-exporter.service.d
+        state: directory
+    - copy:
+        dest: /etc/systemd/system/prometheus-node-exporter.service.d/override.conf
+        content: |
+          [Service]
+          CPUSchedulingPolicy=other
+          Nice=19
+          IOSchedulingClass=idle
+
+- name: restart node-exporter
+  service: name=prometheus-node-exporter state=started enabled=yes
+
+- name: add firewall rule so the contestmanagement host can access prometheus
+  ufw:
+    rule: allow
+    direction: in
+    interface: contest
+    proto: tcp
+    src: "{{ contestmanager_ip }}"
+    port: 9100
+
+
+# add some custom "metrics" like roles/sites/etc
+- name: install our custom icpc-metrics script
+  copy:
+    src: files/icpc-metrics
+    dest: /usr/local/bin/icpc-metrics
+    mode: 0755
+- name: static metrics exporter
+  copy:
+    dest: /etc/systemd/system/icpc-static-node-exporter.service
+    content: |
+      [Unit]
+      Description=Update static node-exporter metrics with icpc things
+      After=network.target
+
+      [Service]
+      Restart=on-failure
+      RestartSec=30
+      Type=oneshot
+      ExecStart=/usr/local/bin/icpc-metrics
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: enable icpc-static-node-exporter.service
+  service: name=icpc-static-node-exporter.service enabled=yes
+
+- name: static metric trigger
+  copy:
+    dest: /etc/systemd/system/icpc-static-node-exporter.path
+    content: |
+      # trigger metrics update whenever TEAM/SITE/version/update-version change so we can update the values in prometheus
+      [Path]
+      PathModified=/icpc/TEAM
+      PathModified=/icpc/SITE
+      PathModified=/icpc/version
+      PathModified=/icpc/update-version
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: enable icpc-static-node-exporter.path
+  service: name=icpc-static-node-exporter.path enabled=yes

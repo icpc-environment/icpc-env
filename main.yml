@@ -73,6 +73,7 @@
 
     - import_tasks: 'playbooks/system.yml'
     - import_tasks: 'playbooks/reversetunnel.yml'
+    - import_tasks: 'playbooks/monitoring.yml'
 
     - name: autoremove/autoclean apt
       block:
