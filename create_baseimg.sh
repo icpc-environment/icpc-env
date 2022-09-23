@@ -19,6 +19,7 @@ function usage() {
 ISO=$ISO64
 OUTISO=$OUT64
 IMG=$IMG64
+USB_PARTITION=1
 
 while [[ $# -ge 1 ]]; do
   key="$1"
@@ -26,6 +27,9 @@ while [[ $# -ge 1 ]]; do
     -s|--size)
       IMGSIZE=$2
       shift
+      ;;
+    --no-usb)
+      USB_PARTITION=0
       ;;
     *)
       usage
@@ -67,6 +71,10 @@ function create_unattended_iso() {
   mkdir -p "$CONTENTSDIR/autoinst"
   cp "$USERDATA" "$CONTENTSDIR/autoinst/user-data"
   cp "$METADATA" "$CONTENTSDIR/autoinst/meta-data"
+  if [[ $USB_PARTITION == 0 ]]; then
+    # remove the ICPC partition from the user-data yaml if we aren't going to use it
+    sed -ie "/partition-icpc/d" "$CONTENTSDIR/autoinst/user-data"
+  fi
 
   cat <<EOF > "$CONTENTSDIR/isolinux/txt.cfg"
 default install

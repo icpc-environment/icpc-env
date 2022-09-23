@@ -1,8 +1,10 @@
 #!/bin/bash
-echo "Wiping FAT32 Partition"
 DISK=$(blkid -L "ICPC")
-umount $DISK
-mkfs.vfat $DISK -n ICPC
+if [[ $? == 0 ]]; then
+    echo "Wiping FAT32 Partition"
+    umount $DISK
+    mkfs.vfat $DISK -n ICPC
+fi
 
 # Deletes all files owned by the contestant user, then deletes and recreates the account.
 echo "Deleting team files"

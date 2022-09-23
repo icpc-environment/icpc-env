@@ -133,12 +133,19 @@
 - name: enable firstboot service
   service: name=firstboot enabled=yes
 
-- name: create mountpoint
-  file: path=/mnt/usbdrive state=directory
-- name: mount fat32 partition
-  mount: >
-    name=/mnt/usbdrive
-    src='LABEL=ICPC'
-    fstype=vfat
-    opts="defaults,uid=contestant,gid=contestant"
-    state=present
+- name: check for ICPC partition
+  shell: blkid -L "ICPC"
+  register: icpc_partition
+
+- name: if there is an icpc partition
+  when: icpc_partition.rc == 0
+  block:
+  - name: create mountpoint
+    file: path=/mnt/usbdrive state=directory
+  - name: mount fat32 partition
+    mount: >
+      name=/mnt/usbdrive
+      src='LABEL=ICPC'
+      fstype=vfat
+      opts="defaults,uid=contestant,gid=contestant"
+      state=present
