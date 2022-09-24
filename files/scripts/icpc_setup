@@ -55,27 +55,71 @@ function add_printer() {
 # http://stackoverflow.com/a/1970254/841300
 whiptail --title "ICPC First Time Setup" --msgbox "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root." 20 60
 
-TEAMNAME=$(cat /icpc/TEAM)
-TEAMNAME="${TEAMNAME:-team}"  # Set default to team
-TEAMNAME=$(whiptail --title "Team Name" --inputbox "Please enter the team's identifier(e.g. team503)\n\nThis will be shown on the team's background and at the top of each printed page" 10 60 $TEAMNAME 3>&1 1>&2 2>&3)
-echo $TEAMNAME > /icpc/TEAM
-convert /icpc/wallpaper.png -gravity center -pointsize 100 -stroke '#000C' -strokewidth 2 -annotate 0 $TEAMNAME -stroke none -fill white -annotate 0 $TEAMNAME /icpc/teamWallpaper.png
 
-whiptail --title "Configure Automatic Login" --yesno "Do you want to configure the DOMjudge login credentials for the team?\n\nChoosing no will clear any existing login credentials." 10 60
-DJAUTOLOGIN=$?
-if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
-  # Load existing values
-  DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
-  DJPASS=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Pass/{print $3}' | tr -d '"' | base64 -d)
-  DJTEAM="${DJTEAM:-$TEAMNAME}"  # Set default to team name if unset
 
-  DJTEAM=$(whiptail --title "DOMjudge Login" --inputbox "Please enter the team's DOMjudge login" 10 60 $TEAMNAME 3>&1 1>&2 2>&3)
-  DJPASS=$(whiptail --title "DOMjudge Password" --passwordbox "Please enter the team's DOMjudge password" 10 60 $DJPASS 3>&1 1>&2 2>&3)
+# Collect a site
+SITENAME=$(cat /icpc/SITE)
+SITENAME="${SITENAME:-other}"  # Set default site to "other"
 
-  #base64 encode the password to prevent any issues
-  b64pass=$(echo -n "$DJPASS" | base64)
+$WGET -O/tmp/sites.cfg http://configs.cloudcontest.org/sites >/tmp/downloaderror 2>&1
+mapfile -t </tmp/sites.cfg SITES
+if [ ${#SITES[@]} -gt 0 ]; then
+  SITENAME=$(whiptail --title "Select your contest site" --menu "Choose your contest site from the list." 18 60 8 "${SITES[@]}" 3>&1 1>&2 2>&3)
+  SITENAME=$(echo $SITENAME | tr ' [:upper:]' ' [:lower:]')
+  echo "$SITENAME" > /icpc/SITE
+else
+  whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of sites. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
+  less /tmp/downloaderror
+fi
+rm -f /tmp/downloaderror
 
-  cat > /etc/squid/autologin.conf <<EOF
+# fetch teams from the site, and do things with it...
+TEAMID=$(cat /icpc/TEAMID)
+TEAMNAME=$(cat /icpc/TEAMNAME)
+TEAMAFFILIATION=$(cat /icpc/TEAMAFFILIATION)
+
+$WGET -O/tmp/teams.csv http://configs.cloudcontest.org/teams/${SITENAME}_teams.csv >/tmp/downloaderror 2>&1
+if [[ $? == 0 ]]; then
+  declare -a team_names
+  declare -a team_university
+  declare -a team_menu
+  team_menu=("$TEAMID" "Keep existing team selection ($TEAMNAME - $TEAMAFFILIATION)")
+
+  while IFS="," read -r number name university division
+  do
+    # Skip emmpty rows
+    [ -z $number ] && continue
+    team_names["$number"]="$(trim $name) ($division)"
+    team_university["$number"]="$(trim $university)"
+    team_menu+=("$number" "$name $university ($division)")
+  done < /tmp/teams.csv
+
+  TEAMID=$(whiptail --title "Select Team" --menu "Choose the team that will be using this computer." 30 120 20 "${team_menu[@]}" 3>&1 1>&2 2>&3)
+  TEAMNAME=$(trim "${team_names["$TEAMID"]}")
+  TEAMAFFILIATION=$(trim "${team_university["$TEAMID"]}")
+else
+  whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of teams. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
+  less /tmp/downloaderror
+fi
+rm -f /tmp/downloaderror
+
+TEAMID="${TEAMID:-000}"               # Set default to 000
+TEAMNAME="${TEAMNAME:-default team}"  # set default team name
+TEAMAFFILIATION="${TEAMAFFILIATION:-default university}"  # set default team university
+
+echo "$TEAMID" > /icpc/TEAMID
+echo "$TEAMNAME" > /icpc/TEAMNAME
+echo "$TEAMAFFILIATION" > /icpc/TEAMAFFILIATION
+echo "team$(cat /icpc/TEAMID) - $(cat /icpc/TEAMNAME) ($(cat /icpc/TEAMAFFILIATION))" > /icpc/TEAM
+convert /icpc/wallpaper.png \
+  -gravity center -pointsize 50 \
+  -stroke '#000C' -strokewidth 2 -annotate 0 "$(cat /icpc/TEAMNAME)" \
+  -stroke none -fill white -annotate 0 "$(cat /icpc/TEAMNAME)" \
+  -pointsize 30 \
+  -stroke '#000C' -strokewidth 2 -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
+  -stroke none -fill white -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
+  /icpc/teamWallpaper.png
+
 # only ask about domjudge autologin if there are autologin urls defined
 if grep -q 'acl autologin url_regex' /etc/squid/squid.conf ; then
   whiptail --title "Configure Automatic Login" --yesno "Do you want to configure the DOMjudge login credentials for the team?\n\nChoosing no will clear any existing login credentials." 10 60
