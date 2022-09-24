@@ -2,7 +2,7 @@
 
 # make site/team information available
 # info on how to use role: https://www.robustperception.io/how-to-have-labels-for-machine-roles
-echo "icpc_workstation_info{site=\"$(cat /icpc/SITE)\", team=\"$(cat /icpc/TEAM)\"} 1" | sponge /var/lib/prometheus/node-exporter/icpc_workstation_info.prom
+echo "icpc_workstation_info{site=\"$(cat /icpc/SITE)\", team=\"$(cat /icpc/TEAMID)\", affiliation=\"$(cat /icpc/TEAMAFFILIATION)\", name=\"$(cat /icpc/TEAMNAME)\"} 1" | sponge /var/lib/prometheus/node-exporter/icpc_workstation_info.prom
 
 # information about when the image was built/last updated
 echo icpc_build_ts $(stat --printf=%Y /icpc/version) | sponge /var/lib/prometheus/node-exporter/icpc_build_ts.prom
