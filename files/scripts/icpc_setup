@@ -56,12 +56,14 @@ function add_printer() {
 whiptail --title "ICPC First Time Setup" --msgbox "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root." 20 60
 
 
+CONFIG_URL=$(cat /icpc/config_url_base)
+CONFIG_URL=${CONFIG_URL:-http://configs.cloudcontest.org}
 
 # Collect a site
 SITENAME=$(cat /icpc/SITE)
 SITENAME="${SITENAME:-other}"  # Set default site to "other"
 
-$WGET -O/tmp/sites.cfg http://configs.cloudcontest.org/sites >/tmp/downloaderror 2>&1
+$WGET -O/tmp/sites.cfg $CONFIG_URL/sites >/tmp/downloaderror 2>&1
 mapfile -t </tmp/sites.cfg SITES
 if [ ${#SITES[@]} -gt 0 ]; then
   SITENAME=$(whiptail --title "Select your contest site" --menu "Choose your contest site from the list." 18 60 8 "${SITES[@]}" 3>&1 1>&2 2>&3)
@@ -78,34 +80,34 @@ TEAMID=$(cat /icpc/TEAMID)
 TEAMNAME=$(cat /icpc/TEAMNAME)
 TEAMAFFILIATION=$(cat /icpc/TEAMAFFILIATION)
 
-$WGET -O/tmp/teams.csv http://configs.cloudcontest.org/teams/${SITENAME}_teams.csv >/tmp/downloaderror 2>&1
+TEAMID="${TEAMID:-000}"               # Set default to 000
+TEAMNAME="${TEAMNAME:-default team}"  # set default team name
+TEAMAFFILIATION="${TEAMAFFILIATION:-default university}"  # set default team university
+
+$WGET -O/tmp/teams.csv $CONFIG_URL/teams/${SITENAME}_teams.csv >/tmp/downloaderror 2>&1
 if [[ $? == 0 ]]; then
   declare -a team_names
-  declare -a team_university
+  declare -a team_affiliation
   declare -a team_menu
   team_menu=("$TEAMID" "Keep existing team selection ($TEAMNAME - $TEAMAFFILIATION)")
 
-  while IFS="," read -r number name university division
+  while IFS="," read -r number name affiliation extra
   do
-    # Skip emmpty rows
+    # Skip empty rows
     [ -z $number ] && continue
-    team_names["$number"]="$(trim $name) ($division)"
-    team_university["$number"]="$(trim $university)"
-    team_menu+=("$number" "$name $university ($division)")
+    team_names["$number"]="$(trim $name) ${extra:+"($extra)"}"
+    team_affiliation["$number"]="$(trim $affiliation)"
+    team_menu+=("$number" "$name $affiliation ${extra:+"($extra)"}")
   done < /tmp/teams.csv
 
   TEAMID=$(whiptail --title "Select Team" --menu "Choose the team that will be using this computer." 30 120 20 "${team_menu[@]}" 3>&1 1>&2 2>&3)
   TEAMNAME=$(trim "${team_names["$TEAMID"]}")
-  TEAMAFFILIATION=$(trim "${team_university["$TEAMID"]}")
+  TEAMAFFILIATION=$(trim "${team_affiliation["$TEAMID"]}")
 else
   whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of teams. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
   less /tmp/downloaderror
 fi
 rm -f /tmp/downloaderror
-
-TEAMID="${TEAMID:-000}"               # Set default to 000
-TEAMNAME="${TEAMNAME:-default team}"  # set default team name
-TEAMAFFILIATION="${TEAMAFFILIATION:-default university}"  # set default team university
 
 echo "$TEAMID" > /icpc/TEAMID
 echo "$TEAMNAME" > /icpc/TEAMNAME
@@ -176,12 +178,12 @@ if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
   # Load printers from config file if present(and they choose to)
   whiptail --title "Load printers from the web?" --yesno "Do you want to load printers from the web?" 10 60
   if [ $? -eq 0 ]; then
-    $WGET -O/tmp/sites.cfg http://configs.cloudcontest.org/sites >/tmp/downloaderror 2>&1
+    $WGET -O/tmp/sites.cfg $CONFIG_URL/sites >/tmp/downloaderror 2>&1
     mapfile -t </tmp/sites.cfg SITES
     if [ ${#SITES[@]} -gt 0 ]; then
       SITE=$(whiptail --title "Select your contest site" --menu "Choose the printer configurations you would like to load.\n\nPlease contact kj@ubergeek42.com to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
       # Try to download the site config file
-      $WGET -O/tmp/printers.cfg http://configs.cloudcontest.org/${SITE}_printers.cfg >>/tmp/downloaderror 2>&1
+      $WGET -O/tmp/printers.cfg $CONFIG_URL/${SITE}_printers.cfg >>/tmp/downloaderror 2>&1
       if [ $? -ne 0 ]; then
         whiptail --title "Failed to load config file" --msgbox "Failed to download configuration file. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
         less /tmp/downloaderror
