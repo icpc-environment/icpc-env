@@ -13,6 +13,11 @@
       {{ l }}
       {% endfor %}
 
+- name: write out the config url
+  copy:
+    dest: /icpc/config_url_base
+    content: "{{ config_url }}"
+
 - name: create printfile symlink(to match world finals image)
   file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
 
