@@ -39,7 +39,6 @@ depending on connection speed and various other factors.
 git clone http://github.com/icpc-env/icpc-environment.git icpcenv
 cd icpcenv
 ```
-
 1. Make sure dependencies are met
   * Install required packages
 
@@ -54,12 +53,13 @@ cd icpcenv
     ```bash
     cd files && wget https://ftp.osuosl.org/pub/eclipse/technology/epp/downloads/release/2022-09/R/eclipse-java-2022-09-R-linux-gtk-x86_64.tar.gz
     ```
-
+  * Download kotlin zip to the `files` directory
+    ```bash
+    cd files && wget https://github.com/JetBrains/kotlin/releases/download/v1.7.10/kotlin-compiler-1.7.10.zip
+    ```
 1. Run `secrets/gen-secrets.sh` to create some ssh keys/other secret data. Follow this with `./fetch-secrets.sh` to put them in the right place for ansible.
-
 1. Copy `group_vars/all.dist` to `group_vars/all` and edit it to your liking. Specifically
 set the icpcadmin password, and firewall expiration properly.
-
 1. Run the `create_baseimg.sh` script to create an unattended installation disk for ubuntu,
 perform the installation, and leave the base image ready for processing. During this
 step you can specify how large you want the image to be(Default 28500M to fit on most
@@ -74,7 +74,6 @@ powers it off. Take a walk, this step takes some time(10-30minutes)
 ```bash
 ./build-final.sh
 ```
-
 1. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
 ```
 # WARNING: Make sure to replace /dev/sdx with your actual device
