@@ -37,17 +37,33 @@ squid_unblock_date: 2022.03.06
 # i.e. the address we can use when we want to talk to the vpn server
 contestmanager_ip: fd00:a0a8:34d:2a00::1
 
+# This is the config server used by the icpc_setup script. It contains sites, teams, and printer configurations.
+# See the readme for more information on what files this server needs to return
+config_url: http://configs.cloudcontest.org
+
 # could be contestmanager.icpcnet.internal and run over the wireguard vpn
 # not sure which is likely to be more reliable...
 ansible_pull_host: icpc.cloudcontest.org
 ansible_pull_port: 443
 ansible_pull_path: ~/ansible
 
-# The host details for wireguard. It needs an ssh host/user/port to
-# configure itself with wireguard credentials.
+# The host details for the wireguard registration script. It connects over ssh to
+# this and expects the output of that ssh session to be a wireguard config file.
+# This is then loaded and wireguard started so the client connects to the VPN.
 wireguard_host: icpc.cloudcontest.org
 wireguard_client_user: wg_client
 wireguard_port: 443
+
+# Generate this using `wg genkey`, it is the server's wireguard private key
+wg_vpn_server_private_key: wEN5iYXA8M4JD3HIa17mhtDID3+/HQbLFGVN9USC9XE=
+# This is the external hostname that your management server resolves to
+wg_vpn_server_external_hostname: icpc.cloudcontest.org
+# This needs to match the externally visible ip address of your management server
+wg_vpn_server_external_ip: 0.1.2.3
+# the port wireguard will use (maybe change to 443 to help bypass firewalls)
+wg_vpn_server_wg_port: 51820
+wg_vpn_server_subnet: fd00:a0a8:34d:2a00::/64
+
 
 # Maybe more accurately named "ssh tunnel host"
 jumpbox_host: icpc.cloudcontest.org

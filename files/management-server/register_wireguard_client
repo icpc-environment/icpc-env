@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+import  os, re, secrets, subprocess, sys
+from subprocess import Popen, PIPE
+
+# random hostname/peer entry
+client_ip = os.environ.get('SSH_CLIENT').split()[0]
+hostname=f"{secrets.token_hex(16)}" # 128bit; if it's good enough for ipv6, it's good enough for me
+
+proc = subprocess.Popen([
+    '/usr/local/bin/dsnet', 'add',
+    '--confirm', hostname,
+    '--owner', client_ip,
+    '--description', f"{hostname} from {client_ip}"
+    ], stdout=PIPE, stderr=PIPE)
+try:
+    out, err = proc.communicate(timeout=10)
+except subprocess.TimeoutExpired:
+    proc.kill()
+    out, err = proc.communicate()
+
+if proc.returncode != 0:
+    raise SystemExit(f"dsnet add failed: {out.decode('utf8')}\n{err.decode('utf-8')}")
+
+print(err.decode('utf-8'), file=sys.stderr)
+print(out.decode('utf-8'), file=sys.stdout)

@@ -1,0 +1,180 @@
+---
+- name: Management Server
+  hosts: all
+  become: true
+  user: ubuntu
+  gather_facts: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: be sure apt cache is updated
+      apt: update_cache=yes upgrade=dist
+
+    - name: give the host a good name
+      hostname:
+        name: contestmanager.icpcnet.internal
+
+    - name: install misc tools
+      apt:
+        state: present
+        pkg:
+          - wireguard-tools
+          - vim
+          # performance tools
+          - htop
+          - dstat
+          - iotop
+          - iftop
+          - sysstat
+          - dstat
+          # misc admin tools
+          - curl
+          - ncdu
+          - jq
+          - git
+
+
+    - name: create a git user (using git-shell)
+      ansible.builtin.user:
+        name: git
+        shell: /usr/bin/git-shell
+
+    - name: Set authorized key for git repo
+      ansible.posix.authorized_key:
+        user: git
+        state: present
+        key: "{{ lookup('file', 'secrets/server_ca.pub') }}"
+        key_options: restrict,cert-authority
+
+    - name: copy private key
+      copy:
+        src: files/secrets/{{ item }}
+        dest: /home/ubuntu/.ssh/{{ item }}
+        mode: 0400
+        owner: ubuntu
+        group: ubuntu
+      with_items:
+        - icpcadmin@contestmanager
+        - icpcadmin@contestmanager-cert.pub
+        - icpcadmin@contestmanager.pub
+        # Used for git clone/editing
+        - jumpy@icpc
+        - jumpy@icpc.pub
+        - jumpy@icpc-cert.pub
+
+    - name: update ssh config to use private key by default
+      copy:
+        content: |
+          Match user git host contestmanager.icpcnet.internal
+            IdentityFile ~/.ssh/jumpy@icpc
+            User git
+          Host *.icpcnet.internal
+          Host *
+              IdentityFile ~/.ssh/icpcadmin@contestmanager
+              User icpcadmin
+        dest: /home/ubuntu/.ssh/config
+
+    - name: sshd config to listen on 443
+      copy:
+        content: |
+          Port 22
+          Port 443
+        dest: /etc/ssh/sshd_config.d/ssh_port_443.conf
+        mode: 0644
+      notify: restart ssh
+
+    - name: use different set of host keys
+      copy:
+        src: files/secrets/contestmanager.icpcnet.internal_{{ item }}
+        dest: /etc/ssh/ssh_{{ item }}
+      with_items:
+        - host_ed25519_key
+        - host_ed25519_key.pub
+        - host_ed25519_key-cert.pub
+
+    - name: sshd host certificate
+      copy:
+        content: |
+          HostKey /etc/ssh/ssh_host_ed25519_key
+          HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+        dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
+        mode: 0644
+      notify: restart ssh
+
+    - name: configure ssh ca.pub (so we can verify other hosts easily)
+      copy:
+        src: files/secrets/server_ca.pub
+        dest: /etc/ssh/ca.pub
+        mode: 0644
+    - name: configure ssh ca to be trusted for host verification
+      shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
+
+    - name: install dsnet
+      get_url:
+        url: https://github.com/naggie/dsnet/releases/latest/download/dsnet-linux-amd64
+        dest: /usr/local/bin/dsnet
+        mode: 0755
+
+    - name: give dsnet cap_net_admin (so regular users can interact with it)
+      community.general.capabilities:
+        path: /usr/local/bin/dsnet
+        capability: cap_net_admin+eip
+        state: present
+
+    - name: set up reverse ssh tunnel account (jumpy)
+      ansible.builtin.user:
+        name: jumpy
+        shell: /bin/bash
+
+    - name: Set authorized key for reverse ssh tunnel account (jumpy)
+      ansible.posix.authorized_key:
+        user: jumpy
+        state: present
+        key: "{{ lookup('file', 'secrets/server_ca.pub') }}"
+        key_options: command="echo 'This account can only be used for opening a reverse tunnel.'",no-agent-forwarding,no-X11-forwarding,cert-authority
+        exclusive: yes
+
+    - name: copy our wireguard registration script
+      copy:
+        src: files/management-server/register_wireguard_client
+        dest: /usr/local/bin/register_wireguard_client
+        mode: 0755
+
+    - name: set up ssh wireguard registration account
+      ansible.builtin.user:
+        name: wg_client
+        shell: /bin/bash
+    - name: Set authorized key for wireguard registration account (wg_client)
+      ansible.posix.authorized_key:
+        user: wg_client
+        state: present
+        key: "{{ lookup('file', 'secrets/server_ca.pub') }}"
+        key_options: command="/usr/local/bin/register_wireguard_client",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,cert-authority
+        exclusive: yes
+
+    - name: configure dsnet
+      template:
+        src: files/management-server/dsnetconfig.json.j2
+        dest: /etc/dsnetconfig.json
+        owner: root
+        group: wg_client
+        mode: 0660
+        force: no # don't overwrite the file if it exists
+
+    - name: set up dsnet service configuration
+      copy: src=files/management-server/dsnet.service dest=/etc/systemd/system/dsnet.service
+
+    - name: enable dsnet wireguard service
+      service: name=dsnet enabled=yes state=started
+
+    # Copy some build information to the image
+    - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
+      become: false
+      register: git_revision
+      delegate_to: 127.0.0.1
+    - name: copy version info
+      copy: content="{{git_revision.stdout}}" dest=/applied-version
+
+  handlers:
+    - name: restart ssh
+      service: name=ssh state=restarted

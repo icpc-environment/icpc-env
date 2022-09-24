@@ -1,0 +1,17 @@
+{
+    "ExternalHostname": "{{ wg_vpn_server_external_hostname }}",
+    "ExternalIP": "{{ wg_vpn_server_external_ip }}",
+    "ExternalIP6": "",
+    "ListenPort": {{ wg_vpn_server_wg_port }},
+    "Domain": "icpcnet.internal",
+    "InterfaceName": "contest",
+    "Network6": "{{ wg_vpn_server_subnet }}",
+    "IP6": "{{ contestmanager_ip }}",
+    "DNS": "",
+    "Networks": [],
+    "ReportFile": "/var/lib/dsnetreport.json",
+    "PrivateKey": "{{ wg_vpn_server_private_key }}",
+    "PostUp": "",
+    "PostDown": "",
+    "Peers": []
+}
