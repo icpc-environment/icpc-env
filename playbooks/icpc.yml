@@ -9,9 +9,9 @@
   copy:
     dest: /icpc/supported_languages
     content: |
-      {%- for l in languages %}
+      {% for l in languages %}
       {{ l }}
-      {%- endfor %}
+      {% endfor %}
 
 - name: create printfile symlink(to match world finals image)
   file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
@@ -72,10 +72,15 @@
 - name: setup user skeleton directory
   git: dest=/etc/skel repo=file:///tmp/contestant.git
 
-- name: setup admin skeleton directory
+
+- name: create icpcadmin group
+  group: name='icpcadmin' state='present'
+- name: create icpcadmin user
+  user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
+- name: setup icpcadmin home directory
   git: dest=/home/icpcadmin repo=file:///tmp/admin.git
-  notify:
-      - fix permissions
+  become: yes
+  become_user: icpcadmin
 
 - name: create contestant group
   group: name='contestant' state='present'
@@ -94,11 +99,6 @@
       [user]
       	email = contestant@icpcenv
       	name = icpcenv
-
-- name: create icpcadmin group
-  group: name='icpcadmin' state='present'
-- name: create icpcadmin user
-  user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
 
 - name: copy ssh ca
   copy:
@@ -179,6 +179,7 @@
   shell: blkid -L "ICPC"
   register: icpc_partition
   ignore_errors: true
+  failed_when: false
 
 - name: if there is an icpc partition
   when: icpc_partition.rc == 0

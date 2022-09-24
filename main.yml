@@ -104,9 +104,6 @@
     - name: clear user password
       command: passwd -d contestant
 
-    - name: fix permissions
-      file: owner=icpcadmin group=icpcadmin dest=/home/icpcadmin recurse=yes
-
     - name: update grub
       command: /usr/sbin/update-grub
 
