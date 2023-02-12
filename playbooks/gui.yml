@@ -77,3 +77,12 @@
   file:
     state: absent
     path: /etc/xdg/xdg-xubuntu/autostart/xdg-xubuntu-templates.desktop
+
+- name: delete some .desktop shortcuts (so they don't show up in the applications menu)
+  file:
+    state: absent
+    path: /usr/share/applications/{{ item }}
+  with_items:
+    - thunar-bulk-rename.desktop      # System->Bulk Rename
+    - xfce4-mail-reader.desktop       # Mail Reader
+    - thunar-volman-settings.desktop  # Removable devices and media
