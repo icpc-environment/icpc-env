@@ -1,251 +1,647 @@
-#!/bin/bash
+#!/usr/bin/env python3
+from whiptail import Whiptail
+from pathlib import Path
+import urllib.request
+import csv
+from subprocess import PIPE, Popen
+import re
+import time
+import sys
+import signal
+import os
+from urllib.parse import urlparse, quote
 
-# Ignore SIGHUP, sometimes systemd sends it to us shortly after
-# boot and that kills us.
-trap '' HUP
-
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root"
-   exit 1
-fi
-
-if [ -f /icpc/setup-complete ] && [ "$1" != "-f" ] && [ "$1" != "--force" ]; then
-  # nothing to do, setup is already done(but still let it run with -f or --force)
-  echo "Already configured. Run with -f or --force to reconfigure"
-  exit
-fi
-WGET="wget -e use_proxy=no --timeout=5"
-
-trim() {
-    local var="$*"
-    # remove leading whitespace characters
-    var="${var#"${var%%[![:space:]]*}"}"
-    # remove trailing whitespace characters
-    var="${var%"${var##*[![:space:]]}"}"
-    printf '%s' "$var"
-}
-
-# Printers
-NUMPRINTERS=0
-function add_printer() {
-  case $2 in
-    ps)
-      DRIVER="drv:///sample.drv/generic.ppd"
-      ;;
-    pcl)
-      DRIVER="drv:///sample.drv/generpcl.ppd"
-      ;;
-    everywhere)
-      DRIVER="everywhere"
-      ;;
-    *) # Default to whatever they entered
-      DRIVER="$2"
-      ;;
-  esac
-  #-o media=letter
-  #-o media=a4
-  lpadmin -p Printer${NUMPRINTERS} -v $1 -E -m $DRIVER
-  lpadmin -p Printer${NUMPRINTERS} -c ContestPrinter
-  cupsenable Printer${NUMPRINTERS}
-  cupsaccept Printer${NUMPRINTERS}
-  let NUMPRINTERS++
-}
-
-# whiptail redirection trick(3>&1 1>&2 2>&3) taken from:
-# http://stackoverflow.com/a/1970254/841300
-whiptail --title "ICPC First Time Setup" --msgbox "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root." 20 60
+# Trap SIGHUP because systemd sends it and we don't want it to interrupt us
+signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
 
-CONFIG_URL=$(cat /icpc/config_url_base)
-CONFIG_URL=${CONFIG_URL:-http://configs.cloudcontest.org}
 
-# Collect a site
-SITENAME=$(cat /icpc/SITE)
-SITENAME="${SITENAME:-other}"  # Set default site to "other"
+def make_safe_url(url: str) -> str:
+    """
+    Returns a parsed and quoted url
+    """
+    _url = urlparse(url)
+    url = _url.scheme + "://" + _url.netloc + quote(_url.path) + "?" + quote(_url.query)
+    return url
 
-$WGET -O/tmp/sites.cfg $CONFIG_URL/sites >/tmp/downloaderror 2>&1
-mapfile -t </tmp/sites.cfg SITES
-if [ ${#SITES[@]} -gt 0 ]; then
-  SITENAME=$(whiptail --title "Select your contest site" --menu "Choose your contest site from the list." 18 60 8 "${SITES[@]}" 3>&1 1>&2 2>&3)
-  SITENAME=$(echo $SITENAME | tr ' [:upper:]' ' [:lower:]')
-  echo "$SITENAME" > /icpc/SITE
-else
-  whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of sites. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
-  less /tmp/downloaderror
-fi
-rm -f /tmp/downloaderror
-
-# fetch teams from the site, and do things with it...
-TEAMID=$(cat /icpc/TEAMID)
-TEAMNAME=$(cat /icpc/TEAMNAME)
-TEAMAFFILIATION=$(cat /icpc/TEAMAFFILIATION)
-
-TEAMID="${TEAMID:-000}"               # Set default to 000
-TEAMNAME="${TEAMNAME:-default team}"  # set default team name
-TEAMAFFILIATION="${TEAMAFFILIATION:-default university}"  # set default team university
-
-$WGET -O/tmp/teams.csv $CONFIG_URL/teams/${SITENAME}_teams.csv >/tmp/downloaderror 2>&1
-if [[ $? == 0 ]]; then
-  declare -a team_names
-  declare -a team_affiliation
-  declare -a team_menu
-  team_menu=("$TEAMID" "Keep existing team selection ($TEAMNAME - $TEAMAFFILIATION)")
-
-  while IFS="," read -r number name affiliation extra
-  do
-    # Skip empty rows
-    [ -z $number ] && continue
-    team_names["$number"]="$(trim $name) ${extra:+"($extra)"}"
-    team_affiliation["$number"]="$(trim $affiliation)"
-    team_menu+=("$number" "$name $affiliation ${extra:+"($extra)"}")
-  done < /tmp/teams.csv
-
-  TEAMID=$(whiptail --title "Select Team" --menu "Choose the team that will be using this computer." 30 120 20 "${team_menu[@]}" 3>&1 1>&2 2>&3)
-  TEAMNAME=$(trim "${team_names["$TEAMID"]}")
-  TEAMAFFILIATION=$(trim "${team_affiliation["$TEAMID"]}")
-else
-  whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of teams. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
-  less /tmp/downloaderror
-fi
-rm -f /tmp/downloaderror
-
-echo "$TEAMID" > /icpc/TEAMID
-echo "$TEAMNAME" > /icpc/TEAMNAME
-echo "$TEAMAFFILIATION" > /icpc/TEAMAFFILIATION
-echo "team$(cat /icpc/TEAMID) - $(cat /icpc/TEAMNAME) ($(cat /icpc/TEAMAFFILIATION))" > /icpc/TEAM
-convert /icpc/wallpaper.png \
-  -gravity center -pointsize 50 \
-  -stroke '#000C' -strokewidth 2 -annotate 0 "$(cat /icpc/TEAMNAME)" \
-  -stroke none -fill white -annotate 0 "$(cat /icpc/TEAMNAME)" \
-  -pointsize 30 \
-  -stroke '#000C' -strokewidth 2 -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
-  -stroke none -fill white -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
-  /icpc/teamWallpaper.png
-
-# only ask about domjudge autologin if there are autologin urls defined
-if grep -q 'acl autologin url_regex' /etc/squid/squid.conf ; then
-  whiptail --title "Configure Automatic Login" --yesno "Do you want to configure the DOMjudge login credentials for the team?\n\nChoosing no will clear any existing login credentials." 10 60
-  DJAUTOLOGIN=$?
-  if [ $DJAUTOLOGIN -eq 0 ]; then # they click yes
-    # Load existing values
-    DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
-    DJPASS=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Pass/{print $3}' | tr -d '"' | base64 -d)
-    DJTEAM="${DJTEAM:-$TEAMNAME}"  # Set default to team name if unset
-
-    DJTEAM=$(whiptail --title "DOMjudge Login" --inputbox "Please enter the team's DOMjudge login" 10 60 $TEAMNAME 3>&1 1>&2 2>&3)
-    DJPASS=$(whiptail --title "DOMjudge Password" --passwordbox "Please enter the team's DOMjudge password" 10 60 $DJPASS 3>&1 1>&2 2>&3)
-
-    #base64 encode the password to prevent any issues
-    b64pass=$(echo -n "$DJPASS" | base64)
-
-    cat > /etc/squid/autologin.conf <<EOF
-request_header_add X-DOMjudge-Autologin true autologin
-request_header_add X-DOMjudge-Login "$DJTEAM" autologin
-request_header_add X-DOMjudge-Pass "$b64pass" autologin
-EOF
-  else
-    # clear out any existing credentials
-    echo "# Placeholder" > /etc/squid/autologin.conf
-  fi
-  echo "Reconfiguring squid, please wait a moment..."
-  # make sure the contestant user can't read the credentials
-  chmod 640 /etc/squid/autologin.conf
-  chown root:root /etc/squid/autologin.conf
-
-  # restart squid to pick up on the changes(start then stop in case squid isn't running)
-  service squid stop
-  service squid start
-fi
-
-whiptail --title "Configure Printers" --yesno "Do you want to configure any printers at this time?\n\nNo changes will be made to the printing system if you choose no." 10 60
-CONFIG_PRINTERS=$?
-DO_PRINTPAGE=0
-if [ $CONFIG_PRINTERS -eq 0 ]; then # they click yes
-  # are there any existing printers? if so, do we want to clear them?
-  lpstat -v 2>/dev/null| grep Printer0 >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    whiptail --title "Remove existing printers?" --yesno "Do you want to remove all existing printers?" 10 60 --defaultno
-    if [ $? -eq 0 ]; then
-      # Clear out all old printers
-      for PRINTER in $(lpstat -v 2>/dev/null| cut -d ' ' -f 3 | tr -d ':')
-      do
-        lpadmin -x $PRINTER
-      done
-      lpadmin -x ContestPrinter
-    fi
-  fi
-
-  # Load printers from config file if present(and they choose to)
-  whiptail --title "Load printers from the web?" --yesno "Do you want to load printers from the web?" 10 60
-  if [ $? -eq 0 ]; then
-    $WGET -O/tmp/sites.cfg $CONFIG_URL/sites >/tmp/downloaderror 2>&1
-    mapfile -t </tmp/sites.cfg SITES
-    if [ ${#SITES[@]} -gt 0 ]; then
-      SITE=$(whiptail --title "Select your contest site" --menu "Choose the printer configurations you would like to load.\n\nPlease contact kj@ubergeek42.com to have your site added to this menu." 18 60 5 "${SITES[@]}" 3>&1 1>&2 2>&3)
-      # Try to download the site config file
-      $WGET -O/tmp/printers.cfg $CONFIG_URL/${SITE}_printers.cfg >>/tmp/downloaderror 2>&1
-      if [ $? -ne 0 ]; then
-        whiptail --title "Failed to load config file" --msgbox "Failed to download configuration file. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
-        less /tmp/downloaderror
-      else
-        # config downloaded successfully!
-        SUMMARY="The following printers were added successfully:\n\n"
-        while read deviceuri driver
-        do
-          SUMMARY="${SUMMARY}    $deviceuri with driver $driver\n"
-          add_printer $deviceuri $driver
-        done < /tmp/printers.cfg
-        whiptail --title "Loaded printers from config file" --msgbox "$SUMMARY" 20 60
-        rm -f /tmp/printers.cfg
-      fi
-    else
-      whiptail --title "Failed to load list of sites" --msgbox "Failed to download list of sites. Press enter to review the error message(then press q to dismiss it). Setup will continue normally afterwards." 20 60
-      less /tmp/downloaderror
-    fi
-    rm -f /tmp/downloaderror
-  fi
+def read_file(path, default):
+    try:
+        contents = Path(path).read_text().strip()
+        if len(contents) == 0:
+            return default
+        return contents
+    except Exception as e:
+        # TODO log/handle specific errors more properly here
+        pass
+    return default
 
 
-  # Query for printers to add manually
-  while true; do
-  	printerIP=$(whiptail --title "Printer Configuration" --inputbox "Please enter your printer ip address/hostname.\n\nLeave this blank to finish adding printers." 10 60 3>&1 1>&2 2>&3)
-  	if [ -z "$printerIP" ]; then
-      break;
-  	else
-      if [[ ! $printerIP =~ "://" ]]; then
-        printerIP="socket://$printerIP"
-      fi
-      PRINTDRV=$(whiptail --title "Select a driver" --radiolist "Please choose the driver you want to use with the printer:\n    $printerIP\n\nNote: Use space to select, enter to continue" 15 60 3 ps "Generic PostScript Printer" on pcl "Generic PCL Laser Printer" off everywhere "Generic IPP Everywhere Printer" off 3>&1 1>&2 2>&3)
-      add_printer $printerIP $PRINTDRV
-  	fi
-  done
+def fetch_url(url):
+    try:
+        with urllib.request.urlopen(make_safe_url(url)) as response:
+            return response.read().decode("UTF-8").strip()
+    except urllib.error.URLError as e:
+        w = Whiptail(title="URL Fetch Error")
+        w.msgbox(f"Exception fetching {url}:\n\n{e}")
+    except Exception as e:
+        w = Whiptail(title="URL Fetch Error")
+        w.msgbox(f"Exception fetching {url}:\n\n{e}")
+    return ''
 
-  # Check if we have any printers present, if so make sure we enable the class and set it as default
-  # also ask about printing a test page
-  lpstat -v 2>/dev/null | grep Printer0 >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-  	lpadmin -d ContestPrinter
-  	cupsenable ContestPrinter
-  	cupsaccept ContestPrinter
 
-    whiptail --title "Print Test Page?" --yesno "Would you like to send a test page to the printer?\n\n" 10 60 --defaultno
-    if [ $? -eq 0 ]; then
-      DO_PRINTPAGE=1
-    fi
-  fi
-fi
-# Run self test
-clear
-su - -c /icpc/scripts/self_test | tee /icpc/self_test_report
+def run_cmd(cmd, ignore_errors=False):
+    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+    out, err = p.communicate()
 
-if [ "$DO_PRINTPAGE" -eq 1 ]; then
-  su - contestant -c '/icpc/scripts/printfile /icpc/self_test_report'
-  echo
-  echo "Test page sent to printer..."
-fi
-rm -f /icpc/self_test_report
+    if p.returncode != 0 and not ignore_errors:
+        w = Whiptail("Command Error")
+        w.msgbox(
+            f"""Command: {cmd}
+Code: {p.returncode}
+Out:
+{out}
 
-read -p "Press [enter] to continue"
+Err:
+{err}
+"""
+        )
 
-# make sure we only run once
-touch /icpc/setup-complete
+    return (p.returncode, out, err)
+
+
+def load_printers():
+    printers = []
+    (ret, out, err) = run_cmd(["lpstat", "-v"], ignore_errors=True)
+    lpstat_re = re.compile(r"^device for (?P<name>[^:]+): (?P<uri>.+)$")
+    for l in out.decode("UTF-8").splitlines():
+        m = lpstat_re.match(l)
+        # Only return printers named 'Printer' (because those are the ones we're managing)
+        if not m.group("name").startswith("Printer"):
+            continue
+        printers.append({"uri": m.group("uri"), "name": m.group("name")})
+    return printers
+
+
+def wifi_interfaces():
+    # WIRELESS_INTERFACES=$(iw dev | awk -F' ' '/Interface/{print $2}')
+    if_re = re.compile(r".+Interface (?P<name>.+)$")
+    (ret, out, err) = run_cmd(["iw", "dev"])
+
+    interfaces = []
+    for l in filter(lambda x: "Interface" in x, out.decode("UTF-8").splitlines()):
+        m = if_re.match(l)
+        interfaces.append(m.group("name"))
+
+    return interfaces
+
+
+def wifi_scan(interface):
+    # iw $WIFI_INTERFACE scan | awk -F': ' '/SSID:/{print $2}'
+
+    # Make sure the interface is up, otherwise scan won't work
+    (ret, out, err) = run_cmd(["ip", "link", "set", "dev", interface, "up"])
+
+    # Scan for networks
+    (ret, out, err) = run_cmd(["iw", interface, "scan"])
+    ssid_re = re.compile(r"^SSID: (?P<ssid>.+)$")
+
+    ssids = []
+    for l in filter(lambda x: "SSID:" in x, out.decode("UTF-8").splitlines()):
+        m = ssid_re.match(l.strip())
+        if m is not None:
+            ssids.append(m.group("ssid"))
+
+    return ssids
+
+
+def check_network():
+    try:
+        urllib.request.urlopen("http://configs.cloudcontest.org/online_check", timeout=1)
+        return True
+    except Exception as e:
+        print(f"network broken: {e}")
+        time.sleep(2)
+        return False
+
+
+config_url = read_file("/icpc/config_url_base", "http://configs.cloudcontest.org")
+configuration = {}
+PAPERSIZE = "letter"  # or 'a4'
+
+
+def main():
+
+    # This script must be run as root
+    if os.geteuid() != 0:
+        print("Error: This script must be run as root!")
+        sys.exit(1)
+
+    # Do some _really_ basic cli argument handling
+    force = False
+    if len(sys.argv) > 1 and (sys.argv[1] == "-f" or sys.argv[1] == "--force"):
+        force = True
+
+    # Exit if the configuration has already been run and the force argument was not specified
+    if Path("/icpc/setup-complete").exists() and not force:
+        print("Already configured. Run with -f or --force to reconfigure.")
+        sys.exit(0)
+
+    # Figure out what contest this is, because it informs some other choices
+    configuration["contest"] = read_file("/icpc/CONTEST", None)
+
+    # Initialize our dialog (with network status in the backtitle)
+    print("Waiting up to 30s for network...")
+    network_status = False
+    for i in range(0, 30):
+        if check_network():
+            network_status = True
+            break
+        print(".", end="")
+        time.sleep(1)
+    w = Whiptail(title="ICPC Setup", backtitle=f"Network status: {'online' if network_status else 'offline'}")
+
+    # Print a welcome message! (and record whether they pressed esc or ok)
+    welcome_ok = welcome(w)
+
+    # prompt to configure Wifi if the network isn't functional and the computer has a wireless interface
+    if not check_network() and len(wifi_interfaces()) > 0:
+        configure_wifi(w)
+
+        # Refresh the backtitle with network status now that wifi is configured (hopefully)
+        network_status = check_network()
+        w.backtitle = f"Network status: {'online' if network_status else 'offline'}"
+
+    # they pressed escape on the welcome screen (instead of ok), load some demo data and then exit
+    # if not welcome_ok:
+    #     configuration['contest'] = 'demo'
+    #     configuration['site'] = 'demo site'
+    #     configuration['team'] = {
+    #         "id": '000',
+    #         "name": 'demo team',
+    #         "affiliation": 'fake affiliation',
+    #         "extra": 'team extra - like division information',
+    #     }
+    #     configuration['printers'] = []
+    #     configuration["print_test_page"] = False
+    #     cfg_printing = False
+    # else:
+
+    # Choose the contest this image is participating in
+    configure_contest(w)
+
+    # Choose a contest site (this will decide what teams/printers are available later)
+    configure_site(w)
+
+    # Choose a team that will use this computer
+    configure_team(w)
+
+    # configure_autologin(w) # TODO
+
+    # Figure out if they want to configure printers (and what that looks like)
+    cfg_printing = configure_printing(w)
+
+    # show a summary/confirm they want to apply/move ont
+    if not confirm_summary(w):
+        # re-invoke ourselves to start over
+        os.execv(sys.argv[0], sys.argv)
+
+    # Apply the configuration things previously specified
+    apply_configuration()
+    apply_wallpaper()
+    if cfg_printing:
+        ret = apply_printers()
+        if not ret:
+            w.msgbox("Printing configuration failed. Re-run this script to correct any printer configuration errors")
+
+    # Clear the screen
+    print(chr(27) + "[H" + chr(27) + "[J")
+
+    # Run the self-test script
+    p = Popen("su - -c /icpc/scripts/self_test | tee /icpc/self_test_report", shell=True, stderr=PIPE)
+    out, err = p.communicate()
+    code = p.returncode
+
+    if configuration["print_test_page"]:
+        (ret, out, err) = run_cmd(["su", "-", "contestant", "-c", "/icpc/scripts/printfile /icpc/self_test_report"])
+        print("Test page sent to printer...")
+
+    # Remove the self-test report
+    Path("/icpc/self_test_report").unlink()
+
+    input("Press [enter] to continue")
+    Path("/icpc/setup-complete").write_text(configuration["site"] + "\n")
+
+
+def confirm_summary(w: Whiptail):
+    w.title = "ICPC Setup Summary"
+    return w.yesno(
+        msg=f"""
+Contest: {configuration['contest']}
+Site: {configuration['site']}
+Team: {configuration['team']['id']} - {configuration['team']['name']} ({configuration['team']['affiliation']})
+Printers:
+{configuration['printers']}
+
+Is this correct?
+    """
+    )
+
+
+def apply_printers():
+    failed = False
+    existing_printers = load_printers()
+    if configuration["delete_printers"]:
+        for p in existing_printers:
+            (ret, out, err) = run_cmd(["lpadmin", "-x", p["name"]])
+            # TOOO handle errors
+        (ret, out, err) = run_cmd(["lpadmin", "-x", "ContestPrinter"])  # this is a printer class
+        if ret != 0:
+            failed = True
+        existing_printers = []
+
+    for i, p in enumerate(configuration["printers"]):
+        uri = p["uri"]
+        driver = p["driver"]
+
+        # A few driver overrides, but everything should us the everywhere driver these days
+        if driver == "ps":
+            driver = "drv:///sample.drv/generic.ppd"
+        if driver == "pcl":
+            driver = "drv:///sample.drv/generpcl.ppd"
+
+        name = f"Printer{len(existing_printers) + i}"
+
+        # TODO: acls on printing (default deny? then only allow the contestant to print to what we configure?)
+        (ret, out, err) = run_cmd(
+            [
+                "lpadmin",
+                "-p",
+                name,
+                "-v",
+                p["uri"],
+                "-E",  # enable + set to accept jobs
+                "-m",
+                driver,
+                "-L",
+                p["note"],  # location field, but we put our "note" here
+                "-o",
+                f"media=#{PAPERSIZE}",  # Set paper size (a4 or letter)
+                "-o",
+                "printer-is-shared=false",  # don't set it as shared
+            ]
+        )
+        if ret != 0:
+            failed = True
+            continue
+
+        # Add the printer to the ContestPrinter class
+        (ret, out, err) = run_cmd(["lpadmin", "-p", name, "-c", "ContestPrinter"])
+        if ret != 0:
+            failed = True
+            continue
+
+        # really make sure the printer is enabled/accepting jobs
+        (ret, out, err) = run_cmd(["cupsenable", name])
+        if ret != 0:
+            failed = True
+            continue
+
+        (ret, out, err) = run_cmd(["cupsaccept", name])
+        if ret != 0:
+            failed = True
+            continue
+
+    # Check if we have any printers present, if so make sure we enable the class and set it as default
+    # also ask about printing a test page
+    existing_printers = load_printers()
+    if len(existing_printers) > 0:
+        # Set as default
+        (ret, out, err) = run_cmd(["lpadmin", "-d", "ContestPrinter"])
+        if ret != 0:
+            return (
+                False  # return here because setting failed and breaking out of the if statement we're in is difficult
+            )
+
+        # Set it as enabled
+        (ret, out, err) = run_cmd(["cupsenable", "ContestPrinter"])
+        if ret != 0:
+            return False
+
+        # Set it as accepting jobs
+        (ret, out, err) = run_cmd(["cupsaccept", "ContestPrinter"])
+        if ret != 0:
+            return False
+
+    return not failed
+
+
+def apply_configuration():
+    # Write the configuration out to files
+    Path("/icpc/CONTEST").write_text(configuration["contest"] + "\n")
+    Path("/icpc/SITE").write_text(configuration["site"] + "\n")
+    Path("/icpc/TEAMID").write_text(configuration["team"]["id"] + "\n")
+    Path("/icpc/TEAMNAME").write_text(configuration["team"]["name"] + "\n")
+    Path("/icpc/TEAMAFFILIATION").write_text(configuration["team"]["affiliation"] + "\n")
+    Path("/icpc/TEAM").write_text(
+        f"{configuration['team']['id']} - {configuration['team']['name']} ({configuration['team']['affiliation']})\n"
+    )
+
+
+def apply_wallpaper():
+    cmd = [
+        "convert",
+        "/icpc/wallpaper.png",
+        "-gravity",
+        "center",
+        "-pointsize",
+        "50",
+        "-stroke",
+        "#000C",
+        "-strokewidth",
+        "2",
+        "-annotate",
+        "0",
+        configuration["team"]["name"],
+        "-stroke",
+        "none",
+        "-fill",
+        "white",
+        "-annotate",
+        "0",
+        configuration["team"]["name"],
+        "-pointsize",
+        "30",
+        "-stroke",
+        "#000C",
+        "-strokewidth",
+        "2",
+        "-annotate",
+        "+0+60",
+        configuration["team"]["affiliation"],
+        "-stroke",
+        "none",
+        "-fill",
+        "white",
+        "-annotate",
+        "+0+60",
+        configuration["team"]["affiliation"],
+        "/icpc/teamWallpaper.png",
+    ]
+    (code, out, err) = run_cmd(cmd)
+    if code != 0:
+        w = Whiptail(title="Wallpaper Generation Error")
+        w.msgbox(
+            f"Error applying wallpaper:\ncommand:{' '.join(cmd)}\n\nReturn Code: {code}\n\nout: {out}\n\nerr: {err}"
+        )
+    # convert /icpc/wallpaper.png \
+    # -gravity center -pointsize 50 \
+    # -stroke '#000C' -strokewidth 2 -annotate 0 "$(cat /icpc/TEAMNAME)" \
+    # -stroke none -fill white -annotate 0 "$(cat /icpc/TEAMNAME)" \
+    # -pointsize 30 \
+    # -stroke '#000C' -strokewidth 2 -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
+    # -stroke none -fill white -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
+    # /icpc/teamWallpaper.png
+
+
+def welcome(w: Whiptail):
+    w.title = "ICPC Setup - Welcome"
+    code = w.msgbox(
+        "Please answer the following questions to finalize the configuration of your environment.\n\nYou can re-run this script later by executing '/icpc/scripts/icpc_setup -f' as root."
+    )
+
+    return code == 0
+
+
+def apply_wifi(interface, ssid, password):
+    with open("/etc/netplan/50-wifi-config.yaml", "w+") as f:
+        f.write(
+            f"""
+# Created by firstboot script
+network:
+  version: 2
+  renderer: networkd
+  wifis:
+    {interface}:
+      access-points:
+        "{ssid}":
+          password: "{password}"
+      dhcp4: true
+      dhcp-identifier: mac
+"""
+        )
+
+    print("Connecting to wifi...")
+    (ret, out, err) = run_cmd("netplan", "apply")
+    has_net = False
+    for i in range(0, 60, 5):
+        if check_network():
+            has_net = True
+            break
+        time.sleep(5)
+
+    if has_net:
+        print("Connected successfully!")
+    else:
+        print("Error connecting")
+
+
+def configure_wifi(w: Whiptail):
+    interfaces = wifi_interfaces()
+
+    w.title = "ICPC Setup - WiFi Setup"
+
+    # TODO: error handling
+    (choice, code) = w.menu(
+        msg="No network was detected. Choose your wireless interface to configure wifi", items=interfaces
+    )
+    interface = choice
+    print(f"Scanning for networks on: {interface}")
+    ssids = wifi_scan(interface)
+
+    # TODO: error handling
+    (choice, code) = w.menu(msg="Select a network to connect to.\nIt must support WPA 2 authentication.", items=ssids)
+    ssid = choice
+
+    (password, code) = w.inputbox(msg=f"Enter the network password for: {ssid}", password=True)
+
+    apply_wifi(interface, ssid, password)
+
+
+def configure_contest(w: Whiptail):
+    configuration["contest"] = read_file("/icpc/CONTEST", None)
+
+    # Skip contest configuration if it's already specified
+    if configuration['contest'] is not None:
+        configuration['url'] = config_url + '/' + configuration['contest']
+        return
+
+    w.title = "ICPC Setup - Contest Selection"
+    while True:
+        content = fetch_url(config_url + "/contests")
+        contests = list(filter(lambda l: len(l.strip()) > 0, content.splitlines()))
+        contests.append('Enter Manually')
+
+        from pprint import pprint
+        pprint(contests)
+
+        contest, _code = w.menu(msg="Choose the contest this machine belongs to:", items=contests)
+
+        if contest == 'Enter Manually':
+            contest, _code = w.inputbox(msg="Enter your contest id:")
+
+        confirm = w.yesno(msg=f"You chose the following contest. Be absolutely sure this is correct as this wizard will not ask again:\n\n{contest}\n\nIs this correct?", default='yes')
+        if confirm:
+            break
+
+    # Specify the config url/contest in the configuration hash
+    configuration['contest'] = contest
+    configuration['url'] = config_url + '/' + contest
+
+
+
+def configure_site(w: Whiptail):
+    w.title = "ICPC Setup - Site Configuration"
+    configuration["site"] = read_file("/icpc/SITE", None)
+
+    while True:
+        content = fetch_url(configuration['url'] + "/sites.csv")
+        sites = list(csv.DictReader(content.splitlines(), fieldnames=["id", "name"]))
+
+        menu = [(s["id"], s["name"]) for s in sites]
+        if configuration['site'] is not None:
+            menu.insert(0, ("keep", f"Keep existing site({configuration['site']})"))
+        menu.append(('manual', 'Enter site name manually'))
+
+        (site, code) = w.menu("Choose your contest site from the list", items=menu)
+        if code != 0:
+            print("Screen aborted, asking again.")
+            continue
+
+        if site == 'manual':
+            site, code = w.inputbox(msg="Enter your contest site:")
+
+        if site == 'keep':
+            site = configuration['site']
+
+        if code == 0:
+            break
+
+    configuration["site"] = site
+
+
+def configure_team(w: Whiptail):
+    w.title = "ICPC Setup - Team Configuration"
+    configuration["team"] = {
+        "id": read_file("/icpc/TEAMID", "000"),
+        "name": read_file("/icpc/TEAMNAME", "default team"),
+        "affiliation": read_file("/icpc/TEAMAFFILIATION", "default university"),
+        "extra": read_file("/icpc/TEAMEXTRA", "extra data"),
+    }
+
+    content = fetch_url(configuration['url'] + f"/teams/{configuration['site']}_teams.csv")
+    teams = list(csv.DictReader(content.splitlines(), fieldnames=["id", "name", "affiliation", "extra"]))
+    # strip whitespace around any csv entries
+    teams = list(map(lambda t: {k: v.strip() for k, v in t.items()}, teams))
+
+    menu = [
+        (
+            t["id"],
+            f"{t['name'] : <30} {t['affiliation'] : <40}{' '+t['extra'] if len(t['extra']) > 0 else ''}",
+        )
+        for t in teams
+    ]
+    menu.append(('manual', 'Enter team name manually'))
+
+    if configuration["team"]["id"] != "000":
+        menu.insert(
+            0,
+            (
+                configuration["team"]["id"],
+                f"Keep existing team selection ({configuration['team']['id']} {configuration['team']['name']} {configuration['team']['affiliation']})",
+            ),
+        )
+
+    (teamid, code) = w.menu(msg="Choose a team", items=menu)
+    if code != 0:
+        print('Skipping team selection')
+        return
+
+    if teamid == 'manual':
+        id, code = w.inputbox('Enter team id (e.g. 123)')
+        name, code = w.inputbox('Enter team name (e.g. "null pointer")')
+        affiliation, code = w.inputbox('Enter team affiliation (e.g. "University of ICPC")')
+
+        # Fake the data so our manually entered data is present
+        teams = [{
+            'id': id,
+            'name': name,
+            'affiliation': affiliation,
+            'extra': '',
+        }]
+        teamid = id
+
+
+    # Update configuration only if they picked a different teamid
+    if teamid != configuration["team"]["id"]:
+        configuration["team"] = [t for t in teams if t["id"] == teamid][0]
+    else:
+        # make sure the site matches the team since they picked 'keep same'
+        configuration["site"] = read_file("/icpc/SITE", "other")
+
+
+def configure_autologin(w: Whiptail):
+    w.msgbox("TODO autologin CONFIGURATION")
+
+
+def configure_printing(w: Whiptail):
+    w.title = "ICPC Setup - Printing Configuration"
+
+    configuration["printers"] = []
+    configuration["print_test_page"] = False
+    existing_printers = load_printers()
+
+    skip = not w.yesno(msg="Configure printers?", default="yes")
+    if skip:
+        return False
+
+    configuration["delete_printers"] = False
+    if len(existing_printers) > 0:
+        configuration["delete_printers"] = w.yesno(msg="Delete existing printers?", default="no")
+
+    content = fetch_url(configuration['url'] + f"/printers/{configuration['site']}_printers.csv")
+    printer_groups = list(csv.DictReader(content.splitlines(), fieldnames=["id", "name"]))
+    menu = [(g["id"], f"{g['name']}") for g in printer_groups]
+    menu.append(("manual", "Enter printer ip manually"))
+    menu.append(("skip", "Skip configuring printers"))
+
+    (printer_group, code) = w.menu(msg="Select printers to install", items=menu)
+    if code != 0:
+        raise Exception("exited whiptail...")
+
+    if printer_group == "manual":  # Choosing to manually enter printers
+        while True:
+            (printer, code) = w.inputbox(
+                msg="Please enter your printer ip address/hostname.\nNote: Your printer must support IPP Everywhere.\n\nLeave this blank to finish adding printers.",
+            )
+            if code != 0 or len(printer) == 0:  # they exited abnormally/entered nothing
+                break
+            # Force it to be a uri if they entered a plain ip address/hostname
+            if "://" not in printer:
+                printer = f"ipp://{printer}"
+            configuration["printers"].append({"uri": printer, "driver": "everywhere", "note": "Entered Manually"})
+    elif printer_group != "skip":
+        content = fetch_url(configuration['url'] + f"/printers/{configuration['site']}/{printer_group}.csv")
+        printers = list(
+            csv.DictReader(
+                content.splitlines(), fieldnames=["uri", "driver", "note"], restval="Automatically Provisioned"
+            )
+        )
+        configuration["printers"] = printers
+
+    configuration["print_test_page"] = w.yesno(msg="Would you like to send a test page to the printer?", default="no")
+
+    return True
+
+
+if __name__ == "__main__":
+    main()
