@@ -49,3 +49,12 @@
     content: |
       APT::Periodic::Update-Package-Lists "0";
       APT::Periodic::Unattended-Upgrade "0";
+
+- name: Configure firefox policies (trust squid cert, homepage/bookmarks/etc)
+  copy:
+    dest: /usr/lib/firefox/distribution/policies.json
+    content: |
+      {
+        "policies":
+        {{ firefox_default_policies|combine(firefox_policies)|to_nice_json }}
+      }
