@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Kill all the user processes(and wait for them to die)
+killall -9 -u contestant
+sleep 5
+
 DISK=$(blkid -L "ICPC")
 if [[ $? == 0 ]]; then
     echo "Wiping FAT32 Partition"
