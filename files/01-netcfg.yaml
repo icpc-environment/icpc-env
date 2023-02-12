@@ -2,8 +2,11 @@
 # This file describes the network interfaces available on your system
 # For more information, see netplan(5).
 network:
-    version: 2
-    renderer: networkd
-    ethernets:
-      eth0:
-        dhcp4: yes  
+  version: 2
+  renderer: networkd
+  ethernets:
+    default:
+      match:
+        name: e*
+      dhcp4: yes
+      dhcp-identifier: mac
