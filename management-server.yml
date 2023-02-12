@@ -2,7 +2,6 @@
 - name: Management Server
   hosts: all
   become: true
-  user: ubuntu
   gather_facts: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
@@ -13,6 +12,12 @@
     - name: give the host a good name
       hostname:
         name: contestmanager.icpcnet.internal
+
+    - name: put the hostname in /etc/hosts
+      lineinfile:
+        insertafter: '^127.0.0.1'
+        line: 127.0.1.1 contestmanager.icpcnet.internal contestmanager
+        path: /etc/hosts
 
     - name: install misc tools
       apt:
@@ -32,7 +37,12 @@
           - ncdu
           - jq
           - git
-
+          - pssh
+          # needed for provisioning (to let ansible become unprivleged users)
+          - acl
+          # Monitoring related things
+          - python3-prometheus-client
+          # TODO: prometheus/grafana
 
     - name: create a git user (using git-shell)
       ansible.builtin.user:
@@ -46,13 +56,21 @@
         key: "{{ lookup('file', 'secrets/server_ca.pub') }}"
         key_options: restrict,cert-authority
 
+    # TODO: initialize lastminute git repo
+    - name: create git repo for lastminute script
+      shell: |
+        git init --bare /home/git/ansible
+      args:
+        creates: /home/git/ansible
+      become_user: git
+
     - name: copy private key
       copy:
         src: files/secrets/{{ item }}
-        dest: /home/ubuntu/.ssh/{{ item }}
+        dest: /home/{{ ansible_user }}/.ssh/{{ item }}
         mode: 0400
-        owner: ubuntu
-        group: ubuntu
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
       with_items:
         - icpcadmin@contestmanager
         - icpcadmin@contestmanager-cert.pub
@@ -72,7 +90,7 @@
           Host *
               IdentityFile ~/.ssh/icpcadmin@contestmanager
               User icpcadmin
-        dest: /home/ubuntu/.ssh/config
+        dest: /home/{{ ansible_user }}/.ssh/config
 
     - name: sshd config to listen on 443
       copy:
@@ -108,6 +126,37 @@
         mode: 0644
     - name: configure ssh ca to be trusted for host verification
       shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
+
+
+    - name: create sample lastminute.yml (and commit/push it) if there isn't one
+      shell: |
+        git config --global user.name 'ICPC Admin'
+        git config --global user.email 'icpcadmin@{{ansible_hostname}}'
+        git clone git@contestmanager.icpcnet.internal:~/ansible /home/{{ansible_user}}/ansible-lastminute
+        cd /home/{{ansible_user}}/ansible-lastminute
+
+        # bail if there are commits/items already here
+        git log -n1 >/dev/null 2>/dev/null && exit
+
+        cat <<EOF > local.yml
+        - name: Lastminute Setup
+          hosts: icpc
+          become: true
+          gather_facts: true
+          tasks:
+            - shell: 'echo "Ansible-Pull on \$(date +"%Y-%m-%d %H:%M:%S")\nRevision: \$(git rev-list --full-history --all --abbrev-commit | head -1)\n"'
+              register: git_revision
+            - name: copy version info
+              copy: content="{{ '{{' }}git_revision.stdout{{ '}}' }}\n" dest=/icpc/update-version
+            - name: remove ansible trigger file
+              file: path=/icpc/trigger-ansible state=absent
+        EOF
+        git add local.yml
+        git commit -m "Initial last minute ansible script"
+        git push -u origin master
+      args:
+        creates: /home/{{ ansible_user }}/ansible-lastminute
+      become: no
 
     - name: install dsnet
       get_url:
