@@ -30,12 +30,24 @@
       - xfce4-terminal
 
 
+- name: add mozilla firefox ppa (because snaps are dumb)
+  ansible.builtin.apt_repository:
+    repo: ppa:mozillateam/ppa
+    update_cache: yes
+
+- name: apt preference for firefox to only install from the ppa
+  copy:
+    dest: /etc/apt/preferences.d/mozilla-firefox
+    content: |
+      Package: firefox
+      Pin: release o=LP-PPA-mozillateam
+      Pin-Priority: 1001
 
 - name: install gui apps
   apt:
     state: present
     pkg:
-      - firefox   # Web browser
+      - firefox   # Web browser (from ppa, not snap)
       - alacarte  # Menu editor
       - mupdf     # Lighweight pdf viewer
       - mate-calc # GUI calculator
