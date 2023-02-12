@@ -13,6 +13,9 @@
       - curl        # debugging connection things
       - ncdu
       - jq
+      # Needed for wifi
+      - wpasupplicant
+      - iw
 
 - name: disable udev persistent net generator
   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
