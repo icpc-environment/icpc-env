@@ -76,4 +76,4 @@
 - name: delete the xdg template creator autostart
   file:
     state: absent
-    path: /etc/xdg/xdg-ubuntu-autostart/xdg-xubuntu-templates.desktop
+    path: /etc/xdg/xdg-xubuntu/autostart/xdg-xubuntu-templates.desktop
