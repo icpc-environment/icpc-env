@@ -5,6 +5,26 @@
     pkg:
       - g++
       - stl-manual      # 2.5mb
+      - unzip # for dealing with docs
+
+# From https://en.cppreference.com/w/Cppreference:Archives
+- name: create directories
+  file:
+    state: directory
+    path: "{{ item }}"
+  with_items:
+    - /opt/cppreference-docs
+    - /opt/libc-manual
+- name: cppreference.com offline docs
+  unarchive:
+    src: files/html_book_20190607.zip
+    dest: /opt/cppreference-docs
+
+- name: libc reference docs
+  unarchive:
+    src: https://www.gnu.org/software/libc/manual/html_node/libc-html_node.tar.gz
+    dest: /opt/libc-manual
+    remote_src: true # to get it to download from the internet
 
 - name: register docs
   block:
@@ -15,6 +35,18 @@
               name: STL Manual
               id: stl_docs
               path: /usr/share/doc/stl-manual/html
+              index: index.html
+          - path: "lang_docs['c/cpp reference']"
+            value:
+              name: cppreference.com
+              id: cpp_reference
+              path: /opt/cppreference-docs/reference
+              index: en/index.html
+          - path: "lang_docs['glibc manual']"
+            value:
+              name: GNU c library (glibc) manual
+              id: libc_manual
+              path: /opt/libc-manual/libc
               index: index.html
       register: updated
     - set_fact:

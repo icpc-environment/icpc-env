@@ -9,8 +9,10 @@
       lang_docs: {}
 
   - name: include various languages
-    include_tasks: "languages/{{ item }}.yml"
+    include_tasks: "languages/{{ language }}.yml"
     loop: "{{ languages }}"
+    loop_control:
+      loop_var: language
 
   - name: dump the lang_docs fact
     debug:

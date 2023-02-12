@@ -19,3 +19,31 @@
     - kotlinc-js
     - kotlinc-jvm
     - kotlin-dce-js
+
+# kotlin pdf doc (single file)
+- name: create directory for kotlin docs
+  file:
+    state: directory
+    mode: 0755
+    path: /opt/kotlin-docs
+
+- name: fetch kotlin pdf
+  get_url:
+    url: https://kotlinlang.org/docs/kotlin-reference.pdf
+    dest: /opt/kotlin-docs/kotlin-reference.pdf
+    mode: 0644
+
+
+- name: register docs
+  block:
+    - ansible.utils.update_fact:
+        updates:
+          - path: "lang_docs['Kotlin']"
+            value:
+              name: Kotlin PDF
+              id: kotlin
+              path: /opt/kotlin-docs
+              index: kotlin-reference.pdf
+      register: updated
+    - set_fact:
+        lang_docs: "{{ updated.lang_docs }}"

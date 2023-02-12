@@ -24,11 +24,7 @@
 
   - name: install netbeans
     when: "'netbeans' in devtools"
-    # netbeans --noinstall-recommends: 175mb(440mb otherwise)
-    apt:
-      state: present
-      pkg:
-        - netbeans
+    include_tasks: 'devel_tools/netbeans.yml'
 
   - name: install geany
     when: "'geany' in devtools"

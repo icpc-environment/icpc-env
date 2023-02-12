@@ -29,8 +29,33 @@
         state: present
         pkg:
         - clion
-    # TODO: figure out how to configure the license for clion
-    - name: hide clion shortcut (we don't have a working license key for it)
+
+    # Clion likes a weirdly formatted keyfile (UCS2 encoding with a BOM)
+    - name: create a script to configure clion license
+      copy:
+        dest: /usr/local/bin/clion-license-key-install
+        mode: 0755
+        content: |
+          #!/bin/bash
+          mkdir -p $HOME/.config/JetBrains/CLion2021.3
+          (
+            printf '\xFF\xFF';
+            echo -en "<certificate-key>\n{{ clion_license_key }}" | iconv -f UTF-8 -t UCS2 -
+          ) > $HOME/.config/JetBrains/CLion2021.3/clion.key
+      when: clion_license_key | length > 0
+
+    - name: add licensekey script to autostart
+      copy:
+        dest: /etc/xdg/autostart/clion-license-key-install.desktop
+        content: |
+          [Desktop Entry]
+          Type=Application
+          Exec=/usr/local/bin/clion-license-key-install
+          NoDisplay=true
+      when: clion_license_key | length > 0
+
+    - name: hide clion shortcut (if we don't have a license key for it)
       shell: mv /usr/share/applications/clion.desktop /usr/share/applications/clion.desktop.disabled
       args:
         creates: /usr/share/applications/clion.desktop.disabled
+      when: clion_license_key | length == 0
