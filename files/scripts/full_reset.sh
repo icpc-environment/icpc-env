@@ -16,7 +16,7 @@ lpadmin -x ContestPrinter
 # make sure the firewall is on
 ufw --force enable
 
-rm -f /icpc/setup_complete
+rm -f /icpc/setup-complete
 rm -f /icpc/TEAM*
 rm -f /icpc/SITE
 
