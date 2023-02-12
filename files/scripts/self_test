@@ -53,6 +53,12 @@ function check_service() {
 }
 
 echo "${BLUE}System Configuration${RESET}"
+print_check "Contest ID"
+CONTESTID="$(cat /icpc/CONTEST 2>/dev/null)"
+NOTEAM="${RED}Not Set${RESET}"
+CONTESTID="${CONTESTID:-$NOTEAM}"
+echo $CONTESTID
+
 print_check "Team ID"
 TEAMNAME="$(cat /icpc/TEAM 2>/dev/null)"
 NOTEAM="${RED}Not Set${RESET}"
@@ -105,28 +111,20 @@ print_check "Making sure the squid proxy is running"
 check_service 'squid'
 
 print_check "Testing access to google is blocked with a proxy error"
-wget -e use_proxy=yes -e http_proxy=127.0.0.1:3128 -O- http://google.com 2>/dev/null | grep "<h1>Access Denied</h1>" > /dev/null
+curl -s --proxy http://127.0.0.1:3128 http://google.com 2>/dev/null | grep "<h1>Access Denied</h1>" > /dev/null
 check_return $?
 
 while IFS="" read -r url ; do
   [ -z "$url" ] && continue
   print_check "Testing access to $url is successful with proxy"
-  wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate $url 2>/dev/null | grep -i "html" > /dev/null
+  # wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate $url 2>/dev/null | grep -i "html" > /dev/null
+  curl --proxy http://127.0.0.1:3128 --connect-timeout 5 --max-time 10 --silent -o /dev/null --fail $url
   check_return $?
   break # only check one url from the list
-done < /var/lib/squidguard/db/icpcsites-urllist
-
-while IFS="" read -r url ; do
-  [ -z "$url" ] && continue
-  print_check "Testing access to http://$url is successful with proxy"
-  wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate http://$url 2>/dev/null | grep -i "html" > /dev/null
-  check_return $?
-  break # only check one domain from the list
-done < /var/lib/squidguard/db/icpcsites-domainlist
-
+done < /icpc/config_homepage
 
 print_check "Testing direct internet access is disabled"
-su - contestant -c 'wget -T 5 -t 1 -e use_proxy=no -O- http://google.com >/dev/null 2>&1' 2>/dev/null
+su - contestant -c 'curl --noproxy "*" --connect-timeout 5 --max-time 10 --silent --fail -o /dev/null http://google.com' 2>/dev/null
 if [ $? -eq 0 ]; then
   print_fail
 else
