@@ -42,11 +42,31 @@
     - name: run grub-install for efi
       command: grub-install --no-nvram --uefi-secure-boot --target=x86_64-efi /dev/sda
 
-    - name: delete some useless snaps
-      community.general.snap:
-        name: "{{ item }}"
+
+    - name: remove snap package
+      apt:
+        name: snapd
+        purge: true
         state: absent
-      with_items: [lxd, core18]
+    - name: clean up any leftover snap data
+      file:
+        state: absent
+        path: "{{item}}"
+      with_items:
+        - /snap
+        - /var/snap
+        - /var/lib/snapd
+        - /var/cache/snapd
+        - /run/snapd-snap.socket
+        - /run/snapd.socket
+        - /etc/apt/apt.conf.d/20snapd.conf
+    - name: prevent snapd from being installed later
+      copy:
+        dest: /etc/apt/preferences.d/snapd-disable
+        content: |
+          Package: snapd
+          Pin: release *
+          Pin-Priority: -1
 
     # remove cloud init, because it's a security issue (a cd/other usb drive could give someone root)
     - name: remove cloud-init
