@@ -77,7 +77,7 @@
 
     - import_tasks: 'playbooks/gui.yml'
 
-    - import_tasks: 'playbooks/localweb.yml'
+    - import_tasks: 'playbooks/reverseproxy.yml'
     - import_tasks: 'playbooks/compilers.yml'
     - import_tasks: 'playbooks/devel_tools.yml'
 
@@ -133,5 +133,8 @@
     - name: restart ssh
       service: name=ssh state=restarted
 
-    - name: restart simple-httpd
-      service: name=simple-httpd state=restarted
+
+    - name: reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
