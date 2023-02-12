@@ -1,6 +1,9 @@
-http_port 3128
+# 4MB is the default, so we could omit that...
+# dynamic_cert_mem_cache_size=4MB
+http_port 3128 ssl-bump generate-host-certificates=on tls-cert=/etc/squid/squidCA.crt tls-key=/etc/squid/squidCA.pem
 
-dns_v4_first on
+# need to manually initialized the ssl_db
+#sudo /usr/lib/squid/security_file_certgen -c -s /var/spool/squid/ssl_db -M 4MB
 
 acl SSL_ports port 443
 acl Safe_ports port 80          # http
@@ -18,13 +21,27 @@ acl CONNECT method CONNECT
 http_access deny !Safe_ports
 http_access deny CONNECT !SSL_ports
 
+# Deny access to the cachemgr
 http_access deny manager
-http_access allow all
 
-shutdown_lifetime 1 second
+# Block everything except our reverseproxy, which will filter the allowed network destinations
+acl reverseproxy dst 127.0.0.1
+http_access allow reverseproxy
+http_access deny all
+# show a block page
+deny_info ICPC_ERR_ACCESS_DENIED all
 
 coredump_dir /var/spool/squid
-url_rewrite_program /usr/bin/squidGuard -c /etc/squidguard/squidGuard.conf
+
+# To make it quick to restart squid, otherwise it takes ~30s to stop
+shutdown_lifetime 1 second
+
+# MITM everything!
+ssl_bump bump all
+
+# Ignore ssl errors, so we can still show our nice block page
+# And also because our block page has no good ssl certificate
+sslproxy_cert_error allow all
 
 {% if squid_autologin_urls|length > 0 %}
 {% for url in squid_autologin_urls %}

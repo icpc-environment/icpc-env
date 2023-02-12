@@ -1,0 +1,52 @@
+---
+- name: install nginx
+  ansible.builtin.apt:
+    pkg: nginx
+    state: present
+
+- name: remove default nginx configuration
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
+- name: use the snakeoil cert, since squid will be proxying everything and mitms things/accepts any certificate
+  ansible.builtin.copy:
+    remote_src: true
+    src: /etc/ssl/{{item.src}}
+    dest: /etc/ssl/{{item.dest}}
+    mode: "{{ item.mode }}"
+  notify: reload nginx
+  loop:
+    - { src: "private/ssl-cert-snakeoil.pem", dest: reverseproxy.key, mode: "0600" }
+    - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.cert, mode: "0644" }
+
+- name: make sure web dir exists
+  file: state=directory path=/opt/localwww
+
+- name: install our reverse proxy config
+  ansible.builtin.template:
+    src: files/nginx.conf.j2
+    dest: /etc/nginx/sites-available/reverseproxy.conf
+    mode: 0644
+    owner: root
+    group: root
+    lstrip_blocks: true
+    trim_blocks: true
+  notify: reload nginx
+
+- name: enable the reverseproxy nginx config
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/reverseproxy.conf
+    dest: /etc/nginx/sites-enabled/reverseproxy
+    state: link
+  notify: reload nginx
+
+- name: update hosts file so we talk to the proxyserver instead of the real server
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.0.1	{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ reverseproxy_sites.keys() }}"

@@ -1,20 +1,10 @@
 ---
-
-- name: install local squid proxy + squidguard
+- name: Install squid
   apt:
-    state: present
     pkg:
-    - squid3
-    - squidguard
-
-- name: configure squidguard
-  template: src=files/squid/squidGuard.conf.j2 dest=/etc/squidguard/squidGuard.conf
-
-- name: template out the allowed domains
-  template: src=files/squid/icpcsites-domainlist.j2 dest=/var/lib/squidguard/db/icpcsites-domainlist
-
-- name: template out the allowed urls
-  template: src=files/squid/icpcsites-urllist.j2 dest=/var/lib/squidguard/db/icpcsites-urllist
+      - squid-common
+      - squid-openssl
+    state: present
 
 - name: configure squid
   template: src=files/squid/squid.conf.j2 dest=/etc/squid/squid.conf
@@ -22,6 +12,26 @@
 
 - name: make sure an autologin.conf file exists or squid won't start
   copy: content="#placeholder\n" dest=/etc/squid/autologin.conf mode=0640 owner=root group=root
+
+- name: copy a pretty error page for squid to use
+  template: src=files/squid/block.html.j2 dest=/usr/share/squid/errors/templates/ICPC_ERR_ACCESS_DENIED
+
+- name: generate a fake CA for squid to use
+  shell: openssl req -new -newkey rsa:2048 -days 360 -nodes -x509 -keyout /etc/squid/squidCA.pem -out /etc/squid/squidCA.crt -subj "/O=ICPC Network Filter/CN=ICPC Network Filter"
+  args:
+    creates: /etc/squid/squidCA.crt
+
+- name: ensure that the squidCA is trusted by the system
+  file:
+    src: /etc/squid/squidCA.crt
+    dest: /usr/local/share/ca-certificates/squid-ca.crt
+    state: link
+  notify: update-ca-certificates
+
+- name: initialize squid ssl cache
+  shell: /usr/lib/squid/security_file_certgen -c -s /var/spool/squid/ssl_db -M 4MB
+  args:
+    creates: /var/spool/squid/ssl_db/index.txt
 
 - name: configure system to use the proxy by default
   lineinfile: dest=/etc/environment line="{{item}}"
@@ -44,28 +54,7 @@
 - name: enable the firewall
   ufw: state=enabled logging=off
 
-# - name: allow ip printing
-#   ufw: rule=allow to_port=9100 proto=tcp direction=out
-#
-# - name: allow dhcp
-#   ufw: rule=allow to_port={{ item }} proto=udp direction=out
-#   with_items: [67, 68]
-#
-# - name: allow ntp
-#   ufw: rule=allow to_port=123 proto=udp direction=out
-#
-# - name: allow dns
-#   ufw: rule=allow to_port=53 direction=out
-
-#- name: allow proxy user to talk out on port 80/443
-#  lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner proxy -j ACCEPT" insertbefore="^# don't delete the 'COMMIT' line" state=present
-# block the user from talking to anything(except localhost)
-#- lineinfile: dest=/etc/ufw/before.rules line="-A ufw-before-output -m owner --uid-owner contestant -j REJECT" insertafter="-A ufw-before-output -m owner --uid-owner proxy -j ACCEPT"
-
 - name: prevent the 'contestant' user from using the network(except through the proxy or to localhost)
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
 - name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
-
-- name: copy block page for squid to use
-  template: src=files/squid/block.html.j2 dest=/opt/localwww/block.html
