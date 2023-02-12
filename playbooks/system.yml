@@ -21,7 +21,7 @@
   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
 
 # https://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
-- name: disable "predicatable network interface names"
+- name: disable "predictable network interface names"
   file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
 
 - name: push a better default network interfaces file
