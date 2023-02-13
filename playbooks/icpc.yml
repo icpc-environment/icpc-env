@@ -18,6 +18,12 @@
     dest: /icpc/config_url_base
     content: "{{ config_url }}"
 
+- name: write out the contest id (if specified)
+  copy:
+    dest: /icpc/CONTEST
+    content: "{{ contest_id }}"
+  when: contest_id|default('')|length > 0
+
 - name: create printfile symlink(to match world finals image)
   file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
 
@@ -89,7 +95,7 @@
 
 - name: create contestant group
   group: name='contestant' state='present'
-- name: create contestant user
+- name: create contestant user (with empty/blank password)
   user: name='contestant' group='contestant' groups='lpadmin' password='$1$salty$lOyh/41oDtq.J4v0Lltp4.' shell='/bin/bash'
   notify:
       - clear user password
@@ -198,3 +204,9 @@
       fstype=vfat
       opts="defaults,uid=contestant,gid=contestant"
       state=present
+
+- name: write the homepage to a file so we can make sure access works in the self_test
+  copy:
+    dest: /icpc/config_homepage
+    content: |
+      {{ firefox_policies.Homepage.URL }}
