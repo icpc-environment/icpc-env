@@ -130,6 +130,9 @@
     - name: restart squid
       service: name=squid state=restarted
 
+    - name: update-ca-certificates
+      command: /usr/sbin/update-ca-certificates
+
     - name: restart ssh
       service: name=ssh state=restarted
 
