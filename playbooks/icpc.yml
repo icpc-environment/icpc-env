@@ -65,6 +65,13 @@
       - cups
       - cups-bsd
       - enscript
+      - python3-typing-extensions # needed for firstboot script
+
+      # experimental programs to support showing a banner image to all contestants
+      - feh # to display fullscreen images
+      - wmctrl # can set always on top, plus check if it's still the active window and restart it if not (e.g. ctrl+alt+left/right swap desktops)
+      - xdotool # to detect if it's still on top/other things?
+      - python3-xlib  # maybe we'll write our own xorg fullscreen thing to replace the above 3 things...
 
 - name: stop/disable cups-browsed from autodiscovering printers
   service: name=cups-browsed state=stopped enabled=no
