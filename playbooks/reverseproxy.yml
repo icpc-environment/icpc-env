@@ -1,7 +1,9 @@
 ---
 - name: install nginx
   ansible.builtin.apt:
-    pkg: nginx
+    pkg:
+      - nginx
+      - ssl-cert # for the snakeoil stuff
     state: present
 
 - name: remove default nginx configuration
@@ -18,7 +20,7 @@
     mode: "{{ item.mode }}"
   notify: reload nginx
   loop:
-    - { src: "private/ssl-cert-snakeoil.pem", dest: reverseproxy.key, mode: "0600" }
+    - { src: "private/ssl-cert-snakeoil.key", dest: reverseproxy.key, mode: "0600" }
     - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.cert, mode: "0644" }
 
 - name: make sure web dir exists
