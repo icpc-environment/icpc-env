@@ -39,11 +39,9 @@
 - name: copy icpc default wallpaper
   copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
 
-
 - name: set timezone
   community.general.timezone:
     name: "{{ icpc_timezone }}"
-
 
 # ICPC tools we need
 - name: install ICPC tools we need
