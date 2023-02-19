@@ -39,19 +39,11 @@
 - name: copy icpc default wallpaper
   copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
 
-- name: check current timezone
-  shell: cat /etc/timezone
-  register: current_timezone
 
 - name: set timezone
-  copy: content={{ icpc_timezone }}
-        dest=/etc/timezone
-        owner=root
-        group=root
-        mode=0644
-  when: current_timezone.stdout != icpc_timezone
-  notify:
-      - update timezone
+  community.general.timezone:
+    name: "{{ icpc_timezone }}"
+
 
 # ICPC tools we need
 - name: install ICPC tools we need
