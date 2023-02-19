@@ -7,6 +7,7 @@
       - pypy3
       - python3-doc     # 37.2 mb
       - pypy3-doc # 5mb
+      - python-is-python3
 
 - name: ipython
   apt:
