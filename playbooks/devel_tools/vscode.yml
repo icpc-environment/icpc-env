@@ -1,0 +1,34 @@
+- name: apt key for vscode
+  apt_key: url=https://packages.microsoft.com/keys/microsoft.asc state=present
+- name: apt repo for vscode
+  apt_repository: repo="deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" update_cache=yes filename="vscode"
+
+- name: install vscode
+  apt:
+    state: present
+    pkg: code
+
+- name: make sure vscode extension directory exists
+  file: path=/opt/vscode/extensions state=directory
+- name: vscode extensions
+  shell: code --extensions-dir /opt/vscode/extensions --user-data-dir /opt/vscode --no-sandbox --install-extension {{ item }}
+  loop: "{{ vscode_extensions }}"
+
+
+- name: create a script to symlink our extensions
+  copy:
+    dest: /usr/local/bin/vscode-extension-install
+    mode: 0755
+    content: |
+      #!/bin/bash
+      mkdir -p $HOME/.vscode
+      ln -sf /opt/vscode/extensions $HOME/.vscode/extensions
+
+- name: add vscode extension install script to autostart
+  copy:
+    dest: /etc/xdg/autostart/vscode-extension-install.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Exec=/usr/local/bin/vscode-extension-install
+      NoDisplay=true

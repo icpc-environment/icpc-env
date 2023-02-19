@@ -1,14 +1,8 @@
 ---
-  - name: apt key for vscode
-    apt_key: url=https://packages.microsoft.com/keys/microsoft.asc state=present
-  - name: apt repo for vscode
-    apt_repository: repo="deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main" update_cache=yes filename="vscode"
-
   - name: install generic/common development tools
     apt:
       state: present
       pkg:
-        - code           # Visual Studio code
         - vim-gtk3       # graphical vim
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
@@ -21,6 +15,10 @@
       pkg:
         - codeblocks
         - codeblocks-contrib
+
+  - name: install vscode
+    when: "'vscode' in devtools"
+    include_tasks: 'devel_tools/vscode.yml'
 
   - name: install netbeans
     when: "'netbeans' in devtools"
