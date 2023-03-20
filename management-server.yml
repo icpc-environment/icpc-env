@@ -42,7 +42,9 @@
           - acl
           # Monitoring related things
           - python3-prometheus-client
-          # TODO: prometheus/grafana
+          - python3-passlib # So we can use htpasswd in ansible
+          - imagemagick # for do-screenshots
+          - ansible # to let people run ad-hoc commands via ansible
 
     - name: create a git user (using git-shell)
       ansible.builtin.user:
@@ -90,6 +92,13 @@
           Host *
               IdentityFile ~/.ssh/icpcadmin@contestmanager
               User icpcadmin
+          # This does some magic to set PS1 to include the /icpc/TEAMID. To get the value for the printf bit, get PS1 set to what you want
+          # then run: `declare -p PS1`, then replace the double quotes with single quotes so it does the cat /icpc/TEAMID every time.
+          Host t*
+          # Super neat hack to only run RemoteCommand if you don't pass any command to ssh
+          Match exec "ps -o args= $PPID | grep -v ' .* '"
+            RequestTTY yes
+            RemoteCommand exec bash --rcfile <(cat /etc/bash.bashrc ~/.bashrc 2> /dev/null; printf "%%s\n" "declare -- PS1='\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]\\[\\033[38;5;3m\\](t\$(cat /icpc/TEAMID 2>/dev/null))\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\\$ '")
         dest: /home/{{ ansible_user }}/.ssh/config
 
     - name: sshd config to listen on 443
@@ -109,6 +118,7 @@
         - host_ed25519_key
         - host_ed25519_key.pub
         - host_ed25519_key-cert.pub
+      notify: restart ssh
 
     - name: sshd host certificate
       copy:
@@ -127,6 +137,8 @@
     - name: configure ssh ca to be trusted for host verification
       shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
 
+    - name: Flush handlers so ssh is restarted before we try to do git operations
+      meta: flush_handlers
 
     - name: create sample lastminute.yml (and commit/push it) if there isn't one
       shell: |
@@ -216,6 +228,254 @@
     - name: enable dsnet wireguard service
       service: name=dsnet enabled=yes state=started
 
+
+
+
+
+    # coredns to do dns serving magic
+    # https://github.com/coredns/coredns/releases/download/v1.10.1/coredns_1.10.1_linux_amd64.tgz
+    - name: Create the coredns group
+      group:
+        name: coredns
+        state: present
+        system: true
+    - name: Create the coredns user
+      user:
+        name: coredns
+        groups: coredns
+        append: true
+        shell: /usr/sbin/nologin
+        system: true
+        createhome: false
+        home: /
+    - name: create coredns configuration directories
+      file:
+        path: /etc/coredns
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+    - name: install coredns config file
+      copy:
+        dest: /etc/coredns/Corefile
+        content: |
+          # We handle this by probing our wireguard network for peers
+          icpcnet.internal. {
+            hosts /home/{{ansible_user}}/icpcnet_hosts
+            log
+          }
+          . {
+              forward . 8.8.8.8 # Forward everything else upstream
+              log
+              errors
+              cache
+          }
+    - name: install coredns
+      unarchive:
+        src: https://github.com/coredns/coredns/releases/download/v1.10.1/coredns_1.10.1_linux_amd64.tgz
+        dest: /usr/local/bin
+        remote_src: true
+    - name: install coredns service
+      template:
+        src: files/management-server/coredns.service.j2
+        dest: /etc/systemd/system/coredns.service
+        mode: 0644
+        owner: root
+        group: root
+      notify: restart coredns
+    - name: disable systemd-resolved
+      systemd:
+        name: systemd-resolved
+        enabled: false
+        state: stopped
+    - name: replace resolv.conf so we use coredns instead
+      copy:
+        dest: /etc/resolv.conf
+        follow: false
+        content: |
+          nameserver ::1
+          nameserver 127.0.0.1
+          options trust-ad
+    - name: enable coredns
+      systemd:
+        daemon_reload: true
+        name: coredns
+        enabled: true
+        state: started
+
+    - name: install grafana
+      block:
+        - name: key for grafana apt repo
+          apt_key: url=https://apt.grafana.com/gpg.key state=present
+        - name: apt repo for grafana
+          apt_repository: repo="deb https://apt.grafana.com stable main" update_cache=yes
+        - name: install grafana
+          apt:
+            state: present
+            pkg:
+              - grafana
+              - prometheus
+              - prometheus-node-exporter
+              - nginx
+        - name: configure grafana
+          copy:
+            content: |
+              GRAFANA_USER=grafana
+              GRAFANA_GROUP=grafana
+              GRAFANA_HOME=/usr/share/grafana
+              LOG_DIR=/var/log/grafana
+              DATA_DIR=/var/lib/grafana
+              MAX_OPEN_FILES=10000
+              CONF_DIR=/etc/grafana
+              CONF_FILE=/etc/grafana/grafana.ini
+              RESTART_ON_UPGRADE=true
+              PLUGINS_DIR=/var/lib/grafana/plugins
+              PROVISIONING_CFG_DIR=/etc/grafana/provisioning
+              # Only used on systemd systems
+              PID_FILE_DIR=/var/run/grafana
+              GF_SECURITY_ADMIN_PASSWORD={{management_server_grafana_password}}
+              # Run grafana from /grafana
+              GF_SERVER_DOMAIN={{wg_vpn_server_external_hostname}}
+              GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
+              GF_SERVER_SERVE_FROM_SUB_PATH=true
+            dest: /etc/default/grafana-server
+        - name: set up grafana datasources
+          copy:
+            dest: /etc/grafana/provisioning/datasources/default.yml
+            content: |
+              apiVersion: 1
+              deleteDatasources:
+                - name: Prometheus
+                  orgId: 1
+              datasources:
+              - name: Prometheus
+                type: prometheus
+                access: proxy
+                url: http://localhost:9090
+                isDefault: true
+                version: 1
+                editable: false
+        # - name: set up grafana dashboards
+        #   copy:
+        #     dest: /etc/grafana/provisioning/dashboards/default.yml
+        #     content: |
+        #       - name: 'default'       # name of this dashboard configuration (not dashboard itself)
+        #         org_id: 1             # id of the org to hold the dashboard
+        #         folder: ''            # name of the folder to put the dashboard (http://docs.grafana.org/v5.0/reference/dashboard_folders/)
+        #         type: 'file'          # type of dashboard description (json files)
+        #         options:
+        #           folder: '/etc/grafana/dashboards'       # where dashboards ar
+        # - name: create dashboard directory
+        #   file: path=/etc/grafana/dashboards state=directory
+        # - name: copy grafana dashboards
+        #   copy:
+        #     src: files/grafana/dashboards/
+        #     dest: /etc/grafana/dashboards/
+
+        - name: configure prometheus scrape config
+          copy:
+            dest: /etc/prometheus/prometheus.yml
+            content: |
+              ---
+              global:
+                scrape_interval:     15s # By default, scrape targets every 15 seconds.
+                evaluation_interval: 15s # By default, scrape targets every 15 seconds.
+              scrape_configs:
+                - job_name: 'self'
+                  static_configs:
+                    - targets: ['localhost:9100']
+                - job_name: 'contestants'
+                  file_sd_configs:
+                  - files:
+                    - '/home/{{ansible_user}}/icpcnet_prometheus_targets.json'
+
+        - name: copy default nginx config
+          copy: src=files/management-server/nginx.conf dest=/etc/nginx/nginx.conf
+          notify: restart nginx
+        - name: disable default nginx site
+          file: state=absent path=/etc/nginx/sites-enabled/default
+          notify: restart nginx
+        - name: htpasswd for nginx
+          htpasswd:
+            path: /etc/nginx/contestadmin_users.htpasswd
+            name: admin
+            password: "{{management_server_grafana_password}}"
+            owner: root
+            group: www-data
+            mode: 0640
+        - name: create web directory
+          file:
+            state: directory
+            dest: /srv/contestweb
+            owner: "{{ ansible_user }}"
+            group: www-data
+            mode: 0755
+        - name: Start/enable our services
+          service: name={{ item }} state=started enabled=yes
+          with_items:
+            - grafana-server.service
+            - prometheus.service
+            - nginx.service
+
+    - name: install our wg-discover tool
+      copy:
+        src: files/management-server/wg-discover
+        dest: /usr/local/bin/discover-clients
+        mode: 0755
+    - name: run wg-discover tool every minute
+      block:
+        - name: sudo rule so we can run wg show
+          community.general.sudoers:
+            name: passwordless_wg_show
+            user: "{{ ansible_user }}"
+            commands: "/usr/bin/wg show contest dump"
+            nopassword: true
+        - name: systemd unit
+          copy:
+            dest: /etc/systemd/system/discover-clients.service
+            content: |
+              [Unit]
+              Description=Discovers clients on the wireguard interface
+              Wants=discover-clients.timer
+              [Service]
+              Type=oneshot
+              User={{ ansible_user }}
+              WorkingDirectory=/home/{{ ansible_user }}
+              ExecStart=/usr/local/bin/discover-clients
+              [Install]
+              WantedBy=multi-user.target
+        - name: systemd timer
+          copy:
+            dest: /etc/systemd/system/discover-clients.timer
+            content: |
+              [Unit]
+              Description=Periodically triggers client discovery
+              Requires=discover-clients.service
+              [Timer]
+              Unit=discover-clients.service
+              OnCalendar=*-*-* *:*:00
+              [Install]
+              WantedBy=timers.target
+        - name: enable/start the timer
+          systemd:
+            name: discover-clients.timer
+            daemon_reload: true
+            state: started
+            enabled: true
+
+    - name: screenshot wizardry
+      copy:
+        src: files/management-server/do-screenshots.py
+        dest: /usr/local/bin/do-screenshots
+        mode: 0755
+    - name: make sure screens dir exists in web folder
+      file: dest=/srv/contestweb/screens state=directory owner={{ ansible_user }} group=www-data mode=0755
+
+    - name: make PS1 a bit more useful by including the contest id
+      lineinfile:
+        dest: /home/{{ansible_user}}/.bashrc
+        line: PS1='\[\033[01;32m\]\u@\h\[\033[00m\]\[\033[38;5;5m\]({{ contest_id }})\[\033[00m\] :\[\033[01;34m\]\w\[\033[00m\]\$ '
+
     # Copy some build information to the image
     - shell: 'echo "Built on $(date +%Y-%m-%d)\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)"\n'
       become: false
@@ -227,3 +487,7 @@
   handlers:
     - name: restart ssh
       service: name=ssh state=restarted
+    - name: restart coredns
+      service: name=coredns state=restarted
+    - name: restart nginx
+      service: name=nginx state=restarted

@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+import subprocess
+import time
+import requests
+import re
+import json
+import sys
+from prometheus_client.parser import text_string_to_metric_families
+# sudo apt-get install python3-prometheus-client
+from collections import defaultdict
+
+cmd='sudo wg show contest dump | tail -n +2|awk \'{gsub(/\\/128/, "", $4);print $4 " " $5}\''
+out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
+# out is 'IP last_handshake'
+
+from pprint import pprint
+
+now = time.time()
+
+def get_info(ip):
+    resp = None
+    try:
+        resp = requests.get(f'http://[{ip}]:9100/metrics', timeout=5)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        return None
+
+    # content = resp.content.decode()
+    # cachefile = open(f"/home/ubuntu/promcache/{ip}.metrics", "w")
+    # cachefile.write(content)
+    # cachefile.close()
+
+    machine_info = {}
+
+    for f in text_string_to_metric_families(resp.text):
+        if f.name == 'icpc_workstation_info':
+            for s in f.samples:
+                site = s.labels['site']
+                team = s.labels['team']
+                if len(team) == 0:
+                    team = None
+                if len(site) == 0:
+                    site = None
+                machine_info['team'] = team
+                machine_info['site'] = site
+                machine_info['name'] = s.labels.get('name', None)
+                machine_info['affiliation'] = s.labels.get('affiliation', None)
+        elif f.name == 'node_memory_MemTotal_bytes':
+            for s in f.samples:
+                machine_info['memory'] = s.value / (1024*1024) # in megabytes
+        elif f.name == 'node_cpu_frequency_max_hertz':
+            cores = {}
+            for s in f.samples:
+                cores[s.labels.get('cpu')] = s.value / (1000 * 1000 * 1000) # Gigahertz
+            machine_info['cpu_cores'] = len(cores)
+            machine_info['cpu_max'] = max(cores.values())
+    # pprint(machine_info)
+    # return (machine_info['team'],machine_info['site'])
+    return machine_info
+
+num_hosts=defaultdict(int)
+
+targets = []
+hostlines = []
+ansible = defaultdict(list)
+machines = []
+num_unknown = 0
+for line in filter(lambda f: len(f) > 0, out.stdout.decode().split('\n')):
+    ip, handshake = line.split(' ')
+    handshake = int(handshake)
+    if handshake > now - 300: #alive in the last 5 minutes
+        print(f'{ip} is alive', file=sys.stderr)
+        m = get_info(ip)
+        if m is None: # skip offline/broken hosts
+            continue
+        machines.append(m)
+        site = m['site']
+        team = m['team']
+        if site is not None and team is not None:
+            num_hosts[site] = num_hosts[site] + 1
+            if f't{team}' in ansible[site]: # machine already exists (i.e. this is a duplicate)
+                suffix = 0
+                while f't{team}_{suffix}' in ansible[site]:
+                    suffix = suffix + 1
+                team = f'{team}_{suffix}'
+            targets.append({'targets': [f'[{ip}]:9100'], 'labels': {'team': team, 'site': site, 'instance': f'team{team}'}})
+            print(f'    Adding t{team}.{site}.icpcnet.internal to hosts file')
+            hostlines.append( f'{ip}   t{team}.{site}.icpcnet.internal t{team}.icpcnet.internal t{team}'.lower())
+            ansible[site].append(f't{team}')
+        else:
+            num_unknown += 1
+            print(f'    missing team/site:\n      Team: {team}      Site: {site}')
+            hostlines.append(f'{ip}  u{num_unknown}.uninitialized.icpcnet.internal u{num_unknown}.icpcnet.internal u{num_unknown}')
+            ansible['uninitialized'].append(f'u{num_unknown}')
+
+
+with open("icpcnet_hosts", "w") as f:
+    f.write("\n".join(hostlines) + '\n') # Put a trailing newline on it
+
+with open("icpcnet_prometheus_targets.json", "w") as f:
+    f.write(json.dumps(targets) + '\n')
+
+with open('icpcnet_ansible', 'w') as f:
+    for _,hosts in ansible.items():
+        for h in hosts:
+            f.write(f'{h}\n')
+    f.write('\n')
+    for site,hosts in ansible.items():
+        f.write(f'[{site}]\n')
+        for h in hosts:
+            f.write(f'{h}\n')
+
+with open('/srv/contestweb/index.html', 'w') as f:
+    f.write('''
+<html lang="en">
+    <head>
+      <!-- Required meta tags -->
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+
+      <!-- Bootstrap CSS -->
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    </head>
+    <body>
+      <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Contest Management</h1>
+                <ul>
+                    <li><a href="/grafana">Grafana</a></li>
+                    <li><a href="/screens">Screenshots (run `do-screenshots` from the admin ssh)</a></li>
+                </ul>
+            </div>
+            <div class="col-md-12">
+            <h2>Online Teams</h2>
+                <table class="table table-sm">
+                <tr>
+                    <th>id</th>
+                    <th>site</th>
+                    <th>name</th>
+                    <th>affiliation</th>
+                    <th>specs</th>
+                </tr>
+            ''')
+    for m in sorted(machines, key=(lambda m: m.get('team') if m.get('team') is not None else 'zz')):
+        f.write(f"""
+                <tr>
+                    <td>{m['team']}</td>
+                    <td>{m['site']}</td>
+                    <td>{m['name']}</td>
+                    <td>{m['affiliation']}</td>
+                    <td>{m.get('cpu_cores',0)}@{m.get('cpu_max',0):.2f}GHz<br>{m.get('memory',0) / 1024.0 :.2f}GiB Ram</td>
+                </tr>
+        """)
+    f.write('''
+            </div>
+        </div>
+    </body>
+</html>
+    ''')
+
+print(f"Found {len(machines)} hosts")
+print(f'{num_hosts}')
