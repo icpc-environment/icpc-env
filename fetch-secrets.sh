@@ -18,8 +18,11 @@ cp secrets/$1/icpcadmin@contestmanager.pub files/secrets/
 # and private key + ca certificate signature
 cp secrets/$1/icpcadmin@contestmanager{,-cert.pub} files/secrets/
 
-# copy public+private host key (and ca certificate signature)
+# copy public+private host key for the contestant machines (and ca certificate signature)
 cp secrets/$1/contestant.icpcnet.internal_host_ed25519_key{,.pub,-cert.pub} files/secrets/
+
+# copy public+private host key for the management machine (and ca certificate signature)
+cp secrets/$1/contestmanager.icpcnet.internal_host_ed25519_key{,.pub,-cert.pub} files/secrets/
 
 # copy public ca
 cp secrets/$1/server_ca.pub files/secrets/
