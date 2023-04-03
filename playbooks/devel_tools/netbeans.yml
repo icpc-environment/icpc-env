@@ -1,4 +1,4 @@
 # Install netbeans debian package
 - name: Install netbeans debian package
   apt:
-    deb: https://dlcdn.apache.org/netbeans/netbeans-installers/16/apache-netbeans_16-1_all.deb
+    deb: https://archive.apache.org/dist/netbeans/netbeans-installers/16/apache-netbeans_16-1_all.deb
