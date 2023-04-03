@@ -355,6 +355,7 @@ def apply_wallpaper():
         "center",
         "-pointsize",
         "50",
+        "-family", "Ubuntu",
         "-stroke",
         "#000C",
         "-strokewidth",
