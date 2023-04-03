@@ -1,8 +1,8 @@
-# IntelliJ repository
+# IntelliJ repository (unofficial ppa: https://github.com/JonasGroeger/jetbrains-ppa)
 - name: apt key for IntelliJ IDEA
   apt_key: url=https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc state=present
 - name: apt repo for IntelliJ IDEA
-  apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com bionic main' update_cache=yes
+  apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main' update_cache=yes
 
 # IntelliJ IDEA community(~968mb installed in /opt/intellij-idea-community)
 - name: install IntelliJ IDEs
