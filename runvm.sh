@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Default group for the VM in ansible. This lets you use group_vars/$VARIANT for site specific configuration
+VARIANT=${1:-all}
+
 SSHPORT=2222
 SSHKEY="$PWD/configs/imageadmin-ssh_key"
 PIDFILE="tmp/qemu.pid"
@@ -16,7 +19,8 @@ function ctrl_c() {
 
 
 function runssh() {
-  ssh -i $SSHKEY -o BatchMode=yes -o ConnectTimeout=1 -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
+  chmod 0400 "$SSHKEY"
+  ssh -i "$SSHKEY" -o BatchMode=yes -o ConnectTimeout=1 -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null imageadmin@localhost -p$SSHPORT "$@" 2>/dev/null
 }
 
 function cleanup() {
@@ -61,7 +65,11 @@ function runansible() {
   echo "Running ansible"
   echo "Started at $(date)"
   INVENTORY_FILE=$(mktemp)
-  echo "vm ansible_port=$SSHPORT ansible_host=127.0.0.1" > $INVENTORY_FILE
+  cat <<EOF > $INVENTORY_FILE
+vm ansible_port=$SSHPORT ansible_host=127.0.0.1
+[$VARIANT]
+vm
+EOF
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" main.yml
   rm -f $INVENTORY_FILE
   echo "Ansible finished at $(date)"

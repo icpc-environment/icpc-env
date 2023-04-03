@@ -1,4 +1,8 @@
 #!/bin/bash
+set -xeuo pipefail
+
+# Default group for the VM in ansible. This lets you use group_vars/$VARIANT for site specific configuration
+VARIANT=${1:-all}
 
 SSHPORT=2222
 SSH_BUILD_KEY="configs/imageadmin-ssh_key"
@@ -7,6 +11,10 @@ PIDFILE="tmp/qemu.pid"
 ALIVE=0
 
 IMGFILE="output/$(date +%Y-%m-%d)_image-amd64.img"
+if [[ $IMGFILE != 'all' ]]; then
+  IMGFILE="output/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
+fi
+
 BASEIMG="base-amd64.img"
 
 # Copy to a raw disk image
@@ -63,7 +71,12 @@ waitforssh
 
 echo "Running ansible"
 INVENTORY_FILE=$(mktemp)
-echo "vm ansible_port=$SSHPORT ansible_host=127.0.0.1" > $INVENTORY_FILE
+cat <<EOF > $INVENTORY_FILE
+vm ansible_port=$SSHPORT ansible_host=127.0.0.1
+[$VARIANT]
+vm
+EOF
+
 ANSIBLE_HOST_KEY_CHECKING=False time ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
 rm -f $INVENTORY_FILE
 

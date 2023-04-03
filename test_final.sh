@@ -1,12 +1,15 @@
 #!/bin/bash
 
+VARIANT=${1:-""}
+
 SSHPORT=2222
 SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-BASEIMG="*_image-amd64.img"
+BASEIMG=$(ls -tr output/$VARIANT*image-amd64.img | tail -n1)
+echo "Booting $BASEIMG"
 
 function launchssh() {
   echo "Launching ssh session"
@@ -19,7 +22,7 @@ function cleanup() {
 }
 
 set -x
-qemu-system-x86_64 -smp 1 -m 1024 -hda output/$BASEIMG -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -smp 2 -m 4096 -hda $BASEIMG -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 set +x
 
 CMD=1
