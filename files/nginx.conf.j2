@@ -26,7 +26,7 @@ server {
 
         # Set the hostname as a variable, this forces nginx to do a dns lookup
         # otherwise it only looks it up when it starts and never refreshes it
-        set $server_host "{{config.scheme|default('https')}}://{{config.backend_host|default(server)}}{% if config.port %}{{ ":" + config.port }}{%endif%}";
+        set $server_host "{{config.scheme|default('https')}}://{{config.backend_host|default(server)}}{% if 'port' in config %}{{ ":" + config.port }}{%endif%}";
 
         {% for item in config.paths|default(['/']) %}
         location {% if item.exact is defined and item.exact %}={% endif %} {{ item.path }} {
