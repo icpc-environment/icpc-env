@@ -6,32 +6,10 @@ git_admin_home: 'https://github.com/icpc-environment/tripping-computing-machine.
 
 icpcadmin_pass: icpcadmin
 
-
-allowed_domains:
-  # - seusa.vanb.org
-  - seusa21-d1.kattis.com
-  - seusa21-d2.kattis.com
-
-  # sigh...kattis has a bunch of external dependencies
-  - cdnjs.cloudflare.com
-  - cdn.jsdelivr.net
-  - ajax.googleapis.com
-  - fonts.gstatic.com
-  - licensebuttons.net
-
-  # - docs.cloudcontest.org
-
-allowed_urls: []
-  # Maybe host language docs here instead? Makes for less on the image itself
-
 # urls we are configured to send autologin credentials to
 # TODO: allow https as well :/
 squid_autologin_urls: []
   # - ^http://ser2019.cloudcontest.org/login
-
-# After this date the restrictions for allowed_domains will not apply
-# Must be period separated in the format "YYYY.MM.DD"
-squid_unblock_date: 2022.03.06
 
 # this is the wireguard server's wireguard interface ip address
 # i.e. the address we can use when we want to talk to the vpn server
@@ -105,6 +83,73 @@ devtools:
   - intellij-pycharm
   - eclipse
   - geany
-  - netbeans
+  #- netbeans # netbeans isn't a thing anymore since 22.04
   - codeblocks
   # - monodevelop
+
+# Firefox policies. Documented here:
+# https://github.com/mozilla/policy-templates/blob/master/README.md
+firefox_policies:
+  # Set (and lock) the homepage to the given url
+  Homepage:
+    URL: "http://contest"
+    Locked: true
+    StartPage: homepage-locked
+  # Add some bookmark entries (and always show the bookmarks toolbar)
+  DisplayBookmarksToolbar: always
+  Bookmarks:
+    - Title: Contest Site
+      URL: "http://contest"
+      Placement: "toolbar"
+    - Title: Documentation
+      URL: "http://localhost/"
+      Placement: "toolbar"
+
+firefox_default_policies:
+  # Disable internet checking (it'll fail when the proxy is on so we want to avoid the notification banner)
+  CaptivePortal: false
+  # Prevent updating (shouldn't happen on linux, but we want to avoid it anyway)
+  DisableAppUpdate: true
+  # Prevent first run page/post update pages from showing up
+  OverrideFirstRunPage: ""
+  OverridePostUpdatePage: ""
+  # What it says on the tin. This is to prevent a banner on first start about what it's sharing
+  DisableTelemetry: true
+  # Disable DNS over HTTPS (this might get around filters/things)
+  DNSOverHTTPS:
+    Enabled: false
+  # Install the squid CA so it can mitm things/properly filter the network
+  Certificates: {
+    ImportEnterpriseRoots: true,
+    Install: ["/etc/squid/squidCA.crt"]
+  }
+
+  # Disable a bunch of random features we don't need
+  DisablePocket: true
+  DisableFirefoxStudies: true
+  DisableFirefoxAccounts: true
+  DisableFeedbackCommands: true
+  NewTabPage: false
+  NoDefaultBookmarks: true
+
+  # Disable a bunch of messages
+  UserMessaging:
+    WhatsNew: false
+    ExtensionRecommendations: false
+    FeatureRecommendations: false
+    UrlbarInterventions: false
+    SkipOnboard: true
+    MoreFromMozilla: false
+    Locked: true
+
+# A list of sites to configure in the nginx proxy. Only these will pass through, all others will fail
+reverseproxy_sites:
+  contest:
+    backend_host: "1.2.3.4"
+    scheme: 'http'
+    port: "12345" # strings not ints
+    paths:
+      - {path: "/"}
+  #kattis.com:
+  #  paths:
+  #    - {path: "/"}
