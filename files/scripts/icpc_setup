@@ -346,6 +346,19 @@ def apply_configuration():
         f"{configuration['team']['id']} - {configuration['team']['name']} ({configuration['team']['affiliation']})\n"
     )
 
+    # Update the hostname to the team's id
+    new_hostname = "icpc-team-" + configuration["team"]["id"]
+    Path("/etc/hostname").write_text(new_hostname + "\n")
+    Path("/proc/sys/kernel/hostname").write_text(new_hostname + "\n")
+
+    # Update the hosts file
+    host_lines = Path("/etc/hosts").read_text().splitlines()
+    for i, line in enumerate(host_lines):
+        if line.startswith("127.0.1.1 "):
+            host_lines[i] = f"127.0.1.1 {new_hostname}.icpcnet.internal {new_hostname}"
+    Path("/etc/hosts").write_text("\n".join(host_lines) + "\n")
+
+
 
 def apply_wallpaper():
     cmd = [
