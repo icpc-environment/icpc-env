@@ -4,7 +4,7 @@
     pkg: unzip
     state: present
 - name: install kotlin
-  unarchive: src=files/kotlin-compiler-1.7.10.zip dest=/opt creates=/opt/kotlinc
+  unarchive: src=files/kotlin-compiler-1.8.10.zip dest=/opt creates=/opt/kotlinc
 - name: create symlinks for kotlin
   file:
     src: /opt/kotlinc/bin/{{ binary_name }}
