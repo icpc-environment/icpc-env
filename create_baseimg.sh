@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-22.04.1-live-server-amd64.iso"
+ISO64="ubuntu-22.04.3-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
 IMG64="base-amd64.img"
 
