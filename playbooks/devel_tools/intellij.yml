@@ -37,11 +37,11 @@
         mode: 0755
         content: |
           #!/bin/bash
-          mkdir -p $HOME/.config/JetBrains/CLion2021.3
+          mkdir -p $HOME/.config/JetBrains/CLion2023.3
           (
             printf '\xFF\xFF';
             echo -en "<certificate-key>\n{{ clion_license_key }}" | iconv -f UTF-8 -t UCS2 -
-          ) > $HOME/.config/JetBrains/CLion2021.3/clion.key
+          ) > $HOME/.config/JetBrains/CLion2023.3/clion.key
       when: clion_license_key | length > 0
 
     - name: add licensekey script to autostart
