@@ -4,11 +4,16 @@
     state: present
     pkg:
       - openjdk-11-jdk
-      - openjdk-11-doc   # 246 mb
       - openjdk-11-source   # 60 mb
 
 - name: register docs
+  when: not devdocs
   block:
+    - name: java openjdk docs
+      apt:
+        state: present
+        pkg:
+          - openjdk-11-doc   # 246 mb
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Java']"

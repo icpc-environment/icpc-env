@@ -20,22 +20,21 @@
     - kotlinc-jvm
     - kotlin-dce-js
 
-# kotlin pdf doc (single file)
-- name: create directory for kotlin docs
-  file:
-    state: directory
-    mode: 0755
-    path: /opt/kotlin-docs
-
-- name: fetch kotlin pdf
-  get_url:
-    url: https://kotlinlang.org/docs/kotlin-reference.pdf
-    dest: /opt/kotlin-docs/kotlin-reference.pdf
-    mode: 0644
-
-
-- name: register docs
+- name: kotlin docs
+  when: not devdocs
   block:
+    # kotlin pdf doc (single file)
+    - name: create directory for kotlin docs
+      file:
+        state: directory
+        mode: 0755
+        path: /opt/kotlin-docs
+
+    - name: fetch kotlin pdf
+      get_url:
+        url: https://kotlinlang.org/docs/kotlin-reference.pdf
+        dest: /opt/kotlin-docs/kotlin-reference.pdf
+        mode: 0644
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Kotlin']"

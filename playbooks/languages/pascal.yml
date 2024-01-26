@@ -4,10 +4,15 @@
     state: present
     pkg:
       - fpc
-      - fp-docs         # 32mb
 
-- name: register docs
+- name: pascal docs
+  when: not devdocs
   block:
+    - name: Pascal docs
+      apt:
+        state: present
+        pkg:
+          - fp-docs         # 32mb
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Pascal']"

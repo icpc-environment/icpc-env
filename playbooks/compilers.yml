@@ -14,19 +14,21 @@
     loop_control:
       loop_var: language
 
-  - name: dump the lang_docs fact
-    debug:
-      var: lang_docs
+  - name: Old style docs
+    when: devdocs
+    block:
+      - name: dump the lang_docs fact
+        debug:
+          var: lang_docs
+      - name: create symlinks to docs
+        file:
+          state: link
+          src: "{{item.value.path}}"
+          dest: /opt/localwww/{{item.value.id}}
+        loop: "{{ lang_docs | dict2items }}"
+      - name: create simple index page for links to docs
+        template: src=files/language-docs.html.j2 dest=/opt/localwww/index.html
 
-  - name: create symlinks to docs
-    file:
-      state: link
-      src: "{{item.value.path}}"
-      dest: /opt/localwww/{{item.value.id}}
-    loop: "{{ lang_docs | dict2items }}"
-
-  - name: create simple index page for links to docs
-    template: src=files/language-docs.html.j2 dest=/opt/localwww/index.html
 
   # This set of devdocs stuff takes about ~700MiB or so for the docker containers
   - name: install podman (for devdocs)

@@ -5,8 +5,6 @@
     pkg:
       - python3
       - pypy3
-      - python3-doc     # 37.2 mb
-      - pypy3-doc # 5mb
       - python-is-python3
 
 - name: ipython
@@ -16,8 +14,20 @@
     pkg:
       - ipython3
 
-- name: register docs
+# TODO: it'd be neat to get the pypy docs
+# https://docs.pypy.org/en/latest
+# it's a readthedocs site, but doesn't have any downloads :(
+# https://readthedocs.org/projects/pypy/downloads/
+
+- name: python3 docs
+  when: not devdocs
   block:
+    - name: Python 3 docs
+      apt:
+        state: present
+        pkg:
+          - python3-doc     # 37.2 mb
+          - pypy3-doc # 5mb
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Python 3']"

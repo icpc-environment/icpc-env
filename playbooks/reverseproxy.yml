@@ -52,3 +52,11 @@
     group: root
     mode: '0644'
   loop: "{{ reverseproxy_sites.keys() }}"
+
+- name: update hosts file so devdocs is available properly
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.0.1	devdocs"
+    owner: root
+    group: root
+    mode: '0644'

@@ -4,10 +4,15 @@
     state: present
     pkg:
       - ghc
-      - ghc-doc         # 146 mb
 
-- name: register docs
+- name: haskell docs
+  when: not devdocs
   block:
+    - name: Haskell docs
+      apt:
+        state: present
+        pkg:
+          - ghc-doc         # 146 mb
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Haskell']"

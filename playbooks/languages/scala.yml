@@ -4,10 +4,15 @@
     state: present
     pkg:
       - scala
-      - scala-doc       # 413mb somehow
 
-- name: register docs
+- name: scala docs
+  when: not devdocs
   block:
+    - name: scala
+      apt:
+        state: present
+        pkg:
+          - scala-doc       # 413mb somehow
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Scala']"
