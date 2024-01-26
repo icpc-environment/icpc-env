@@ -11,6 +11,24 @@ server {
   root /opt/localwww;
 }
 
+# Local devdocs server
+server {
+        listen 80;
+        server_name devdocs;
+        return 301 https://$host$request_uri;
+}
+server {
+        listen 443 ssl;
+        server_name devdocs;
+        ssl_certificate /etc/ssl/reverseproxy.cert;
+        ssl_certificate_key /etc/ssl/reverseproxy.key;
+        location  / {
+                proxy_pass http://127.0.0.1:9292;
+                proxy_ssl_server_name on;
+                proxy_set_header Host $host;
+        }
+}
+
 {% for server,config in reverseproxy_sites.items() %}
 server {
         listen 80;

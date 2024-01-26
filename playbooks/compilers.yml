@@ -27,3 +27,62 @@
 
   - name: create simple index page for links to docs
     template: src=files/language-docs.html.j2 dest=/opt/localwww/index.html
+
+  # This set of devdocs stuff takes about ~700MiB or so for the docker containers
+  - name: install podman (for devdocs)
+    apt:
+      pkg: podman
+      state: present
+
+  - name: Gather info on a specific image
+    become: yes
+    containers.podman.podman_image_info:
+      name: devdocs
+    register: devdocs_info
+
+  - name: fetch the devdocs repo
+    ansible.builtin.git:
+      repo: https://github.com/freeCodeCamp/devdocs.git
+      dest: /tmp/devdocs-build
+      version: '89ee4c589ddd67e817a40cd94ebb274f5aaefab6' # main on 2024-01-14 13:40:00 EST
+
+  - name: update dockerfile to only fetch things we care about
+    ansible.builtin.replace:
+      path: /tmp/devdocs-build/Dockerfile-alpine
+      regexp: 'thor docs:download --all'
+      replace: "thor docs:download c cpp python@3.10 kotlin@1.8 openjdk@11"
+
+  - name: update dockerfile to fix the image name
+    ansible.builtin.replace:
+      path: /tmp/devdocs-build/Dockerfile-alpine
+      regexp: 'FROM ruby:'
+      replace: "FROM docker.io/ruby:"
+
+  - name: build the docker container
+    become: true
+    containers.podman.podman_image:
+      name: devdocs
+      path: /tmp/devdocs-build
+      build:
+        file: Dockerfile-alpine
+
+  - name: generate the container
+    containers.podman.podman_container:
+      name: devdocs
+      image: devdocs:latest
+      rm: true
+      state: created
+      ports:
+        - 127.0.0.1:9292:9292
+  - name: Generate systemd unit file for devdocs container
+    containers.podman.podman_generate_systemd:
+      name: devdocs
+      new: true
+      dest: /etc/systemd/system
+      restart_policy: always
+  - name: Ensure devdocs container is started and enabled
+    ansible.builtin.systemd:
+      name: container-devdocs
+      daemon_reload: true
+      state: started
+      enabled: true
