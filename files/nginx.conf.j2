@@ -46,7 +46,7 @@ server {
         # otherwise it only looks it up when it starts and never refreshes it
         set $server_host "{{config.scheme|default('https')}}://{{config.backend_host|default(server)}}{% if 'port' in config %}{{ ":" + config.port }}{%endif%}";
 
-        {% for item in config.paths|default(['/']) %}
+        {% for item in config.paths %}
         location {% if item.exact is defined and item.exact %}={% endif %} {{ item.path }} {
                 proxy_pass $server_host
                         {%- if not (item.exact is defined and item.exact) and item.path != '/' -%}
