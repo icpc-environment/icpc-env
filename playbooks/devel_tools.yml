@@ -4,6 +4,8 @@
       state: present
       pkg:
         - vim-gtk3       # graphical vim
+        - neovim-qt      # fork of vim that some people might like better
+        - kate           # another text editor ~181mb
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
         - gdb
