@@ -59,12 +59,7 @@ macAddress = subprocess.getoutput("cat /sys/class/net/" + netDevice + "/address"
 hostname = subprocess.getoutput("hostname")
 
 # -MLetter  we assume US printers and generate letter size pages and not A4 pages
-options = [
-    "-MLetter",
-    "-2",
-    "--landscape",
-    "--pretty-print"
-]
+options = "-MLetter -2 --landscape --pretty-print "
 
 # The header is too wide, but footers are a pain
 header = "$n; page $% of $=; time=$C; user=$(USER); site=" + site + "; team=" + team + "; host=" + hostname + "; mac=" + macAddress
@@ -73,6 +68,6 @@ header = "$n; page $% of $=; team=" + team
 
 # Though I encourage just one argument (the name of one file);
 # all command line arguments are tacked on at the end
-os.system("/usr/bin/enscript", **options, f'--header={header}', **sys.argv[1:])
+os.system("/usr/bin/enscript " + options + " '--header=" + header + "' " + ' '.join(sys.argv[1:]))
 
 # PS.  Using footers would be nice, but that would require writing enscript *.hdr files.
