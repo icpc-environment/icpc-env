@@ -29,3 +29,29 @@ fi
 
 echo "$wg_config" > /etc/wireguard/contest.conf
 wg-quick up contest
+
+# Wait a few moments
+sleep 5
+
+# Try to ping the contest management server
+if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
+  exit 0
+fi
+
+# Bring it down so we can try wstunnel instead
+wg-quick down contest || true
+
+# If it's still not reachable, try using wstunnel to wrap the connection
+sed -i -e 's/^Endpoint=.*/Endpoint=127.0.0.10:51820/' /etc/wireguard/contest.conf
+
+# Bring it back up
+wg-quick up contest
+
+# Check if it's alive now
+sleep 5
+if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
+  exit 0
+fi
+
+# Report an exit failure if it was still down at this point
+exit 1
