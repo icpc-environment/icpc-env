@@ -52,7 +52,8 @@ autoinstall:
       - {type: format, volume: partition-icpc, id: format-icpc, fstype: fat32, label: ICPC} # TAG:USB_PARTITION_ENABLED
       - {type: format, volume: partition-root, id: format-root, fstype: ext4, extra_options: ['-m', '0']}
       - {type: mount, device: format-efi, id: mount-efi, path: /boot/efi}
-      - {type: mount, device: format-root, id: mount-root, path: /, options: 'noatime,nodiratime,errors=remount-ro'}
+      # Set commit=60, to help improve performance
+      - {type: mount, device: format-root, id: mount-root, path: /, options: 'noatime,nodiratime,errors=remount-ro,commit=60'}
   identity:
       hostname: icpc
       username: imageadmin
