@@ -34,3 +34,37 @@
     dest: /etc/hosts
     line: '{{ contestmanager_ip }} contestmanager.icpcnet.internal contestmanager'
     state: present
+
+- name: install wstunnel (for wireguard websocket tunnel fallback)
+  unarchive:
+    src: https://github.com/erebe/wstunnel/releases/download/v9.2.2/wstunnel_9.2.2_linux_amd64.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    include: ['wstunnel']
+- name: make wstunnel executable
+  file:
+    state: file
+    path: /usr/local/bin/wstunnel
+    mode: 0755
+- name: set up wstunnel service so we can access it via websocket (at 127.0.0._10_, not .1 for security
+  copy:
+    dest: /etc/systemd/system/wstunnel.service
+    content: |
+      [Unit]
+      Description=Tunnel WG UDP over websocket to our management host
+      After=network.target
+
+      [Service]
+      Type=simple
+      DynamicUser=yes
+      ExecStart=/usr/local/bin/wstunnel client \
+        -L udp://127.0.0.10:51820:127.0.0.1:51820 \
+        wss://{{ wireguard_host }} \
+        --http-upgrade-path-prefix /wgtunnel/
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+- name: enable wstunnel service
+  service: enabled=yes name=wstunnel
