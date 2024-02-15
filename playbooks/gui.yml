@@ -28,6 +28,8 @@
       # power management/terminal
       - xfce4-power-manager
       - xfce4-terminal
+      # So we can show the output of commands in the panel (used for showing team name/info)
+      - xfce4-genmon-plugin
 
 
 - name: add mozilla firefox ppa (because snaps are dumb)
