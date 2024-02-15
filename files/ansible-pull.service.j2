@@ -12,7 +12,7 @@ ExecStart=/usr/bin/ansible-pull \
   --sleep 30 \
   --clean \
   --diff \
-  --inventory icpc, \
+  --inventory localhost, \
   --url ssh://git@{{ ansible_pull_host }}:{{ ansible_pull_port }}/{{ ansible_pull_path }}
 
 [Install]
