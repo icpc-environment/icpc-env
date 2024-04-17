@@ -1,6 +1,10 @@
 # IntelliJ repository (unofficial ppa: https://github.com/JonasGroeger/jetbrains-ppa)
 - name: apt key for IntelliJ IDEA
-  apt_key: url=https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc state=present
+  apt_key:
+    url: https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/jetbrains.gpg
+
 - name: apt repo for IntelliJ IDEA
   apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main' update_cache=yes
 
@@ -11,6 +15,23 @@
     state: present
     pkg:
     - intellij-idea-community
+
+# For intellij+kotlin, we need to fetch kotlin from maven (it doesn't want to easily use the local files we have)
+- name: install maven
+  apt:
+    pkg: maven
+    state: present
+- name: make sure m2 repository exists
+  file:
+    state: directory
+    path: /opt/m2/repository
+    mode: 0755
+    owner: root
+    group: root
+# TODO: figure out where 1.9.22 comes from (intellij has a default for this)
+# TODO: maybe from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt
+- name: fetch some things from maven
+  shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22" -Dmaven.repo.local="/opt/m2/repository"
 
 # PyCharm Community(523mb installed in /opt/pycharm-community)
 - name: install PyCharm
