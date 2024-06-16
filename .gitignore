@@ -1,3 +1,6 @@
 *.iso
 configs/ssh*
 group_vars/all
+venv/
+printer-configs/
+environment.cloudcontest.org/

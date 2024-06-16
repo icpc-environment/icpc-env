@@ -42,8 +42,8 @@ ssh-keygen -s ./server_ca -h \
 
 ssh-keygen -s ./server_ca -h \
     -I "contestmanager.icpcnet.internal host key" \
-    -n "contestmanager,contestmanager.icpcnet.internal,icpc.cloudcontest.org" \
     ./contestmanager.icpcnet.internal_host_ed25519_key
+    # -n "contestmanager,contestmanager.icpcnet.internal.icpc.cloudcontest.org" # TODO: this should have the externally visible hostname of the management server
 
 # sign the icpcadmin user key (allowing to log into the icpc machine with root, icpcadmin, or contestant)
 ssh-keygen -s ./server_ca \

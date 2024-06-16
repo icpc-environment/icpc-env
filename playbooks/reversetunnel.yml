@@ -23,6 +23,14 @@
     group: jumpy
     dest: /home/jumpy/.ssh/id_ed25519-cert.pub
 
+# not needed because we're using an ssh ca instead
+# - name: set up authorized key for someone to log in to this team machine over the reverse tunnel
+#   authorized_key:
+#     user: "{{ item }}"
+#     key: "{{ jumpbox_authorized_key }}"
+#   with_items:
+#     - root
+#     - icpcadmin
 
 - name: create autossh service
   template: src=files/autossh.service.j2 dest=/etc/systemd/system/autossh.service

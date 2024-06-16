@@ -7,11 +7,13 @@ UTILDIR="/icpc"
 rm -rf /etc/skel/.git
 rm -rf /home/icpcadmin/.git
 
-# Cleanup 'imageadmin' things
-killall -9 -u imageadmin
-sleep 5
-rm -rf /home/imageadmin
-userdel imageadmin
+# Cleanup 'imageadmin' things (if it exists)
+if id "imageadmin" >/dev/null 2>&1; then
+  killall -9 -u imageadmin
+  sleep 5
+  rm -rf /home/imageadmin
+  userdel imageadmin
+fi
 
 # Delete proxy settings for apt(if any)
 rm -f /etc/apt/apt.conf.d/01proxy
@@ -49,6 +51,13 @@ mkdir -p /var/lib/apt/lists/partial
 ufw --force enable
 
 # Delete /etc/machine-id so the image generates a new one on boot
+echo
+echo
+mount
+echo
+echo
+# sometimes this is a tmpfs, see https://www.freedesktop.org/software/systemd/man/latest/systemd-machine-id-setup.html
+umount /etc/machine-id
 echo "" > /etc/machine-id
 
 # make sure wireguard config is wiped so it can be generated for each system on boot

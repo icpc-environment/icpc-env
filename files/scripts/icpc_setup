@@ -437,8 +437,14 @@ network:
   wifis:
     {interface}:
       access-points:
-        "{ssid}":
-          password: "{password}"
+        "{ssid}":""")
+        # Render the password field properly the ssid should be an empty object if the password is blank
+        if len(password) > 0:
+            f.write(f'''
+            password: "{password}"''')
+        else:
+            f.write(" {}")
+        f.write(f"""
       dhcp4: true
       dhcp-identifier: mac
 """

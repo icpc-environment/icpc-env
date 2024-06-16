@@ -6,7 +6,7 @@ PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-BASEIMG="*_image-amd64.img"
+BASEIMG="*12_image-amd64.img"
 
 function launchssh() {
   echo "Launching ssh session"

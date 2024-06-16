@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Settings
+# ISO64="ubuntu-20.04.5-live-server-amd64.iso"
 ISO64="ubuntu-22.04.3-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
 IMG64="base-amd64.img"
@@ -79,6 +80,7 @@ function create_unattended_iso() {
     sed -i -e "/USB_PARTITION_ENABLED/d" "$CONTENTSDIR/autoinst/user-data"
   fi
 
+  # TODO: skip all this isolinux stuff, and change boot/grub/grub.cfg instead
 
   # Configure grub to start the autoinstall after 3 seconds
   cat <<EOF > "$CONTENTSDIR/boot/grub/grub.cfg"
@@ -95,7 +97,36 @@ menuentry "Install Ubuntu Server (Unattended)" {
 	initrd	/casper/initrd
 }
 EOF
+
+  # Skip language selection menu
+#   chmod u+w $CONTENTSDIR/isolinux
+#   echo "en" > "$CONTENTSDIR/isolinux/lang"
+
+#   cat <<EOF > "$CONTENTSDIR/isolinux/txt.cfg"
+# default install
+# label install
+#   menu label ^Install Ubuntu Server (Unattended)
+#   kernel /casper/vmlinuz
+#   append initrd=/casper/initrd autoinstall ds=nocloud-net;seedfrom=/cdrom/autoinst/ net.ifnames=0 --
+# label memtest
+#   menu label Test ^memory
+#   kernel /install/mt86plus
+# EOF
+
+#   cat <<EOF > "$CONTENTSDIR/isolinux/isolinux.cfg"
+# # D-I config version 2.0
+# path
+# include menu.cfg
+# default vesamenu.c32
+# prompt 0
+# # 2.5 seconds
+# timeout 25
+# ui gfxboot bootlogo
+# EOF
+#   echo "en" > "$CONTENTSDIR/isolinux/lang"
+
   set -x
+  # mkisofs -r -V "ATTENDLESS_UBUNTU" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -quiet -o $OUTISO $CONTENTSDIR
 
   # Finally pack up an ISO the new way
   xorriso -as mkisofs -r \
@@ -115,6 +146,8 @@ EOF
     -no-emul-boot \
     $CONTENTSDIR
   set +x
+
+  # exit 1
 
   # cleanup
   rm -rf "$CONTENTSDIR"

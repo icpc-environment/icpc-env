@@ -14,6 +14,9 @@ StandardInput=tty
 StandardOutput=tty
 ExecStart=/bin/bash -c '/bin/chvt 2; /icpc/scripts/icpc_setup'
 
+# TODO could use type=notify along with calling `systemd-notify --ready` from the script to mark it as complete.
+# TODO then systemd will restart it until successful
+
 [Install]
 WantedBy=graphical.target
 WantedBy=multi-user.target

@@ -117,7 +117,7 @@ function setresolution() {
   runssh sudo -u contestant env DISPLAY=:0 xrandr --size 1440x900
 }
 
-qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet
 ALIVE=0
 waitforssh
 

@@ -127,6 +127,9 @@
       # trigger metrics update whenever TEAM/SITE/version/update-version change so we can update the values in prometheus
       [Path]
       PathModified=/icpc/TEAM
+      PathModified=/icpc/TEAMID
+      PathModified=/icpc/TEAMAFFILIATION
+      PathModified=/icpc/TEAMNAME
       PathModified=/icpc/SITE
       PathModified=/icpc/version
       PathModified=/icpc/update-version
@@ -136,3 +139,28 @@
 
 - name: enable icpc-static-node-exporter.path
   service: name=icpc-static-node-exporter.path enabled=yes
+
+# - name: install s.py script
+#   copy:
+#     src: files/s.py
+#     dest: /usr/local/bin/s.py
+#     mode: 0755
+
+- name: install python3-xlib for s.py library
+  apt:
+    state: present
+    pkg: python3-xlib
+
+
+- name: key for grafana apt repo
+  apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+    keyring: /etc/apt/trusted.gpg.d/grafana.gpg
+- name: apt repo for grafana
+  apt_repository: repo="deb https://apt.grafana.com stable main" update_cache=yes
+- name: install promtail (for sending logs to our server)
+  apt:
+    state: present
+    pkg:
+      - promtail

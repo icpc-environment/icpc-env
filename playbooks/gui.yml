@@ -54,6 +54,12 @@
       - mupdf     # Lighweight pdf viewer
       - mate-calc # GUI calculator
 
+  # kalgebra - seems nice, basically a graphing calculator, but it ends up in some new education submenu
+  # gnome-genius - way overkill/has it's own language thing. reminds me of r or ipython notebooks
+  # gnome-calculator - sucks
+  # qalculate-gtk - has a bunch of extra advanced things, might be nice to leave in there, but maybe too fancy?
+  # kcalc - # ok, but mate-calc is better
+
 - name: Remove unneeded packages
   apt:
     state: absent
@@ -88,3 +94,9 @@
     - thunar-bulk-rename.desktop      # System->Bulk Rename
     - xfce4-mail-reader.desktop       # Mail Reader
     - thunar-volman-settings.desktop  # Removable devices and media
+
+- name: copy a script to help mirror displays
+  copy:
+    src: files/mirror-displays.sh
+    dest: /usr/local/bin/mirror-displays
+    mode: 0755

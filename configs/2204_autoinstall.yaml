@@ -67,6 +67,25 @@ autoinstall:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB9pjASmP4wQkhJ1VEbl0l1Vgn3lsOzctRS2m0wBVlaO ICPC ImageAdmin Key
       allow-pw: yes
 
+  # failures at removing snap...sigh
+  # install the minimal version (see casper/install-sources.yaml on the iso)
+  # This avoids snapd being installed
+  # source:
+  #   id: ubuntu-server-minimal
+
+  # try something else to disable snapd (remove it from the installer?)
+  # Can't do this, subiquity (the installer) is a snap
+  # early-commands:
+  #   - apt-get autoremove -y --purge snapd
+
+  # Tried to disable snapd from being installed, and while this preference _is_ added properly,
+  # it doesn't actually work.
+  # apt:
+  #   preferences:
+  #     - package: snapd
+  #       pin: release *
+  #       pin-priority: -1
+
   packages: []
   # updates: all # install all updates after the installer finishes (default 'security')
   updates: security # install all updates after the installer finishes (default 'security')
@@ -74,14 +93,26 @@ autoinstall:
       # Fix the filesystem type of the icpc fat32 partition (curtain sets it to "Linux filesystem", even though we specify partition_type)
       - sfdisk --part-type /dev/sda 3 EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 # TAG:USB_PARTITION_ENABLED
 
+      # This fixes a weird issue with qemu not wanting to boot the system unless you
+      # hold down shift, and manually pick the os to boot.
+      # Disable graphical grub console
+      # - sed -i -e 's/#\(GRUB_TERMINAL.*\)/\1/' /target/etc/default/grub
+
       # Enable passwordless sudo
       - echo '%sudo ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/icpc
+      # TODO: what was the value of GRUB_CMDLINE_LINUX before this line nukes it?
       - cp /target/etc/default/grub /target/etc/default/grub.orig
       - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0"/' /target/etc/default/grub
       # Do these matter(or did they get nuked above?)
       - sed -ie 's/quiet splash//' /target/etc/default/grub
 
       - curtin in-target update-grub2
+      # This also fails to remove snapd for some reason or another:
+      # https://gist.github.com/s3rj1k/55b10cd20f31542046018fcce32f103e?permalink_comment_id=4429378#gistcomment-4429378
+      # - curtin in-target apt-get -y -q purge snapd
+
+      # The original version of subiquity had a bug where specifying --target /target was required
+      # - curtin in-target --target /target update-grub2
 
       # Poweroff because otherwise it'll reboot
       - poweroff

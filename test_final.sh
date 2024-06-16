@@ -22,7 +22,18 @@ function cleanup() {
 }
 
 set -x
-qemu-system-x86_64 -smp 2 -m 4096 -hda $BASEIMG -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -smp 2 \
+  -m 4096 \
+  -hda $BASEIMG \
+  -global isa-fdc.driveA= \
+  --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 \
+  -net nic \
+  --daemonize --pidfile $PIDFILE \
+  $SNAPSHOT \
+  -vnc :0 \
+  -device VGA,edid=on,xres=1440,yres=900 \
+  -usbdevice tablet
+# qemu-system-x86_64 -smp 1 -m 1024 -hda output/$BASEIMG -global isa-fdc.driveA= -monitor stdio --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --pidfile $PIDFILE $SNAPSHOT -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
 set +x
 
 CMD=1

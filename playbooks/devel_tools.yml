@@ -6,6 +6,7 @@
         - vim-gtk3       # graphical vim
         - neovim-qt      # fork of vim that some people might like better
         - kate           # another text editor ~181mb
+        - konsole        # kate requires konsole (an alternate console) for it's embedded terminal
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
         - gdb
@@ -45,7 +46,10 @@
     when: "('monodevelop' in devtools)"
     block:
     - name: key for monodevelop apt repo
-      apt_key: keyserver=keyserver.ubuntu.com id=3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+      apt_key:
+        keyserver: keyserver.ubuntu.com
+        id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+        keyring: /etc/apt/trusted.gpg.d/monodevelop.gpg
     - name: apt repo for monodevelop
       apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
     - name: install monodevelop

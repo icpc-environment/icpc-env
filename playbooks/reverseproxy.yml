@@ -12,6 +12,16 @@
     state: absent
   notify: reload nginx
 
+# - name: install the ssl data
+#   ansible.builtin.copy:
+#     content: "{{ item.content }}"
+#     dest: /etc/ssl/{{ item.dest }}
+#     mode: "{{ item.mode }}"
+#   notify: reload nginx
+#   loop:
+#     - { content: "{{ reverseproxy_key }}", dest: reverseproxy.key, mode: "0600" }
+#     - { content: "{{ reverseproxy_cert }}", dest: reverseproxy.cert, mode: "0644" }
+
 - name: use the snakeoil cert, since squid will be proxying everything and mitms things/accepts any certificate
   ansible.builtin.copy:
     remote_src: true
