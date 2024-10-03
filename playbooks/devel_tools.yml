@@ -7,10 +7,17 @@
         - neovim-qt      # fork of vim that some people might like better
         - kate           # another text editor ~181mb
         - konsole        # kate requires konsole (an alternate console) for it's embedded terminal
+        - alacritty      # a fancy terminal app people might want/like
         - emacs          # emacs(with x)
         - gedit          # Simple gnome text editor w/ syntax highlighting
         - gdb
         - zsh            # a different shell people might like more (~20MiB)
+        - eza            # a modern ls
+
+  - name: make sure vim-gtk3 is the default gvim (not nvim)
+    community.general.alternatives:
+      name: gvim
+      path: /usr/bin/vim.gtk3
 
   - name: install codeblocks
     when: "'codeblocks' in devtools"
@@ -24,9 +31,17 @@
     when: "'vscode' in devtools"
     include_tasks: 'devel_tools/vscode.yml'
 
+  - name: install zed
+    when: "'zed' in devtools"
+    include_tasks: 'devel_tools/zed.yml'
+
   - name: install netbeans
     when: "'netbeans' in devtools"
     include_tasks: 'devel_tools/netbeans.yml'
+
+  - name: install codelite
+    when: "'codelite' in devtools"
+    include_tasks: 'devel_tools/codelite.yml'
 
   - name: install geany
     when: "'geany' in devtools"
@@ -36,10 +51,12 @@
         - geany
         - geany-plugins
 
-  - include_tasks: 'devel_tools/eclipse.yml'
+  - name: install eclipse
+    include_tasks: 'devel_tools/eclipse.yml'
     when: "'eclipse' in devtools"
 
-  - include_tasks: 'devel_tools/intellij.yml'
+  - name: install intellij tools
+    include_tasks: 'devel_tools/intellij.yml'
     when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
 
   - name: install monodevelop

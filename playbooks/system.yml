@@ -4,6 +4,7 @@
     pkg:
       # performance tools
       - htop
+      - btop # a modern resource monitor
       - dstat
       - iotop
       - sysstat
@@ -13,6 +14,7 @@
       - curl        # debugging connection things
       - ncdu
       - jq
+      - jc # for json output form various commands
       # Needed for wifi
       - wpasupplicant
       - iw

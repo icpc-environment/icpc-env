@@ -3,8 +3,8 @@
   apt:
     state: present
     pkg:
-      - openjdk-11-jdk
-      - openjdk-11-source   # 60 mb
+      - openjdk-21-jdk
+      - openjdk-21-source
 
 - name: register docs
   when: not devdocs
@@ -13,14 +13,14 @@
       apt:
         state: present
         pkg:
-          - openjdk-11-doc   # 246 mb
+          - openjdk-21-doc
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Java']"
             value:
               name: Java API Documentation
               id: java_api
-              path: /usr/share/doc/openjdk-11-doc/api
+              path: /usr/share/doc/openjdk-21-doc/api
               index: index.html
       register: updated
     - set_fact:

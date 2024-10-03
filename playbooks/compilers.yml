@@ -36,6 +36,13 @@
       pkg: podman
       state: present
 
+  - name: Put an alias in for podman so that the shortname for ruby works right
+    ansible.builtin.copy:
+      dest: /etc/containers/registries.conf.d/ruby-shortname.conf
+      content: |
+        [aliases]
+          "ruby" = "docker.io/library/ruby"
+
   - name: Gather info on a specific image
     become: yes
     containers.podman.podman_image_info:
@@ -46,19 +53,13 @@
     ansible.builtin.git:
       repo: https://github.com/freeCodeCamp/devdocs.git
       dest: /tmp/devdocs-build
-      version: '89ee4c589ddd67e817a40cd94ebb274f5aaefab6' # main on 2024-01-14 13:40:00 EST
+      version: '0f259e07839d1ba65f645e077b8d22d20c0dfd3f' # main on 2024-08-30 20:20:00 EST
 
   - name: update dockerfile to only fetch things we care about
     ansible.builtin.replace:
       path: /tmp/devdocs-build/Dockerfile-alpine
       regexp: 'thor docs:download --all'
-      replace: "thor docs:download c cpp python@3.10 kotlin@1.8 openjdk@11"
-
-  - name: update dockerfile to fix the image name
-    ansible.builtin.replace:
-      path: /tmp/devdocs-build/Dockerfile-alpine
-      regexp: 'FROM ruby:'
-      replace: "FROM docker.io/ruby:"
+      replace: "thor docs:download c cpp python@3.12 openjdk@21 kotlin@1.8"
 
   - name: build the docker container
     become: true

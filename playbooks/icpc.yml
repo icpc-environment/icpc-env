@@ -55,6 +55,7 @@
       - cups
       - cups-bsd
       - enscript
+      - jc # for json output form various commands (used by firstLogin.sh)
       - python3-typing-extensions # needed for firstboot script
 
       # experimental programs to support showing a banner image to all contestants
@@ -80,11 +81,15 @@
 - name: setup user skeleton directory
   git: dest=/etc/skel repo=file:///tmp/contestant.git
 
-
 - name: create icpcadmin group
   group: name='icpcadmin' state='present'
 - name: create icpcadmin user
   user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
+- name: fix permissions so git won't complain
+  ansible.builtin.file:
+    path: /tmp/admin.git
+    owner: icpcadmin
+    recurse: true
 - name: setup icpcadmin home directory
   git: dest=/home/icpcadmin repo=file:///tmp/admin.git
   become: yes
@@ -153,9 +158,10 @@
       	email = icpcadmin@icpcenv
       	name = icpcenv
 
-- name: disable proxy for icpcadmin
-  copy: src=files/pam_environment dest=/home/icpcadmin/.pam_environment
-
+- name: create polkit directory
+  ansible.builtin.file:
+    path: /etc/polkit-1/localauthority/50-local.d
+    state: directory
 - name: use polkit to disable mounting anything
   copy: src=files/99-deny-polkit-mount.pkla dest=/etc/polkit-1/localauthority/50-local.d/disable-mount.pkla mode=0644 owner=root group=root
 

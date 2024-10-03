@@ -1,12 +1,13 @@
 # IntelliJ repository (unofficial ppa: https://github.com/JonasGroeger/jetbrains-ppa)
 - name: apt key for IntelliJ IDEA
-  apt_key:
+  ansible.builtin.get_url:
     url: https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/jetbrains.gpg
+    dest: /etc/apt/keyrings/jetbrains.asc
 
 - name: apt repo for IntelliJ IDEA
-  apt_repository: repo='deb http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main' update_cache=yes
+  apt_repository:
+    repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/jetbrains.asc] http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main
+    update_cache: true
 
 # IntelliJ IDEA community(~968mb installed in /opt/intellij-idea-community)
 - name: install IntelliJ IDEs
@@ -31,7 +32,9 @@
 # TODO: figure out where 1.9.22 comes from (intellij has a default for this)
 # TODO: maybe from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt
 - name: fetch some things from maven
-  shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22" -Dmaven.repo.local="/opt/m2/repository"
+  shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24" -Dmaven.repo.local="/opt/m2/repository"
+- name: fetch some things from maven
+  shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib:2.0.10" -Dmaven.repo.local="/opt/m2/repository"
 
 # PyCharm Community(523mb installed in /opt/pycharm-community)
 - name: install PyCharm
@@ -58,11 +61,11 @@
         mode: 0755
         content: |
           #!/bin/bash
-          mkdir -p $HOME/.config/JetBrains/CLion2023.3
+          mkdir -p $HOME/.config/JetBrains/CLion2024.2
           (
             printf '\xFF\xFF';
             echo -en "<certificate-key>\n{{ clion_license_key }}" | iconv -f UTF-8 -t UCS2 -
-          ) > $HOME/.config/JetBrains/CLion2023.3/clion.key
+          ) > $HOME/.config/JetBrains/CLion2024.2/clion.key
       when: clion_license_key | length > 0
 
     - name: add licensekey script to autostart
