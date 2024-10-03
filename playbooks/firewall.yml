@@ -33,17 +33,31 @@
   args:
     creates: /var/spool/squid/ssl_db/index.txt
 
-- name: configure system to use the proxy by default
-  lineinfile: dest=/etc/environment line="{{item}}"
-  with_items:
-    - http_proxy="http://localhost:3128/"
-    - https_proxy="http://localhost:3128/"
-    - ftp_proxy="http://localhost:3128/"
-    - no_proxy="localhost,127.0.0.1"
-    - HTTP_PROXY="http://localhost:3128/"
-    - HTTPS_PROXY="http://localhost:3128/"
-    - FTP_PROXY="http://localhost:3128/"
-    - NO_PROXY="localhost,127.0.0.1"
+- name: copy proxy environment config (to be applied to contestant user)
+  copy:
+    dest: /etc/environment-proxied
+    content: |
+      http_proxy="http://localhost:3128/"
+      https_proxy="http://localhost:3128/"
+      ftp_proxy="http://localhost:3128/"
+      no_proxy="localhost,127.0.0.1"
+      HTTP_PROXY="http://localhost:3128/"
+      HTTPS_PROXY="http://localhost:3128/"
+      FTP_PROXY="http://localhost:3128/"
+      NO_PROXY="localhost,127.0.0.1"
+- name: copy the pam-auth-update config file to load the proxy environment for the contestant user
+  copy:
+    dest: /usr/share/pam-configs/proxyenv
+    content: |
+      Name: Load /etc/environment-proxied for the contestant user
+      Default: no
+      Priority: 0
+      Session-Type: Additional
+      Session:
+              [default=1 success=ignore] pam_succeed_if.so quiet user = contestant
+              required     pam_env.so user_readenv=0 envfile=/etc/environment-proxied
+- name: run pam-auth-update to install the proxyenv pam config
+  command: pam-auth-update --enable proxyenv
 
 - name: Make sure inbound policy is deny
   ufw: direction=incoming policy=deny
