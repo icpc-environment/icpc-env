@@ -2,18 +2,18 @@
 
 # Settings
 # ISO64="ubuntu-20.04.5-live-server-amd64.iso"
-ISO64="ubuntu-22.04.3-live-server-amd64.iso"
+ISO64="ubuntu-24.04.1-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
 IMG64="base-amd64.img"
 
 TMPDIR="tmp"
-USERDATA="configs/2204_autoinstall.yaml"
-METADATA="configs/2204_metadata"
+USERDATA="configs/2404_autoinstall.yaml"
+METADATA="configs/2404_metadata"
 
 function usage() {
   echo "Usage: create_baseimage.sh [-s size]"
   echo ""
-  echo "-s|--size n   Size of the resulting image(default 14700M)"
+  echo "-s|--size n   Size of the resulting image(default 28500M)"
   echo "--no-usb      Don't create a fat32 partition for easy usb mounting"
   exit 1
 }

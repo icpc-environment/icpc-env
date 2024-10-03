@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default group for the VM in ansible. This lets you use group_vars/$VARIANT for site specific configuration
-VARIANT=${1:-all}
+VARIANT=${1:-generic}
 
 SSHPORT=2222
 SSHKEY="$PWD/configs/imageadmin-ssh_key"
