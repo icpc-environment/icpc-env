@@ -29,32 +29,21 @@ done
 sleep 5
 
 echo "Update the desktop background properties"
-xfconf-query -c xfce4-desktop -p /backdrop/screen0 -rR
-xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/last-image --create -t string -s $BACKGROUND
-xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path --create -t string -s $BACKGROUND
-xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-style --create -t int -s 3
 
-# Reload xfdesktop to get the background image showing (--reload doesn't work, have to --quit first...)
-echo "Reload xfdesktop to refresh the background"
-sleep 5
-xfdesktop --quit
-timeout 5 xfdesktop --reload
-sleep 5
-xfdesktop --quit
-timeout 5 xfdesktop --reload
+screens=$(xrandr | jc --xrandr | jq -r '.screens[] | .screen_number' | sort -u)
+monitors=$(xrandr | jc --xrandr | jq -r '.screens[] | .devices[] | .device_name' | sort -u)
+for s in $screens; do
+  for m in $monitors; do
+    echo "Setting background for screen$s/monitor$m"
+    xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/last-image --create -t string -s $BACKGROUND
+    xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/image-path --create -t string -s $BACKGROUND
+    xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/image-style --create -t int -s 3
+    for ws in 0 1 2 3; do
+      xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/workspace$ws/last-image --create -t string -s $BACKGROUND
+      xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/workspace$ws/image-style --create -t int -s 3
+      xfconf-query -c xfce4-desktop -p /backdrop/screen$s/monitor$m/workspace$ws/image-path --create -t string -s $BACKGROUND
+    done
+  done
+done
 
-
-# Reload the wallpaper for all monitors(since it may have changed)
-# MONITORS=$(xfconf-query -c xfce4-desktop -p /backdrop/screen0 -l | cut -d'/' -f4 | sort -u)
-# xfconf-query -c xfce4-desktop -p /backdrop/screen0 -rR
-# for mon in $MONITORS monitor0 monitor1 monitorVirtual-1 monitorVGA-0 monitorLVDS-1; do
-#   xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/last-image --create -t string -s $BACKGROUND
-#   xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/image-style --create -t int -s 3
-#   xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/image-path --create -t string -s $BACKGROUND
-
-#   for ws in 0 1 2 3; do
-#     xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/workspace-$ws/last-image --create -t string -s $BACKGROUND
-#     xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/workspace-$ws/image-style --create -t int -s 3
-#     xfconf-query -c xfce4-desktop -p /backdrop/screen0/$mon/workspace-$ws/image-path --create -t string -s $BACKGROUND
-#   done
-# done
+xfdesktop --reload
