@@ -1,5 +1,6 @@
 server_names_hash_bucket_size 128;
-resolver 8.8.8.8 ipv6=off;
+# use our dnsmasq server (which points at systemd's upstream resolv.conf file)
+resolver 127.0.0.55 ipv6=off;
 
 server {
   listen 80 default_server;

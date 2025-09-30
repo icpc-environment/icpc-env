@@ -4,6 +4,7 @@
     state: present
     pkg:
       - g++
+      - g++-14 # TODO: how to make this the default?
       - stl-manual      # 2.5mb
       - unzip # for dealing with docs
 

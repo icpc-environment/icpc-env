@@ -81,39 +81,6 @@ def load_printers():
         printers.append({"uri": m.group("uri"), "name": m.group("name")})
     return printers
 
-
-def wifi_interfaces():
-    # WIRELESS_INTERFACES=$(iw dev | awk -F' ' '/Interface/{print $2}')
-    if_re = re.compile(r".+Interface (?P<name>.+)$")
-    (ret, out, err) = run_cmd(["iw", "dev"])
-
-    interfaces = []
-    for l in filter(lambda x: "Interface" in x, out.decode("UTF-8").splitlines()):
-        m = if_re.match(l)
-        interfaces.append(m.group("name"))
-
-    return interfaces
-
-
-def wifi_scan(interface):
-    # iw $WIFI_INTERFACE scan | awk -F': ' '/SSID:/{print $2}'
-
-    # Make sure the interface is up, otherwise scan won't work
-    (ret, out, err) = run_cmd(["ip", "link", "set", "dev", interface, "up"])
-
-    # Scan for networks
-    (ret, out, err) = run_cmd(["iw", interface, "scan"])
-    ssid_re = re.compile(r"^SSID: (?P<ssid>.+)$")
-
-    ssids = []
-    for l in filter(lambda x: "SSID:" in x, out.decode("UTF-8").splitlines()):
-        m = ssid_re.match(l.strip())
-        if m is not None:
-            ssids.append(m.group("ssid"))
-
-    return ssids
-
-
 def check_network():
     try:
         urllib.request.urlopen("http://configs.cloudcontest.org/online_check", timeout=1)
@@ -162,14 +129,6 @@ def main():
 
     # Print a welcome message! (and record whether they pressed esc or ok)
     welcome_ok = welcome(w)
-
-    # prompt to configure Wifi if the network isn't functional and the computer has a wireless interface
-    if not check_network() and len(wifi_interfaces()) > 0:
-        configure_wifi(w)
-
-        # Refresh the backtitle with network status now that wifi is configured (hopefully)
-        network_status = check_network()
-        w.backtitle = f"Network status: {'online' if network_status else 'offline'}"
 
     # they pressed escape on the welcome screen (instead of ok), load some demo data and then exit
     # if not welcome_ok:
@@ -424,68 +383,6 @@ def welcome(w: Whiptail):
     )
 
     return code == 0
-
-
-def apply_wifi(interface, ssid, password):
-    with open("/etc/netplan/50-wifi-config.yaml", "w+") as f:
-        f.write(
-            f"""
-# Created by firstboot script
-network:
-  version: 2
-  renderer: networkd
-  wifis:
-    {interface}:
-      access-points:
-        "{ssid}":""")
-        # Render the password field properly the ssid should be an empty object if the password is blank
-        if len(password) > 0:
-            f.write(f'''
-            password: "{password}"''')
-        else:
-            f.write(" {}")
-        f.write(f"""
-      dhcp4: true
-      dhcp-identifier: mac
-"""
-        )
-
-    print("Connecting to wifi...")
-    (ret, out, err) = run_cmd("netplan", "apply")
-    has_net = False
-    for i in range(0, 60, 5):
-        if check_network():
-            has_net = True
-            break
-        time.sleep(5)
-
-    if has_net:
-        print("Connected successfully!")
-    else:
-        print("Error connecting")
-
-
-def configure_wifi(w: Whiptail):
-    interfaces = wifi_interfaces()
-
-    w.title = "ICPC Setup - WiFi Setup"
-
-    # TODO: error handling
-    (choice, code) = w.menu(
-        msg="No network was detected. Choose your wireless interface to configure wifi", items=interfaces
-    )
-    interface = choice
-    print(f"Scanning for networks on: {interface}")
-    ssids = wifi_scan(interface)
-
-    # TODO: error handling
-    (choice, code) = w.menu(msg="Select a network to connect to.\nIt must support WPA 2 authentication.", items=ssids)
-    ssid = choice
-
-    (password, code) = w.inputbox(msg=f"Enter the network password for: {ssid}", password=True)
-
-    apply_wifi(interface, ssid, password)
-
 
 def configure_contest(w: Whiptail):
     configuration["contest"] = read_file("/icpc/CONTEST", None)

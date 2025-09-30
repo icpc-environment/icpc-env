@@ -15,22 +15,61 @@
       - ncdu
       - jq
       - jc # for json output form various commands
-      # Needed for wifi
+      # We'll use network-manager now because it deals with wifi much better
+      - network-manager
+      - network-manager-gnome
       - wpasupplicant
       - iw
 
-- name: disable udev persistent net generator
-  file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
-
+# With network manager, we don't need to do this anymore
+# - name: disable udev persistent net generator
+#   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
 # https://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
-- name: disable "predictable network interface names"
-  file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
+# - name: disable "predictable network interface names"
+#   file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
 
-- name: push a better default network interfaces file
-  copy: src=files/01-netcfg.yaml dest=/etc/netplan/01-netcfg.yaml
+# - name: push a better default network interfaces file
+#   copy: src=files/01-netcfg.yaml dest=/etc/netplan/01-netcfg.yaml
+
+- name: Configure netplan to use NetworkManager (and remove all other configs)
+  copy:
+    dest: /etc/netplan/01-netcfg.yaml
+    content: |
+      network:
+        version: 2
+        renderer: NetworkManager
+
+- name: tell networkmanager to and ignore vpn related devices
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
+    content: |
+      [keyfile]
+      unmanaged-devices=type:wireguard,type:tun,type:bridge,type:veth
+
+- name: disable systemd-networkd so that it uses networkmanager instead
+  ansible.builtin.service:
+    name: "{{ item }}"
+    masked: yes
+    enabled: no
+  with_items:
+    - systemd-networkd
+    - systemd-networkd.socket
+
+- name: Don't let the contestant user mess with any network settings
+  copy:
+    dest: /etc/polkit-1/rules.d/99-deny-networkmanager.rules
+    content: |
+      polkit.addRule(function(action, subject) {
+          if (action.id.startsWith("org.freedesktop.NetworkManager.") &&
+              subject.user == "contestant")
+          {
+              return polkit.Result.NO;
+              // return polkit.Result.AUTH_ADMIN; // If we want to allow prompting to auth as admin to do networkmanager related things form the contestant session
+          }
+      });
 
 - name: disable console blanking
-  lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0 net.ifnames=0"' state=present
+  lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0"' state=present
   notify: update grub
 
 - name: journald write to /dev/tty1

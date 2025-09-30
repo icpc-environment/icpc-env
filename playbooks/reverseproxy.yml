@@ -70,3 +70,39 @@
     owner: root
     group: root
     mode: '0644'
+
+# This is so we don't have to hardcode `resolver 8.8.8.8` in the nginx config, and can use whatever dns networkmanager discovered
+# This is needed on networks that filter dns requests to only allow their dns servers
+- name: Configure dnsmasq to use the systemd resolver file
+  ansible.builtin.copy:
+    dest: /etc/dnsmasq.conf
+    content: |
+      listen-address=127.0.0.55
+      port=53
+      bind-interfaces
+      keep-in-foreground
+      no-hosts # don't read /etc/hosts
+      resolv-file=/run/systemd/resolve/resolv.conf
+
+- name: create a dnsmasq systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/dnsmasq.service
+    content: |
+      [Unit]
+      Description=Local dns resolver that ignores /etc/hosts
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/sbin/dnsmasq -k --conf-file=/etc/dnsmasq.conf
+      ExecReload=/bin/kill -HUP $MAINPID
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable + start dnsmasq
+  ansible.builtin.systemd:
+    name: dnsmasq
+    enabled: true
+    state: started

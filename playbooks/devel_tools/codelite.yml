@@ -1,6 +1,18 @@
 ---
-# wget -qO- http://repos.codelite.org/CodeLite.asc | sudo tee /etc/apt/trusted.gpg.d/CodeLite.asc
-# sudo apt-add-repository 'deb https://repos.codelite.org/ubuntu/ jammy universe'
+# This is the codelite apt repo, but noble includes the latest version currently
+# - name: Fetch the codelite signing key
+#   ansible.builtin.get_url:
+#     url: http://repos.codelite.org/CodeLite.asc
+#     dest: /etc/apt/keyrings/codelite.asc
 
-# there's apparently a codelite package in ubuntu too, need to see what version it is.
-# (ubuntu repos have 17, which is currently latest)
+# - name: Add the codelite repository
+#   ansible.builtin.apt_repository:
+#     # This uses jammy, because there is no noble yet...
+#     repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/codelite.asc] https://repos.codelite.org/ubuntu/ jammy universe"
+#     state: present
+#     update_cache: true
+
+- name: Install codelite
+  apt:
+    state: present
+    pkg: codelite # or codelite-unofficial if you want to install from their deb repo

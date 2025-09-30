@@ -7,3 +7,6 @@ echo "icpc_workstation_info{site=\"$(cat /icpc/SITE)\", team=\"$(cat /icpc/TEAMI
 # information about when the image was built/last updated
 echo icpc_build_ts $(stat --printf=%Y /icpc/version) | sponge /var/lib/prometheus/node-exporter/icpc_build_ts.prom
 echo icpc_update_ts $(stat --printf=%Y /icpc/update-version) | sponge /var/lib/prometheus/node-exporter/icpc_update_ts.prom
+
+# When the team reset was completed
+echo icpc_reset_ts $(stat --printf=%Y /icpc/team-reset-complete) | sponge /var/lib/prometheus/node-exporter/icpc_reset_ts.prom

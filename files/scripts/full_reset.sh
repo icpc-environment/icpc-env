@@ -17,6 +17,7 @@ lpadmin -x ContestPrinter
 ufw --force enable
 
 rm -f /icpc/setup-complete
+rm -f /icpc/team-reset-complete
 rm -f /icpc/TEAM*
 rm -f /icpc/SITE
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-24.04.1-live-server-amd64.iso"
+ISO64="ubuntu-24.04.3-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
 IMG64="base-amd64.img"
 
@@ -92,7 +92,7 @@ set menu_color_highlight=black/light-gray
 
 menuentry "Install Ubuntu Server (Unattended)" {
 	set gfxpayload=keep
-	linux	/casper/vmlinuz  autoinstall ds=nocloud\;seedfrom=/cdrom/autoinst/ net.ifnames=0 ---
+	linux	/casper/vmlinuz  autoinstall ds=nocloud\;seedfrom=/cdrom/autoinst/ --
 	initrd	/casper/initrd
 }
 EOF

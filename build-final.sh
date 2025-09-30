@@ -10,9 +10,9 @@ SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
 PIDFILE="tmp/qemu.pid"
 ALIVE=0
 
-IMGFILE="output/$(date +%Y-%m-%d)_image-amd64.img"
-if [[ $IMGFILE != 'all' ]]; then
-  IMGFILE="output/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
+IMGFILE="output-ssd/$(date +%Y-%m-%d)_image-amd64.img"
+if [[ $VARIANT != 'all' ]]; then
+  IMGFILE="output-ssd/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
 fi
 
 BASEIMG="base-amd64.img"
@@ -91,7 +91,14 @@ set -x
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/makeDist.sh"
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo shutdown --poweroff --no-wall +1
 
+# Wait for qemu to exit, see https://unix.stackexchange.com/a/427133
+tail --pid=$(cat $PIDFILE) -f /dev/null
+
 # Dig holes in the file to make it sparse (i.e. smaller!)
 fallocate -d $IMGFILE
 echo "Image file created: $IMGFILE($(du -h $IMGFILE | cut -f1))"
+
+# Move off our ssd to slow/bulk storage
+mv $IMGFILE output/
+
 exit 0

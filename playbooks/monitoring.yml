@@ -133,6 +133,7 @@
       PathModified=/icpc/SITE
       PathModified=/icpc/version
       PathModified=/icpc/update-version
+      PathModified=/icpc/team-reset-complete
 
       [Install]
       WantedBy=multi-user.target

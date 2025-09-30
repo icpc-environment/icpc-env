@@ -101,8 +101,8 @@ autoinstall:
       # Enable passwordless sudo
       - echo '%sudo ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/icpc
       # TODO: what was the value of GRUB_CMDLINE_LINUX before this line nukes it?
-      - cp /target/etc/default/grub /target/etc/default/grub.orig
-      - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0"/' /target/etc/default/grub
+      # - cp /target/etc/default/grub /target/etc/default/grub.orig
+      # - sed -ie 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="net.ifnames=0"/' /target/etc/default/grub
       # Do these matter(or did they get nuked above?)
       - sed -ie 's/quiet splash//' /target/etc/default/grub
 

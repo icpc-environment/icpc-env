@@ -10,29 +10,81 @@
 - name: install vscode
   apt:
     state: present
-    pkg: code
+    pkg:
+      - code
+      - bindfs # so we can make their extensions directory writable
 
 - name: make sure vscode extension directory exists
   file: path=/opt/vscode/extensions state=directory
-- name: vscode extensions
+- name: vscode extensions # TODO: make idempotent
   shell: code --extensions-dir /opt/vscode/extensions --user-data-dir /opt/vscode --no-sandbox --install-extension {{ item }}
   loop: "{{ vscode_extensions }}"
 
+# approx 669MB (when functional)
 
-- name: create a script to symlink our extensions
+- name: create a script to create an overlayfs for vscode extensions
   copy:
     dest: /usr/local/bin/vscode-extension-install
     mode: 0755
     content: |
       #!/bin/bash
-      mkdir -p $HOME/.vscode
-      ln -sf /opt/vscode/extensions $HOME/.vscode/extensions
+      # Exit if we're not the contestant (because we don't need to bother doing it for anyone else)
+      if [ "$SUDO_USER" -ne "contestant" ]; then
+        exit 0
+      fi
+
+      # Because this might be set wrong by sudo/whatever
+      HOME=/home/contestant/
+
+      mkdir -p $HOME/.vscode/extensions $HOME/.vscode/extensions-work $HOME/.vscode/extensions-overlay $HOME/.vscode/extensions-root
+
+      # Make sure it isn't mounted
+      umount -f $HOME/.vscode/extensions || true
+      umount -f $HOME/.vscode/extensions-root || true
+
+      # Make sure permissions are correct
+      chown -R contestant:contestant $HOME/.vscode
+
+      set -e # Exit on error from this point forward
+
+      # Mount the overlayfs
+      mount -t overlay -o metacopy=on,lowerdir=/opt/vscode/extensions,upperdir=$HOME/.vscode/extensions-overlay,workdir=$HOME/.vscode/extensions-work overlay $HOME/.vscode/extensions-root
+
+      # Use bindfs to make it writable by the contestant user (which then overlayfs takes care of properly)
+      bindfs -u contestant -g contestant $HOME/.vscode/extensions-root $HOME/.vscode/extensions
+
+# Add a sudoers file to allow the contestant user to run vscode-extension-install as root
+- name: add sudoers file for vscode-extension-install
+  copy:
+    dest: /etc/sudoers.d/vscode-extension-install
+    content: |
+      contestant ALL=(ALL) NOPASSWD: /usr/local/bin/vscode-extension-install
+    mode: 0440
 
 - name: add vscode extension install script to autostart
   copy:
     dest: /etc/xdg/autostart/vscode-extension-install.desktop
+    mode: 0755
     content: |
       [Desktop Entry]
       Type=Application
-      Exec=/usr/local/bin/vscode-extension-install
+      Exec=/usr/bin/sudo /usr/local/bin/vscode-extension-install
       NoDisplay=true
+
+
+# the cpp extension tries to make the following binaries executable (this is what it needs write permission for)
+# see here: https://github.com/microsoft/vscode-cpptools/blob/292d84f55af235b7902daae4d29a6ae0ca4a8d50/Extension/src/main.ts#L170
+# /opt/vscode/extensions/ms-vscode.cpptools-$VERSION/
+
+# ./bin/cpptools
+# ./bin/cpptools-srv
+# ./bin/cpptools-wordexp
+# ./bin/libc.so
+# ./LLVM/bin/clang-format
+# ./LLVM/bin/clang-tidy
+# ./debugAdapters/bin/OpenDebugAD7
+# ./debugAdapters/lldb/bin/debugserver
+# ./debugAdapters/lldb/bin/lldb-mi
+# ./debugAdapters/lldb-mi/bin/lldb-mi
+# ./debugAdapters/lldb/bin/lldb-argdumper
+# ./debugAdapters/lldb/bin/lldb-launcher

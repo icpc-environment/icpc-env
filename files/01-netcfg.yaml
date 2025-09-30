@@ -3,10 +3,10 @@
 # For more information, see netplan(5).
 network:
   version: 2
-  renderer: networkd
-  ethernets:
-    default:
-      match:
-        name: e*
-      dhcp4: yes
-      dhcp-identifier: mac
+  renderer: NetworkManager
+  # ethernets:
+  #   default:
+  #     match:
+  #       name: e*
+  #     dhcp4: yes
+  #     dhcp-identifier: mac

@@ -67,7 +67,7 @@
 - name: stop/disable cups-browsed from autodiscovering printers
   service: name=cups-browsed state=stopped enabled=no
 
-- name: copy local git repos to server
+- name: copy local git repos to server # TODO: make idempotent
   synchronize:
     use_ssh_args: yes
     src: home_dirs/{{item}}/.git
@@ -76,16 +76,16 @@
     - contestant
     - admin
 
-- name: remove existing skel directory
+- name: remove existing skel directory # TODO: make idempotent
   file: path=/etc/skel state=absent
-- name: setup user skeleton directory
+- name: setup user skeleton directory  # TODO: make idempotent
   git: dest=/etc/skel repo=file:///tmp/contestant.git
 
 - name: create icpcadmin group
   group: name='icpcadmin' state='present'
-- name: create icpcadmin user
+- name: create icpcadmin user # TODO: make idempotent
   user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
-- name: fix permissions so git won't complain
+- name: fix permissions so git won't complain # TODO: make idempotent
   ansible.builtin.file:
     path: /tmp/admin.git
     owner: icpcadmin
@@ -126,7 +126,7 @@
     dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
     mode: 0644
 
-- name: configure ssh ca to be trusted for host verification
+- name: configure ssh ca to be trusted for host verification # TODO: make idempotent
   shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
 
 - name: Install a set of host keys that are signed by the ssh CA
@@ -158,16 +158,27 @@
       	email = icpcadmin@icpcenv
       	name = icpcenv
 
-- name: create polkit directory
-  ansible.builtin.file:
-    path: /etc/polkit-1/localauthority/50-local.d
-    state: directory
-- name: use polkit to disable mounting anything
-  copy: src=files/99-deny-polkit-mount.pkla dest=/etc/polkit-1/localauthority/50-local.d/disable-mount.pkla mode=0644 owner=root group=root
+# - name: create polkit directory
+#   ansible.builtin.file:
+#     path: /etc/polkit-1/localauthority/50-local.d
+#     state: directory
+# - name: use polkit to disable mounting anything
+#   copy: src=files/99-deny-polkit-mount.pkla dest=/etc/polkit-1/localauthority/50-local.d/disable-mount.pkla mode=0644 owner=root group=root
+- name: Use polkit to disable mounting
+  copy:
+    dest: /etc/polkit-1/rules.d/99-deny-udisks2.rules
+    content: |
+      polkit.addRule(function(action, subject) {
+          if (action.id.startsWith("org.freedesktop.udisks2.") &&
+              subject.user == "contestant")
+          {
+              return polkit.Result.NO;
+          }
+      });
 
 - name: create team reset group
   group: name='teamreset' state='present'
-- name: create team reset user
+- name: create team reset user # TODO: make idempotent (I think it's the password hash causing trouble here)
   user: name='teamreset' comment="Clear Team Account" group='teamreset' groups='sudo,adm,lpadmin' createhome=no password='{{icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
 - name: make home folder/autostart path
   file: state=directory path=/home/teamreset/.config/autostart owner=teamreset group=teamreset
@@ -183,17 +194,17 @@
       icpcadmin ALL=NOPASSWD: ALL
       teamreset ALL=NOPASSWD: ALL
 
-- name: set up firstboot configuration
-  copy: src=files/firstboot.service dest=/etc/systemd/system/firstboot.service
-
-- name: enable firstboot service
-  service: name=firstboot enabled=yes
+# - name: set up firstboot configuration
+#   copy: src=files/firstboot.service dest=/etc/systemd/system/firstboot.service
+# - name: enable firstboot service
+#   service: name=firstboot enabled=yes
 
 - name: check for ICPC partition
   shell: blkid -L "ICPC"
   register: icpc_partition
   ignore_errors: true
   failed_when: false
+  changed_when: false
 
 - name: if there is an icpc partition
   when: icpc_partition.rc == 0
@@ -213,3 +224,133 @@
     dest: /icpc/config_homepage
     content: |
       {{ firefox_policies.Homepage.URL }}
+
+
+
+
+
+
+# install dbus-x11, xinit
+- name: Install tools so we can do a gui initial setup wizard
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - dbus-x11
+      - xinit
+
+- name: Make sure the directory structure exists
+  file:
+    dest: /root/setup/{{item}}
+    state: directory
+  with_items:
+    - .config
+    - .config/autostart
+
+- name: create xinitrc file
+  copy:
+    dest: /root/setup/.xinitrc
+    content: |
+      xset s off
+      xset s noblank
+      xset s off -dpms
+      exec dbus-launch startxfce4
+
+- name: Disable creating user dirs
+  copy:
+    dest: /root/setup/.config/user-dirs.conf
+    content: |
+      enabled=False
+
+- name: create firstboot-gui script
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      # exit cleanly if /icpc/setup-complete already exists
+      if [ -f /icpc/setup-complete ]; then
+        exit 0
+      fi
+      startx -- :0 -nolisten tcp
+    dest: /icpc/scripts/firstboot-gui
+    mode: 0744
+
+- name: Create the systemd service that will run the setup
+  copy:
+    dest: /etc/systemd/system/firstboot.service
+    content: |
+      [Unit]
+      Description=Initial configuration of the image
+      Before=lightdm.service
+      After=cups.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      TimeoutSec=0
+      Environment=HOME=/root/setup
+      Environment=XDG_CONFIG_HOME=/root/setup/.config
+      ExecStart=/icpc/scripts/firstboot-gui
+
+      [Install]
+      WantedBy=graphical.target
+      WantedBy=multi-user.target
+
+- name: enable firstboot service
+  service: name=firstboot enabled=yes
+
+- name: create autostart file to run icpc-setup
+  copy:
+    dest: /root/setup/.config/autostart/icpc-setup.desktop
+    mode: 0755
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=ICPC Setup
+      Exec=xfce4-terminal --maximize --hold --execute bash -c "/icpc/scripts/venv/bin/python3 /icpc/scripts/icpc_setup"
+      Terminal=false
+      StartupNotify=false
+      NoDisplay=true
+
+# need to install python3-pip and python3-venv
+# then pip install freesimplegui into a virtualenv (maybe with python3 -m venv --system-site-packages venv-path)
+# and an apt install python3-tk
+- name: Install tools so we can do a gui initial setup wizard
+  apt:
+    state: present
+    pkg:
+      - python3-pip
+      - python3-venv
+      - python3-tk
+- name: create a virtualenv for freesimplegui
+  command: python3 -m venv --system-site-packages /icpc/scripts/venv
+  args:
+    creates: /icpc/scripts/venv
+- name: Install freesimplegui
+  pip:
+    name: freesimplegui
+    executable: /icpc/scripts/venv/bin/pip
+- name: install new icpc_setup script (gui based!)
+  copy:
+    dest: /icpc/scripts/icpc_setup
+    src: setup-gui/main.py
+    mode: 0755
+
+
+
+# kattis cli, clone git to /opt/kattis-cli: git clone https://github.com/Kattis/kattis-cli
+- name: clone kattis cli
+  ansible.builtin.git:
+    repo: https://github.com/Kattis/kattis-cli
+    dest: /opt/kattis-cli
+    force: true
+- name: install kattis cli dependencies
+  apt:
+    state: present
+    pkg:
+      - python3-lxml
+- name: Create a kattis binary wrapper script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/kattis
+    mode: 0755
+    content: |
+      #!/bin/sh
+      python "/opt/kattis-cli/submit.py" "$@"

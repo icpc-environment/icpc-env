@@ -44,18 +44,30 @@
           "ruby" = "docker.io/library/ruby"
 
   - name: Gather info on a specific image
-    become: yes
     containers.podman.podman_image_info:
       name: devdocs
-    register: devdocs_info
+    register: devdocs_info # TODO: this is unused
 
-  - name: fetch the devdocs repo
+  - name: fetch the devdocs repo # TODO: make idempotent
     ansible.builtin.git:
       repo: https://github.com/freeCodeCamp/devdocs.git
       dest: /tmp/devdocs-build
       version: '0f259e07839d1ba65f645e077b8d22d20c0dfd3f' # main on 2024-08-30 20:20:00 EST
+      force: true
 
-  - name: update dockerfile to only fetch things we care about
+  - name: Update default_docs in lib/app.rb
+    ansible.builtin.replace:
+      path: /tmp/devdocs-build/lib/app.rb
+      regexp: 'set :default_docs, %w.*'
+      replace: 'set :default_docs, %w(c cpp python~3.12 openjdk~21 kotlin~1.8)'
+
+  - name: Update hideIntro in assets/javascripts/app/settings.js
+    ansible.builtin.replace:
+      path: /tmp/devdocs-build/assets/javascripts/app/settings.js
+      regexp: 'hideIntro:.*'
+      replace: 'hideIntro: true,'
+
+  - name: update dockerfile to only fetch things we care about # TODO: make idempotent
     ansible.builtin.replace:
       path: /tmp/devdocs-build/Dockerfile-alpine
       regexp: 'thor docs:download --all'
@@ -75,8 +87,11 @@
       image: devdocs:latest
       rm: true
       state: created
-      ports:
-        - 127.0.0.1:9292:9292
+      # Run on the host network, because sometimes firewall rules break the forwarding
+      # and the container is inaccessible
+      network: host
+      # ports:
+      #   - 127.0.0.1:9292:9292
   - name: Generate systemd unit file for devdocs container
     containers.podman.podman_generate_systemd:
       name: devdocs

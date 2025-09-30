@@ -41,6 +41,7 @@
     dest: /usr/local/bin
     remote_src: true
     include: ['wstunnel']
+    creates: /usr/local/bin/wstunnel
 - name: make wstunnel executable
   file:
     state: file
@@ -68,3 +69,54 @@
       WantedBy=multi-user.target
 - name: enable wstunnel service
   service: enabled=yes name=wstunnel
+
+
+
+
+# Install tailscale
+# curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
+# curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
+- name: apt key for tailscale
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.noarmor.gpg
+    dest: /etc/apt/keyrings/tailscale-archive-keyring.gpg
+- name: add tailscale apt repo
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu {{ ansible_distribution_release }} main
+    state: present
+    filename: /etc/apt/sources.list.d/tailscale.list
+    update_cache: yes
+- name: install tailscale
+  apt:
+    pkg: tailscale
+    state: present
+
+- name: set up tailscale login as a systemd service to auth/join our tailnet
+  copy:
+    dest: /etc/systemd/system/tailscale-login.service
+    content: |
+      [Unit]
+      Description=Make sure tailscale is logged in and running
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/tailscale up --accept-dns=false --auth-key {{ tailscale_auth_key }} --login-server {{ tailscale_login_server }}
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+- name: enable tailscale-login service
+  service: enabled=yes name=tailscale-login
+
+# This apparently doesn't work anymore/yet: https://github.com/systemd/systemd/pull/34368
+# - name: set up systemd-resolved config to use tailscale DNS for *.ts.icpcnet.internal domains
+#   copy:
+#     dest: /etc/systemd/resolved.conf.d/tailscale.conf
+#     content: |
+#       [Resolve]
+#       DNS=100.100.100.100
+#       Domains=~ts.icpcnet.internal
+
+# TODO: maybe use tailscale routes to allow an admin box to host a printer on a different network?

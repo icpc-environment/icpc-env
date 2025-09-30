@@ -4,8 +4,24 @@
     state: present
     pkg:
       - python3
-      - pypy3
+      # - pypy3
       - python-is-python3
+
+# Fetch pypy3 manually so that we match the kattis version
+- name: Download and extract pypy3
+  unarchive:
+    src: https://downloads.python.org/pypy/pypy3.10-v7.3.16-linux64.tar.bz2
+    dest: /opt
+    remote_src: yes
+    creates: /opt/pypy3.10-v7.3.16-linux64
+- name: Create symlinks for it
+  file:
+    src: /opt/pypy3.10-v7.3.16-linux64/bin/{{ item }}
+    dest: /usr/local/bin/{{ item }}
+    state: link
+  with_items:
+    - pypy3
+    - pypy3.10
 
 - name: ipython
   apt:

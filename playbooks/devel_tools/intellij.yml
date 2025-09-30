@@ -31,10 +31,28 @@
     group: root
 # TODO: figure out where 1.9.22 comes from (intellij has a default for this)
 # TODO: maybe from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt
-- name: fetch some things from maven
+- name: fetch some things from maven # TODO: make idempotent
   shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24" -Dmaven.repo.local="/opt/m2/repository"
-- name: fetch some things from maven
+- name: fetch some things from maven # TODO: make idempotent
   shell: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib:2.0.10" -Dmaven.repo.local="/opt/m2/repository"
+
+# Set up the maven repository for intellij
+# This goes in ~/.config/JetBrains/IdeaIC2024.2/options/path.macros.xml
+# <application>
+#   <component name="PathMacrosImpl">
+#     <macro name="MAVEN_REPOSITORY" value="/opt/m2/repository"/>
+#   </component>
+# </application>
+#
+# ****OR****
+# Put this in ~/.m2/settings.xml (but this doesn't quite seem to work perfectly?)
+# <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+#   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+#   <localRepository>/opt/m2/repository</localRepository>
+#   <offline>true</offline>
+# </settings>
+
+
 
 # PyCharm Community(523mb installed in /opt/pycharm-community)
 - name: install PyCharm
@@ -61,6 +79,10 @@
         mode: 0755
         content: |
           #!/bin/bash
+          # Exit if we're root (because we don't need to bother doing it for them)
+          if [ "$EUID" -eq 0 ]; then
+            exit 0
+          fi
           mkdir -p $HOME/.config/JetBrains/CLion2024.2
           (
             printf '\xFF\xFF';

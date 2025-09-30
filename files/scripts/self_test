@@ -121,7 +121,6 @@ while IFS="" read -r url ; do
   # wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate $url 2>/dev/null | grep -i "html" > /dev/null
   curl --proxy http://127.0.0.1:3128 --connect-timeout 5 --max-time 10 --silent -o /dev/null --fail $url
   check_return $?
-  break # only check one url from the list
 done < /icpc/config_homepage
 
 print_check "Testing direct internet access is disabled"
@@ -143,7 +142,9 @@ echo "${BLUE}Compiler Versions${RESET}"
 ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell 2>/dev/null)
 print_version       "ada"       "gnat --version"
 print_version       "c"         "gcc --version"
+print_version       "c"         "gcc-14 --version" "c (14)"
 print_version       "cpp"       "g++ --version" "c++"
+print_version       "cpp"       "g++-14 --version" "c++ (14)"
 print_version       "c#"        "mono --version"
 print_version       "clojure"   "clojure -e (clojure-version)"
 print_version       "dart"      "dart --version"

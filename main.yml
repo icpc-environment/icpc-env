@@ -28,7 +28,7 @@
       apt:
         pkg: [ grub-efi, grub-efi-amd64-signed ]
         state: present
-    - name: run grub-install for efi
+    - name: run grub-install for efi # TODO: make idempotent
       command: grub-install --no-nvram --uefi-secure-boot --target=x86_64-efi /dev/sda
 
     - name: remove snap package
@@ -62,6 +62,10 @@
         pkg: cloud-init
         state: absent
         purge: yes
+    - name: delete cloud-init netplan file
+      ansible.builtin.file:
+        state: absent
+        path: /etc/netplan/50-cloud-init.yaml
 
     - import_tasks: 'playbooks/gui.yml'
 

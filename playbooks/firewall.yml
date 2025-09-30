@@ -56,7 +56,7 @@
       Session:
               [default=1 success=ignore] pam_succeed_if.so quiet user = contestant
               required     pam_env.so user_readenv=0 envfile=/etc/environment-proxied
-- name: run pam-auth-update to install the proxyenv pam config
+- name: run pam-auth-update to install the proxyenv pam config # TODO make idempotent
   command: pam-auth-update --enable proxyenv
 
 - name: Make sure inbound policy is deny
@@ -72,3 +72,8 @@
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
 - name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
   lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
+
+- name: prevent the 'contestant' user from using the ipv6 network(except through the proxy or to localhost)
+  lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+- name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
+  lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -s ::1/128 -d ::1/128 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present

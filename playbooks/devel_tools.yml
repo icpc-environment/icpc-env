@@ -13,6 +13,7 @@
         - gdb
         - zsh            # a different shell people might like more (~20MiB)
         - eza            # a modern ls
+        - valgrind       # memory leak detector (requested by UCF)
 
   - name: make sure vim-gtk3 is the default gvim (not nvim)
     community.general.alternatives:
