@@ -1,106 +1,137 @@
 ---
-  - name: install build-essential, because it has lots of common useful packages
-    apt:
-      pkg: build-essential
-      state: present
+- name: Install build-essential, because it has lots of common useful packages
+  ansible.builtin.apt:
+    pkg: build-essential
+    state: present
 
-  - name: create a lang docs fact
-    set_fact:
-      lang_docs: {}
+- name: Create a lang docs fact
+  ansible.builtin.set_fact:
+    lang_docs: {}
 
-  - name: include various languages
-    include_tasks: "languages/{{ language }}.yml"
-    loop: "{{ languages }}"
-    loop_control:
-      loop_var: language
+- name: Include various languages
+  ansible.builtin.include_tasks: "languages/{{ language }}.yml"
+  loop: "{{ languages }}"
+  loop_control:
+    loop_var: language
 
-  - name: Old style docs
-    when: devdocs
-    block:
-      - name: dump the lang_docs fact
-        debug:
-          var: lang_docs
-      - name: create symlinks to docs
-        file:
-          state: link
-          src: "{{item.value.path}}"
-          dest: /opt/localwww/{{item.value.id}}
-        loop: "{{ lang_docs | dict2items }}"
-      - name: create simple index page for links to docs
-        template: src=files/language-docs.html.j2 dest=/opt/localwww/index.html
+- name: Old style docs
+  when: not devdocs
+  block:
+    - name: Dump the lang_docs fact
+      ansible.builtin.debug:
+        var: lang_docs
+    - name: Make sure web dir exists
+      ansible.builtin.file:
+        state: directory
+        path: /opt/localwww
+        mode: "0755"
+        owner: "root"
+        group: "root"
+    - name: Create symlinks to docs
+      ansible.builtin.file:
+        state: link
+        src: "{{ item.value.path }}"
+        dest: /opt/localwww/{{ item.value.id }}
+        mode: "0644"
+        owner: "root"
+        group: "root"
+      loop: "{{ lang_docs | dict2items }}"
+    - name: Create simple index page for links to docs
+      ansible.builtin.template:
+        src: files/language-docs.html.j2
+        dest: /opt/localwww/index.html
+        mode: "0644"
+        owner: "root"
+        group: "root"
 
 
-  # This set of devdocs stuff takes about ~700MiB or so for the docker containers
-  - name: install podman (for devdocs)
-    apt:
-      pkg: podman
-      state: present
+# This set of devdocs stuff takes about ~700MiB or so for the docker containers
+- name: Install podman (for devdocs)
+  ansible.builtin.apt:
+    pkg: podman
+    state: present
 
-  - name: Put an alias in for podman so that the shortname for ruby works right
-    ansible.builtin.copy:
-      dest: /etc/containers/registries.conf.d/ruby-shortname.conf
-      content: |
-        [aliases]
-          "ruby" = "docker.io/library/ruby"
+#  - name: Put an alias in for podman so that the shortname for ruby works right
+#    ansible.builtin.copy:
+#      dest: /etc/containers/registries.conf.d/ruby-shortname.conf
+#      content: |
+#        [aliases]
+#          "ruby" = "docker.io/library/ruby"
 
-  - name: Gather info on a specific image
-    containers.podman.podman_image_info:
-      name: devdocs
-    register: devdocs_info # TODO: this is unused
+- name: Gather info on a specific image
+  become: true
+  containers.podman.podman_image_info:
+    name: devdocs
+  register: devdocs_info
 
-  - name: fetch the devdocs repo # TODO: make idempotent
-    ansible.builtin.git:
-      repo: https://github.com/freeCodeCamp/devdocs.git
-      dest: /tmp/devdocs-build
-      version: '0f259e07839d1ba65f645e077b8d22d20c0dfd3f' # main on 2024-08-30 20:20:00 EST
-      force: true
+- name: Build devdocs if it does not exist
+  when: devdocs_info.images | length == 0
+  block:
+    - name: Fetch the devdocs repo
+      ansible.builtin.git:
+        repo: https://github.com/freeCodeCamp/devdocs.git
+        dest: /tmp/devdocs-build
+        version: '0f259e07839d1ba65f645e077b8d22d20c0dfd3f' # main on 2024-08-30 20:20:00 EST
+        force: true
 
-  - name: Update default_docs in lib/app.rb
-    ansible.builtin.replace:
-      path: /tmp/devdocs-build/lib/app.rb
-      regexp: 'set :default_docs, %w.*'
-      replace: 'set :default_docs, %w(c cpp python~3.12 openjdk~21 kotlin~1.8)'
+    - name: Update default_docs in lib/app.rb
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/lib/app.rb
+        regexp: 'set :default_docs, %w.*'
+        replace: 'set :default_docs, %w(c cpp kotlin~1.9 openjdk~21 python~3.12)'
 
-  - name: Update hideIntro in assets/javascripts/app/settings.js
-    ansible.builtin.replace:
-      path: /tmp/devdocs-build/assets/javascripts/app/settings.js
-      regexp: 'hideIntro:.*'
-      replace: 'hideIntro: true,'
+    - name: Update hideIntro in assets/javascripts/app/settings.js
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/assets/javascripts/app/settings.js
+        regexp: 'hideIntro:.*'
+        replace: 'hideIntro: true,'
 
-  - name: update dockerfile to only fetch things we care about # TODO: make idempotent
-    ansible.builtin.replace:
-      path: /tmp/devdocs-build/Dockerfile-alpine
-      regexp: 'thor docs:download --all'
-      replace: "thor docs:download c cpp python@3.12 openjdk@21 kotlin@1.8"
+    - name: Update dockerfile to only fetch things we care about
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/Dockerfile-alpine
+        regexp: 'thor docs:download --all'
+        replace: "thor docs:download c cpp python@3.12 kotlin@1.9 openjdk@21"
 
-  - name: build the docker container
-    become: true
-    containers.podman.podman_image:
-      name: devdocs
-      path: /tmp/devdocs-build
-      build:
-        file: Dockerfile-alpine
+    - name: Update dockerfile to fix the image name
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/Dockerfile-alpine
+        regexp: 'FROM ruby:'
+        replace: "FROM docker.io/ruby:" # TODO: or the podman alias for shortnames above?
 
-  - name: generate the container
-    containers.podman.podman_container:
-      name: devdocs
-      image: devdocs:latest
-      rm: true
-      state: created
-      # Run on the host network, because sometimes firewall rules break the forwarding
-      # and the container is inaccessible
-      network: host
-      # ports:
-      #   - 127.0.0.1:9292:9292
-  - name: Generate systemd unit file for devdocs container
-    containers.podman.podman_generate_systemd:
-      name: devdocs
-      new: true
-      dest: /etc/systemd/system
-      restart_policy: always
-  - name: Ensure devdocs container is started and enabled
-    ansible.builtin.systemd:
-      name: container-devdocs
-      daemon_reload: true
-      state: started
-      enabled: true
+    - name: Update dockerfile to bind to localhost only
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/Dockerfile-alpine
+        regexp: '0.0.0.0'
+        replace: "127.0.0.1"
+
+    - name: Build and deploy docker container
+      when: ansible_connection != "chroot"
+      block:
+        - name: Build the docker container
+          become: true
+          containers.podman.podman_image:
+            name: devdocs
+            path: /tmp/devdocs-build
+            build:
+              file: Dockerfile-alpine
+
+        - name: Generate the container
+          containers.podman.podman_container:
+            name: devdocs
+            image: devdocs:latest
+            rm: true
+            state: created
+            command: rackup -o 127.0.0.10
+            network: host
+        - name: Generate systemd unit file for devdocs container
+          containers.podman.podman_generate_systemd:
+            name: devdocs
+            new: true
+            dest: /etc/systemd/system
+            restart_policy: always
+        - name: Ensure devdocs container is started and enabled
+          ansible.builtin.systemd:
+            name: container-devdocs
+            daemon_reload: true
+            state: started
+            enabled: true

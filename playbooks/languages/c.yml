@@ -1,7 +1,7 @@
 ---
 - name: c
-  apt:
+  ansible.builtin.apt:
     state: present
     pkg:
       - gcc
-      - gcc-14 # TODO: how to make gcc-14 the default?
+      - gcc-14

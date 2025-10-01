@@ -1,87 +1,129 @@
 ---
-  - name: install eclipse(64bit)
-    unarchive: src=files/eclipse-java-2024-06-R-linux-gtk-x86_64.tar.gz dest=/opt creates=/opt/eclipse
+- name: Install eclipse(64bit)
+  ansible.builtin.unarchive:
+    src: files/eclipse-java-2024-09-R-linux-gtk-x86_64.tar.gz
+    dest: /opt
+    creates: /opt/eclipse
+    owner: "root"
+    group: "root"
 
-  - name: eclipse shortcut
-    copy:
-      dest: /usr/share/applications/Eclipse.desktop
-      content: |
-        [Desktop Entry]
-        Version=1.0
-        Type=Application
-        Name=Eclipse
-        Comment=Eclipse
-        Exec=/opt/eclipse/eclipse
-        Icon=/opt/eclipse/icon.xpm
-        Terminal=false
-        StartupNotify=false
-        Categories=Application;Development;X-Development;
+- name: Eclipse shortcut
+  ansible.builtin.copy:
+    dest: /usr/share/applications/Eclipse.desktop
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=Eclipse
+      Comment=Eclipse
+      Exec=/opt/eclipse/eclipse
+      Icon=/opt/eclipse/icon.xpm
+      Terminal=false
+      StartupNotify=false
+      Categories=Application;Development;X-Development;
+    mode: "0644"
+    owner: "root"
+    group: "root"
 
-  # Check if plugin is installed by looking for the IU in:
-  # /opt/eclipse/eclipse -nosplash -application org.eclipse.equinox.p2.director -listInstalledRoots
-  # output is IU/version number. last line is a timestamp
-  - name: get installed eclipse plugins # TODO: make idempotent
-    shell: |
-      /opt/eclipse/eclipse -nosplash \
-          -application org.eclipse.equinox.p2.director \
-          -listInstalledRoots
-    register: eclipse_installed_pkgs
-  # Eclipse plugins(for c/c++ and python)
-  - name: install cdt plugin
-    when: '"org.eclipse.cdt.platform.feature.group" not in eclipse_installed_pkgs.stdout'
-    shell: |
-      /opt/eclipse/eclipse -nosplash \
-          -application org.eclipse.equinox.p2.director \
-          -repository http://download.eclipse.org/tools/cdt/releases/latest/,http://download.eclipse.org/releases/2024-06/ \
-          -destination /opt/eclipse \
-          -installIU org.eclipse.cdt.feature.group \
-          -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
+# Check if plugin is installed by looking for the IU in:
+# /opt/eclipse/eclipse -nosplash -application org.eclipse.equinox.p2.director -listInstalledRoots
+# output is IU/version number. last line is a timestamp
+- name: Get installed eclipse plugins
+  ansible.builtin.command: |
+    /opt/eclipse/eclipse -nosplash \
+        -application org.eclipse.equinox.p2.director \
+        -listInstalledRoots
+  register: eclipse_installed_pkgs
+  changed_when: eclipse_installed_pkgs.rc != 0
 
-  - name: install pydev plugin
-    when: '"org.python.pydev.feature.feature.group" not in eclipse_installed_pkgs.stdout'
-    shell: |
-      /opt/eclipse/eclipse -nosplash \
-          -application org.eclipse.equinox.p2.director \
-          -repository http://pydev.org/updates/ \
-          -destination /opt/eclipse \
-          -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
+# Eclipse plugins(for c/c++ and python)
+- name: Install cdt plugin
+  when: '"org.eclipse.cdt.platform.feature.group" not in eclipse_installed_pkgs.stdout'
+  ansible.builtin.shell: |
+    args:
+      creates: /opt/eclipse/features/org.eclipse.cdt_*
+      cmd: |
+        set -o pipefail # prevent surprises in the pipeline
+        /opt/eclipse/eclipse -nosplash \
+           -application org.eclipse.equinox.p2.director \
+           -repository http://download.eclipse.org/tools/cdt/releases/latest/,http://download.eclipse.org/releases/2024-09/ \
+           -destination /opt/eclipse \
+           -installIU org.eclipse.cdt.feature.group \
+           -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
+  register: cdt_install
+  changed_when: cdt_install.rc != 0
 
-  # See this for how to set global eclipse configurations
-  - name: configure eclipse
-    copy:
-      dest: /opt/eclipse/eclipse_plugincustomization.ini
-      content: |
-        # README
-        # To find values for this file, just run eclipse, export preferences
-        # Then make changes to some preferences, export to second file
-        # Compare the differences, then chop off the instance/ at the beginning and put it here
-        # Following the examples above.
+- name: Install pydev plugin
+  when: '"org.python.pydev.feature.feature.group" not in eclipse_installed_pkgs.stdout'
+  ansible.builtin.shell: |
+    args:
+      creates: /opt/eclipse/features/org.python.pydev.feature_*
+      cmd: |
+        set -o pipefail # prevent surprises in the pipeline
+        /opt/eclipse/eclipse -nosplash \
+            -application org.eclipse.equinox.p2.director \
+            -repository http://pydev.org/updates/ \
+            -destination /opt/eclipse \
+            -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
+  register: pydev_install
+  changed_when: pydev_install.rc != 0
 
-        # don't show the splash screen
-        org.eclipse.ui/showIntro=false
+# See this for how to set global eclipse configurations
+- name: Configure eclipse
+  ansible.builtin.copy:
+    dest: /opt/eclipse/eclipse_plugincustomization.ini
+    content: |
+      # README
+      # To find values for this file, just run eclipse, export preferences
+      # Then make changes to some preferences, export to second file
+      # Compare the differences, then chop off the instance/ at the beginning and put it here
+      # Following the examples above.
 
-        # disable error reporting(It's usually a pop up on first run)
-        org.eclipse.epp.logging.aeri.ui/action=IGNORE
-        org.eclipse.epp.logging.aeri.ui/configured=true
+      # don't show the splash screen
+      org.eclipse.ui/showIntro=false
 
-        # default to jdk 11 compliance level (otherwise it's 17 for eclipse 2021-12)
-        # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.source=11
-        # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.compliance=11
-        # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
+      # disable error reporting(It's usually a pop up on first run)
+      org.eclipse.epp.logging.aeri.ui/action=IGNORE
+      org.eclipse.epp.logging.aeri.ui/configured=true
 
-        # org.eclipse.jdt.core/org.eclipse.jdt.core.classpathVariable.JRE_LIB=/usr/lib/jvm/java-11-openjdk-amd64/lib/jrt-fs.jar
-        # org.eclipse.jdt.core/org.eclipse.jdt.core.classpathVariable.JRE_SRC=/usr/lib/jvm/java-11-openjdk-amd64/lib/src.zip
+      # default to jdk 11 compliance level (otherwise it's 17 for eclipse 2021-12)
+      # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.source=11
+      # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.compliance=11
+      # org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
 
-        # set the available jdks...(this from export/import...)
-        # org.eclipse.jdt.launching/org.eclipse.jdt.launching.PREF_VM_XML=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><vmSettings defaultVM\="57,org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType13,1676739082428"><vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType"><vm id\="1676739082428" javadocURL\="https\://docs.oracle.com/en/java/javase/11/docs/api/" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/></vmType><vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType"><vm id\="1676739082428" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/></vmType></vmSettings>
+      # org.eclipse.jdt.core/org.eclipse.jdt.core.classpathVariable.JRE_LIB=/usr/lib/jvm/java-11-openjdk-amd64/lib/jrt-fs.jar
+      # org.eclipse.jdt.core/org.eclipse.jdt.core.classpathVariable.JRE_SRC=/usr/lib/jvm/java-11-openjdk-amd64/lib/src.zip
 
-        # # Set pydev interpreters
-        # org.python.pydev/INTERPRETERS_CHECKED_ONCE=true
-        # org.python.pydev/INTERPRETER_PATH_NEW=<xml>\n<name>python</name>\n<version>3.10</version>\n<executable>/usr/bin/python3</executable>\n<lib>/usr/lib/python3.10</lib>\n<lib>/usr/lib/python3.10/lib-dynload</lib>\n<lib>/usr/local/lib/python3.10/dist-packages</lib>\n<lib>/usr/lib/python3/dist-packages</lib>\n<forced_lib>Image</forced_lib>\n<forced_lib>OpenGL</forced_lib>\n<forced_lib>_abc</forced_lib>\n<forced_lib>_ast</forced_lib>\n<forced_lib>_bisect</forced_lib>\n<forced_lib>_blake2</forced_lib>\n<forced_lib>_bytesio</forced_lib>\n<forced_lib>_codecs</forced_lib>\n<forced_lib>_codecs_cn</forced_lib>\n<forced_lib>_codecs_hk</forced_lib>\n<forced_lib>_codecs_iso2022</forced_lib>\n<forced_lib>_codecs_jp</forced_lib>\n<forced_lib>_codecs_kr</forced_lib>\n<forced_lib>_codecs_tw</forced_lib>\n<forced_lib>_collections</forced_lib>\n<forced_lib>_csv</forced_lib>\n<forced_lib>_datetime</forced_lib>\n<forced_lib>_elementtree</forced_lib>\n<forced_lib>_fileio</forced_lib>\n<forced_lib>_functools</forced_lib>\n<forced_lib>_heapq</forced_lib>\n<forced_lib>_hotshot</forced_lib>\n<forced_lib>_imp</forced_lib>\n<forced_lib>_io</forced_lib>\n<forced_lib>_json</forced_lib>\n<forced_lib>_locale</forced_lib>\n<forced_lib>_lsprof</forced_lib>\n<forced_lib>_md5</forced_lib>\n<forced_lib>_multibytecodec</forced_lib>\n<forced_lib>_operator</forced_lib>\n<forced_lib>_pickle</forced_lib>\n<forced_lib>_posixsubprocess</forced_lib>\n<forced_lib>_random</forced_lib>\n<forced_lib>_sha</forced_lib>\n<forced_lib>_sha1</forced_lib>\n<forced_lib>_sha256</forced_lib>\n<forced_lib>_sha3</forced_lib>\n<forced_lib>_sha512</forced_lib>\n<forced_lib>_signal</forced_lib>\n<forced_lib>_socket</forced_lib>\n<forced_lib>_sre</forced_lib>\n<forced_lib>_stat</forced_lib>\n<forced_lib>_statistics</forced_lib>\n<forced_lib>_string</forced_lib>\n<forced_lib>_struct</forced_lib>\n<forced_lib>_subprocess</forced_lib>\n<forced_lib>_symtable</forced_lib>\n<forced_lib>_thread</forced_lib>\n<forced_lib>_tracemalloc</forced_lib>\n<forced_lib>_warnings</forced_lib>\n<forced_lib>_weakref</forced_lib>\n<forced_lib>_winreg</forced_lib>\n<forced_lib>array</forced_lib>\n<forced_lib>atexit</forced_lib>\n<forced_lib>audioop</forced_lib>\n<forced_lib>binascii</forced_lib>\n<forced_lib>builtins</forced_lib>\n<forced_lib>cPickle</forced_lib>\n<forced_lib>cStringIO</forced_lib>\n<forced_lib>cmath</forced_lib>\n<forced_lib>cv2</forced_lib>\n<forced_lib>datetime</forced_lib>\n<forced_lib>email</forced_lib>\n<forced_lib>errno</forced_lib>\n<forced_lib>exceptions</forced_lib>\n<forced_lib>faulthandler</forced_lib>\n<forced_lib>fcntl</forced_lib>\n<forced_lib>future_builtins</forced_lib>\n<forced_lib>gc</forced_lib>\n<forced_lib>gi</forced_lib>\n<forced_lib>grp</forced_lib>\n<forced_lib>hashlib</forced_lib>\n<forced_lib>imageop</forced_lib>\n<forced_lib>imp</forced_lib>\n<forced_lib>itertools</forced_lib>\n<forced_lib>marshal</forced_lib>\n<forced_lib>math</forced_lib>\n<forced_lib>mmap</forced_lib>\n<forced_lib>mock</forced_lib>\n<forced_lib>msvcrt</forced_lib>\n<forced_lib>multiprocessing</forced_lib>\n<forced_lib>mutagen</forced_lib>\n<forced_lib>nt</forced_lib>\n<forced_lib>numpy</forced_lib>\n<forced_lib>operator</forced_lib>\n<forced_lib>os</forced_lib>\n<forced_lib>os.path</forced_lib>\n<forced_lib>parser</forced_lib>\n<forced_lib>posix</forced_lib>\n<forced_lib>pwd</forced_lib>\n<forced_lib>py</forced_lib>\n<forced_lib>pyexpat</forced_lib>\n<forced_lib>pytest</forced_lib>\n<forced_lib>random</forced_lib>\n<forced_lib>re</forced_lib>\n<forced_lib>scipy</forced_lib>\n<forced_lib>select</forced_lib>\n<forced_lib>signal</forced_lib>\n<forced_lib>six</forced_lib>\n<forced_lib>socket</forced_lib>\n<forced_lib>spwd</forced_lib>\n<forced_lib>ssl</forced_lib>\n<forced_lib>strop</forced_lib>\n<forced_lib>sys</forced_lib>\n<forced_lib>syslog</forced_lib>\n<forced_lib>thread</forced_lib>\n<forced_lib>time</forced_lib>\n<forced_lib>unicodedata</forced_lib>\n<forced_lib>wx</forced_lib>\n<forced_lib>wxPython</forced_lib>\n<forced_lib>xxsubtype</forced_lib>\n<forced_lib>zipimport</forced_lib>\n<forced_lib>zlib</forced_lib>\n<string_substitution_var><key>PY</key><value>310</value></string_substitution_var>\n</xml>&&&&&
+      # set the available jdks...(this from export/import...)
+      # org.eclipse.jdt.launching/org.eclipse.jdt.launching.PREF_VM_XML=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><vmSettings defaultVM\="57,org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType13,1676739082428"><vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType"><vm id\="1676739082428" javadocURL\="https\://docs.oracle.com/en/java/javase/11/docs/api/" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/></vmType><vmType id\="org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType"><vm id\="1676739082428" name\="java-11-openjdk-amd64" path\="/usr/lib/jvm/java-11-openjdk-amd64"/></vmType></vmSettings>
 
-  - name: fixup the eclipse.ini file to use our custom configuration
-    lineinfile: dest=/opt/eclipse/eclipse.ini insertafter="-vmargs" line="-Declipse.pluginCustomization=/opt/eclipse/eclipse_plugincustomization.ini"
+      # # Set pydev interpreters
+      # org.python.pydev/INTERPRETERS_CHECKED_ONCE=true
+      # org.python.pydev/INTERPRETER_PATH_NEW=<xml>\n<name>python</name>\n<version>3.10</version>\n<executable>/usr/bin/python3</executable>\n<lib>/usr/lib/python3.10</lib>\n<lib>/usr/lib/python3.10/lib-dynload</lib>\n<lib>/usr/local/lib/python3.10/dist-packages</lib>\n<lib>/usr/lib/python3/dist-packages</lib>\n<forced_lib>Image</forced_lib>\n<forced_lib>OpenGL</forced_lib>\n<forced_lib>_abc</forced_lib>\n<forced_lib>_ast</forced_lib>\n<forced_lib>_bisect</forced_lib>\n<forced_lib>_blake2</forced_lib>\n<forced_lib>_bytesio</forced_lib>\n<forced_lib>_codecs</forced_lib>\n<forced_lib>_codecs_cn</forced_lib>\n<forced_lib>_codecs_hk</forced_lib>\n<forced_lib>_codecs_iso2022</forced_lib>\n<forced_lib>_codecs_jp</forced_lib>\n<forced_lib>_codecs_kr</forced_lib>\n<forced_lib>_codecs_tw</forced_lib>\n<forced_lib>_collections</forced_lib>\n<forced_lib>_csv</forced_lib>\n<forced_lib>_datetime</forced_lib>\n<forced_lib>_elementtree</forced_lib>\n<forced_lib>_fileio</forced_lib>\n<forced_lib>_functools</forced_lib>\n<forced_lib>_heapq</forced_lib>\n<forced_lib>_hotshot</forced_lib>\n<forced_lib>_imp</forced_lib>\n<forced_lib>_io</forced_lib>\n<forced_lib>_json</forced_lib>\n<forced_lib>_locale</forced_lib>\n<forced_lib>_lsprof</forced_lib>\n<forced_lib>_md5</forced_lib>\n<forced_lib>_multibytecodec</forced_lib>\n<forced_lib>_operator</forced_lib>\n<forced_lib>_pickle</forced_lib>\n<forced_lib>_posixsubprocess</forced_lib>\n<forced_lib>_random</forced_lib>\n<forced_lib>_sha</forced_lib>\n<forced_lib>_sha1</forced_lib>\n<forced_lib>_sha256</forced_lib>\n<forced_lib>_sha3</forced_lib>\n<forced_lib>_sha512</forced_lib>\n<forced_lib>_signal</forced_lib>\n<forced_lib>_socket</forced_lib>\n<forced_lib>_sre</forced_lib>\n<forced_lib>_stat</forced_lib>\n<forced_lib>_statistics</forced_lib>\n<forced_lib>_string</forced_lib>\n<forced_lib>_struct</forced_lib>\n<forced_lib>_subprocess</forced_lib>\n<forced_lib>_symtable</forced_lib>\n<forced_lib>_thread</forced_lib>\n<forced_lib>_tracemalloc</forced_lib>\n<forced_lib>_warnings</forced_lib>\n<forced_lib>_weakref</forced_lib>\n<forced_lib>_winreg</forced_lib>\n<forced_lib>array</forced_lib>\n<forced_lib>atexit</forced_lib>\n<forced_lib>audioop</forced_lib>\n<forced_lib>binascii</forced_lib>\n<forced_lib>builtins</forced_lib>\n<forced_lib>cPickle</forced_lib>\n<forced_lib>cStringIO</forced_lib>\n<forced_lib>cmath</forced_lib>\n<forced_lib>cv2</forced_lib>\n<forced_lib>datetime</forced_lib>\n<forced_lib>email</forced_lib>\n<forced_lib>errno</forced_lib>\n<forced_lib>exceptions</forced_lib>\n<forced_lib>faulthandler</forced_lib>\n<forced_lib>fcntl</forced_lib>\n<forced_lib>future_builtins</forced_lib>\n<forced_lib>gc</forced_lib>\n<forced_lib>gi</forced_lib>\n<forced_lib>grp</forced_lib>\n<forced_lib>hashlib</forced_lib>\n<forced_lib>imageop</forced_lib>\n<forced_lib>imp</forced_lib>\n<forced_lib>itertools</forced_lib>\n<forced_lib>marshal</forced_lib>\n<forced_lib>math</forced_lib>\n<forced_lib>mmap</forced_lib>\n<forced_lib>mock</forced_lib>\n<forced_lib>msvcrt</forced_lib>\n<forced_lib>multiprocessing</forced_lib>\n<forced_lib>mutagen</forced_lib>\n<forced_lib>nt</forced_lib>\n<forced_lib>numpy</forced_lib>\n<forced_lib>operator</forced_lib>\n<forced_lib>os</forced_lib>\n<forced_lib>os.path</forced_lib>\n<forced_lib>parser</forced_lib>\n<forced_lib>posix</forced_lib>\n<forced_lib>pwd</forced_lib>\n<forced_lib>py</forced_lib>\n<forced_lib>pyexpat</forced_lib>\n<forced_lib>pytest</forced_lib>\n<forced_lib>random</forced_lib>\n<forced_lib>re</forced_lib>\n<forced_lib>scipy</forced_lib>\n<forced_lib>select</forced_lib>\n<forced_lib>signal</forced_lib>\n<forced_lib>six</forced_lib>\n<forced_lib>socket</forced_lib>\n<forced_lib>spwd</forced_lib>\n<forced_lib>ssl</forced_lib>\n<forced_lib>strop</forced_lib>\n<forced_lib>sys</forced_lib>\n<forced_lib>syslog</forced_lib>\n<forced_lib>thread</forced_lib>\n<forced_lib>time</forced_lib>\n<forced_lib>unicodedata</forced_lib>\n<forced_lib>wx</forced_lib>\n<forced_lib>wxPython</forced_lib>\n<forced_lib>xxsubtype</forced_lib>\n<forced_lib>zipimport</forced_lib>\n<forced_lib>zlib</forced_lib>\n<string_substitution_var><key>PY</key><value>310</value></string_substitution_var>\n</xml>&&&&&
 
+    mode: "0644"
+    owner: "root"
+    group: "root"
+
+- name: Fixup the eclipse.ini file to use our custom configuration
+  ansible.builtin.lineinfile:
+    dest: /opt/eclipse/eclipse.ini
+    insertafter: "-vmargs"
+    line: "-Declipse.pluginCustomization=/opt/eclipse/eclipse_plugincustomization.ini"
+
+- name: Create directory to disable e-begging
+  ansible.builtin.file:
+     path: /etc/skel/.eclipse/org.eclipse.oomph.setup/setups
+     state: "directory"
+
+- name: Disable e-begging
+  ansible.builtin.copy:
+    src: brandingNotificationURIs.txt
+    dest: /etc/skel/.eclipse/org.eclipse.oomph.setup/setups/brandingNotificationURIs.txt
+    owner: root
+    group: root
+    mode: "0644"
+    directory_mode: "0755"
 
 
 

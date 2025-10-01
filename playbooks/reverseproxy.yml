@@ -1,18 +1,36 @@
 ---
-- name: install nginx
+- name: Install nginx
   ansible.builtin.apt:
     pkg:
       - nginx
       - ssl-cert # for the snakeoil stuff
     state: present
 
-- name: remove default nginx configuration
+- name: Remove default nginx configuration
   ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
-  notify: reload nginx
+  notify: Reload nginx
 
-# - name: install the ssl data
+# TODO: make this better
+# - name: Assemble the public cert for nginx
+#   ansible.builtin.assemble:
+#     src: /root/ca/assemble
+#     dest: /etc/ssl/reverseproxy.cert
+#     mode: "0644"
+#     owner: "root"
+#     group: "root"
+#   notify: Reload nginx
+
+# - name: Copy the private cert for nginx
+#   ansible.builtin.copy:
+#     src: /root/ca/devdocs-key.pem
+#     dest: /etc/ssl/reverseproxy.key
+#     remote_src: true
+#     mode: "0644"
+#     owner: root
+#     group: root
+#   notify: Reload nginx
 #   ansible.builtin.copy:
 #     content: "{{ item.content }}"
 #     dest: /etc/ssl/{{ item.dest }}
@@ -33,28 +51,33 @@
     - { src: "private/ssl-cert-snakeoil.key", dest: reverseproxy.key, mode: "0600" }
     - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.cert, mode: "0644" }
 
-- name: make sure web dir exists
-  file: state=directory path=/opt/localwww
+- name: Make sure web dir exists
+  ansible.builtin.file:
+    state: directory
+    path: /opt/localwww
+    owner: root
+    group: root
+    mode: "0755"
 
-- name: install our reverse proxy config
+- name: Install our reverse proxy config
   ansible.builtin.template:
     src: files/nginx.conf.j2
     dest: /etc/nginx/sites-available/reverseproxy.conf
-    mode: 0644
+    mode: "0644"
     owner: root
     group: root
     lstrip_blocks: true
     trim_blocks: true
-  notify: reload nginx
+  notify: Reload nginx
 
-- name: enable the reverseproxy nginx config
+- name: Enable the reverseproxy nginx config
   ansible.builtin.file:
     src: /etc/nginx/sites-available/reverseproxy.conf
     dest: /etc/nginx/sites-enabled/reverseproxy
     state: link
-  notify: reload nginx
+  notify: Reload nginx
 
-- name: update hosts file so we talk to the proxyserver instead of the real server
+- name: Update hosts file so we talk to the proxyserver instead of the real server
   ansible.builtin.lineinfile:
     path: /etc/hosts
     line: "127.0.0.1	{{ item }}"
@@ -62,11 +85,12 @@
     group: root
     mode: '0644'
   loop: "{{ reverseproxy_sites.keys() }}"
+  when: reverseproxy_sites is defined
 
-- name: update hosts file so devdocs is available properly
+- name: Update hosts file so devdocs is available properly
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    line: "127.0.0.1	devdocs"
+    line: "127.0.0.10	devdocs"
     owner: root
     group: root
     mode: '0644'
@@ -81,10 +105,10 @@
       port=53
       bind-interfaces
       keep-in-foreground
-      no-hosts # don't read /etc/hosts
+      no-hosts # don't read /etc/hosts (so we don't loop)
       resolv-file=/run/systemd/resolve/resolv.conf
 
-- name: create a dnsmasq systemd service
+- name: Create a dnsmasq systemd service
   ansible.builtin.copy:
     dest: /etc/systemd/system/dnsmasq.service
     content: |

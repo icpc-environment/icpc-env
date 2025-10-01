@@ -1,71 +1,91 @@
 ---
-- name: create icpc directory
-  file: path=/icpc state=directory
+- name: Create icpc directory
+  ansible.builtin.file:
+    path: /icpc
+    state: directory
+    mode: "0755"
 
-- name: copy icpc scripts
-  copy: src=files/scripts dest=/icpc mode=0755
+- name: Copy icpc scripts
+  ansible.builtin.copy:
+    src: files/scripts
+    dest: /icpc
+    mode: "0755"
 
-- name: add a supported_languages file
-  copy:
+- name: Add a supported_languages file
+  ansible.builtin.copy:
     dest: /icpc/supported_languages
     content: |
       {% for l in languages %}
       {{ l }}
       {% endfor %}
+    mode: "0644"
 
-- name: write out the config url
-  copy:
-    dest: /icpc/config_url_base
-    content: "{{ config_url }}"
-
-- name: write out the contest id (if specified)
-  copy:
+- name: Write out the contest id (if specified)
+  ansible.builtin.copy:
     dest: /icpc/CONTEST
     content: "{{ contest_id }}"
   when: contest_id|default('')|length > 0
 
-- name: create printfile symlink(to match world finals image)
-  file: src=/icpc/scripts/pcpr dest=/icpc/scripts/printfile state=link
+- name: Create printfile symlink(to match world finals image)
+  ansible.builtin.file:
+    src: /icpc/scripts/pcpr
+    dest: /icpc/scripts/printfile
+    state: link
 
-- name: set default papersize to letter
-  copy: dest=/etc/papersize content="letter\n" mode=0644
+- name: Set default papersize to icpc_papersize (else letter)
+  ansible.builtin.copy:
+    dest: /etc/papersize
+    content: "{{ icpc_papersize | default('letter') }}\n"
+    mode: "0644"
 
-- name: setup PATH variable
-  copy:
+- name: Setup PATH variable
+  ansible.builtin.copy:
     dest: /etc/profile.d/icpc_path.sh
     content: |
       export PATH="/icpc/scripts:$PATH"
 
-- name: copy icpc default wallpaper
-  copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
+- name: Copy icpc default wallpaper
+  ansible.builtin.copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
 
-- name: set timezone
+- name: Set timezone
   community.general.timezone:
     name: "{{ icpc_timezone }}"
-
-# ICPC tools we need
-- name: install ICPC tools we need
-  apt:
+- name: Install ICPC tools we need
+  ansible.builtin.apt:
     state: present
     pkg:
+      - apache2-utils
+      - ffmpeg
+      - intel-media-va-driver-non-free
+      - pulseaudio
+      - snmpd
+      - vlc
+      - openprinting-ppds
+      - git
       - ufw
       - imagemagick
       - git
+      # TODO: chrony
       # - ntp # we use systemd-timesyncd instead (and installing ntp will break that)
       - cups
       - cups-bsd
       - enscript
-      - jc # for json output form various commands (used by firstLogin.sh)
+      - jc # for json output from various commands (used by firstLogin.sh)
       - python3-typing-extensions # needed for firstboot script
 
-      # experimental programs to support showing a banner image to all contestants
+#      # experimental programs to support showing a banner image to all contestants
       - feh # to display fullscreen images
       - wmctrl # can set always on top, plus check if it's still the active window and restart it if not (e.g. ctrl+alt+left/right swap desktops)
       - xdotool # to detect if it's still on top/other things?
       - python3-xlib  # maybe we'll write our own xorg fullscreen thing to replace the above 3 things...
 
-- name: stop/disable cups-browsed from autodiscovering printers
-  service: name=cups-browsed state=stopped enabled=no
+- name: Stop/disable cups-browsed from autodiscovering printers
+  ansible.builtin.service:
+    name: cups-browsed
+    state: stopped
+    enabled: false
+
+###### MOVE ELSEWHERE ######
 
 - name: copy local git repos to server # TODO: make idempotent
   synchronize:
@@ -157,15 +177,10 @@
       [user]
       	email = icpcadmin@icpcenv
       	name = icpcenv
+#### MOVE ELSEWHERE ####
 
-# - name: create polkit directory
-#   ansible.builtin.file:
-#     path: /etc/polkit-1/localauthority/50-local.d
-#     state: directory
-# - name: use polkit to disable mounting anything
-#   copy: src=files/99-deny-polkit-mount.pkla dest=/etc/polkit-1/localauthority/50-local.d/disable-mount.pkla mode=0644 owner=root group=root
 - name: Use polkit to disable mounting
-  copy:
+  ansible.builtin.copy:
     dest: /etc/polkit-1/rules.d/99-deny-udisks2.rules
     content: |
       polkit.addRule(function(action, subject) {
@@ -194,20 +209,37 @@
       icpcadmin ALL=NOPASSWD: ALL
       teamreset ALL=NOPASSWD: ALL
 
-# - name: set up firstboot configuration
-#   copy: src=files/firstboot.service dest=/etc/systemd/system/firstboot.service
-# - name: enable firstboot service
-#   service: name=firstboot enabled=yes
+# - name: Create icpc group
+#   ansible.builtin.group:
+#     name: 'icpc'
+#     state: present
 
-- name: check for ICPC partition
-  shell: blkid -L "ICPC"
+# - name: Create teams group
+#   ansible.builtin.group:
+#     name: 'teams'
+#     state: present
+#     gid: 2000
+
+# - name: Create users
+#   ansible.builtin.user:
+#     name: "{{ item.username }}"
+#     comment: "{{ item.comment | default('') }}"
+#     group: "{{ item.group | default(item.username) }}"
+#     groups: "{{ item.groups | default('') }}"
+#     shell: "{{ item.shell | default('/bin/bash') }}"
+#     password: "{{ item.password_hash }}"
+#   with_items: "{{ icpc_users_array }}"
+
+
+- name: Check for ICPC partition
+  ansible.builtin.shell: blkid -L "ICPC"
   register: icpc_partition
   ignore_errors: true
   failed_when: false
   changed_when: false
 
-- name: if there is an icpc partition
-  when: icpc_partition.rc == 0
+- name: If there is an icpc partition
+  ansible.builtin.when: icpc_partition.rc == 0
   block:
   - name: create mountpoint
     file: path=/mnt/usbdrive state=directory
@@ -229,7 +261,7 @@
 
 
 
-
+# MOVE THIS TO A DIFFERENT PLAYBOOK
 # install dbus-x11, xinit
 - name: Install tools so we can do a gui initial setup wizard
   ansible.builtin.apt:
@@ -333,24 +365,124 @@
     dest: /icpc/scripts/icpc_setup
     src: setup-gui/main.py
     mode: 0755
+# END MOVE THIS TO A DIFFERENT PLAYBOOK
 
+- name: Uninstall commands we do not want
+  ansible.builtin.apt:
+    state: absent
+    name:
+      - command-not-found
+      - bluez
+      - bluez-obexd
+      - apport
 
+- name: Cleanup command-not-found dir
+  ansible.builtin.file:
+    path: /var/lib/command-not-found
+    state: absent
 
-# kattis cli, clone git to /opt/kattis-cli: git clone https://github.com/Kattis/kattis-cli
-- name: clone kattis cli
-  ansible.builtin.git:
-    repo: https://github.com/Kattis/kattis-cli
-    dest: /opt/kattis-cli
-    force: true
-- name: install kattis cli dependencies
-  apt:
-    state: present
-    pkg:
-      - python3-lxml
-- name: Create a kattis binary wrapper script
-  ansible.builtin.copy:
-    dest: /usr/local/bin/kattis
-    mode: 0755
-    content: |
-      #!/bin/sh
-      python "/opt/kattis-cli/submit.py" "$@"
+- name: Create /usr/share/doc/icpc
+  ansible.builtin.file:
+    name: /usr/share/doc/icpc
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+# - name: Dump ccs.desktop
+#   ansible.builtin.template:
+#     src: files/ccs.desktop.j2
+#     dest: /usr/share/applications/ccs.desktop
+#     mode: '0644'
+#     owner: root
+#     group: root
+# - name: Copy CCS.pdf files, if icpc_browser_url not set
+#   when: icpc_browser_url is not defined
+#   ansible.builtin.copy:
+#     src: files/CCS.pdf
+#     dest: /usr/share/doc/icpc
+#     mode: '0644'
+#     owner: root
+#     group: root
+
+# - name: Copy files
+#   ansible.builtin.copy:
+#     src: "files/{{ item.name }}"
+#     dest: "{{ item.path }}/{{ item.name }}"
+#     mode: "{{ item.mode | default('0644') }}"
+#     owner: root
+#     group: root
+#   with_items:
+#     - { name: printfile, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilec, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilecpp, path: /usr/local/bin, mode: '0755' }
+#     - { name: compileg++, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilegcc, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilejava, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilekotlin, path: /usr/local/bin, mode: '0755' }
+#     - { name: compilepython3, path: /usr/local/bin, mode: '0755' }
+#     - { name: runc, path: /usr/local/bin, mode: '0755' }
+#     - { name: runcpp, path: /usr/local/bin, mode: '0755' }
+#     - { name: runjava, path: /usr/local/bin, mode: '0755' }
+#     - { name: runkotlin, path: /usr/local/bin, mode: '0755' }
+#     - { name: runpython3, path: /usr/local/bin, mode: '0755' }
+#     - { name: detect-network-interfaces, path: /usr/sbin, mode: '0755' }
+#     - { name: detect-network-interfaces.service, path: /lib/systemd/system, mode: '0644' }
+#     - { name: ccsdocs.desktop, path: /usr/share/applications }
+#     - { name: judgingnotes.desktop, path: /usr/share/applications }
+#     - { name: technotes.desktop, path: /usr/share/applications }
+#     - { name: problems.desktop, path: /usr/share/applications }
+#     - { name: scoreboard.desktop, path: /usr/share/applications }
+#     - { name: devdocs.desktop, path: /usr/share/applications }
+#     - { name: Trophy.png, path: /usr/share/doc/icpc }
+#     - { name: javalogo52x88.gif, path: /usr/share/doc/icpc }
+#     - { name: jquery.js, path: /usr/share/doc/icpc }
+#     - { name: X0.hosts, path: /etc }
+#     - { name: 99-hide-floppy.rules, path: /etc/udev/rules.d }
+#     - { name: 99-local.rules, path: /etc/udev/rules.d }
+#     - { name: iptablesload, path: /etc/network/if-pre-up.d, mode: '0755' }
+#     - { name: iptablesload, path: /etc/NetworkManager/dispatcher.d/pre-up.d, mode: '0755' }
+#     - { name: authorized_keys2, path: /root/.ssh, mode: '0600' }
+#     - { name: snmpd.conf, path: /etc/snmp }
+
+# - name: Start service for detect-network-interfaces
+#   ansible.builtin.systemd_service:
+#     name: detect-network-interfaces.service
+#     state: started
+#     enabled: true
+
+# - name: Install icpc items with explicit dest
+#   ansible.builtin.copy:
+#     src: "files/{{ item.name }}"
+#     dest: "{{ item.dest }}"
+#     mode: "{{ item.mode | default('0644') }}"
+#     owner: root
+#     group: root
+#   with_items:
+#     - { name: iptablesload, dest: /etc/networkd-dispatcher/routable.d/50-iptablesload, mode: '0755' }
+#     - { name: limits.icpc.conf, dest: /etc/security/limits.d/icpc.conf }
+#     - { name: sshd_config.icpc.conf, dest: /etc/ssh/sshd_config.d/icpc.conf }
+#     - { name: "{{ group_names[0] }}.TeamGuide.pdf", dest: /usr/share/doc/icpc/TeamGuide.pdf }
+#     - { name: "{{ group_names[0] }}.TechNotes.pdf", dest: /usr/share/doc/icpc/TechNotes.pdf }
+#     - { name: "{{ group_names[0] }}.JudgingNotes.pdf", dest: /usr/share/doc/icpc/JudgingNotes.pdf }
+#     - { name: "{{ group_names[0] }}.iptables.rules", dest: /etc/iptables.rules, mode: '0600' }
+
+# - name: Install root scripts
+#   ansible.builtin.copy:
+#     src: "files/{{ item }}"
+#     dest: "/root/{{ item }}"
+#     mode: '0700'
+#     owner: root
+#     group: root
+#   with_items:
+#     - c
+#     - sh.clear_home
+#     - sh.deploy_perteam
+
+# - name: Deploy window-geometry.conf for gvim
+#   ansible.builtin.copy:
+#     src: files/window-geometry.conf
+#     dest: /etc/skel/.config
+#     mode: "0644"
+#     owner: root
+#     group: root

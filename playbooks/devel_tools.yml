@@ -1,94 +1,103 @@
 ---
-  - name: install generic/common development tools
-    apt:
-      state: present
-      pkg:
-        - vim-gtk3       # graphical vim
-        - neovim-qt      # fork of vim that some people might like better
-        - kate           # another text editor ~181mb
-        - konsole        # kate requires konsole (an alternate console) for it's embedded terminal
-        - alacritty      # a fancy terminal app people might want/like
-        - emacs          # emacs(with x)
-        - gedit          # Simple gnome text editor w/ syntax highlighting
-        - gdb
-        - zsh            # a different shell people might like more (~20MiB)
-        - eza            # a modern ls
-        - valgrind       # memory leak detector (requested by UCF)
+- name: Install generic/common development tools
+  ansible.builtin.apt:
+    state: present
+    install_recommends: false
+    pkg:
+      - vim-gtk3       # graphical vim
+      - neovim-qt      # fork of vim that some people might like better
+      - kate           # another text editor ~181mb
+      - konsole        # kate requires konsole (an alternate console) for it's embedded terminal
+      - alacritty      # a fancy terminal app people might want/like
+      - emacs          # emacs(with x)
+      - gedit          # Simple gnome text editor w/ syntax highlighting
+      - gdb
+      - zsh            # a different shell people might like more (~20MiB)
+      - eza            # a modern ls people might like
+      - valgrind       # memory leak detector
 
-  - name: make sure vim-gtk3 is the default gvim (not nvim)
-    community.general.alternatives:
-      name: gvim
-      path: /usr/bin/vim.gtk3
 
-  - name: install codeblocks
-    when: "'codeblocks' in devtools"
-    apt:
-      state: present
-      pkg:
-        - codeblocks
-        - codeblocks-contrib
+- name: set vim.gtk3 as the default gvim, not neovim-qt (since neovim-qt probably isn't what people expect)
+  community.general.alternatives:
+    name: gvim
+    path: /usr/bin/vim.gtk3
 
-  - name: install vscode
-    when: "'vscode' in devtools"
-    include_tasks: 'devel_tools/vscode.yml'
+- name: Fix small neovim-qt window
+  ansible.builtin.lineinfile:
+    path: /usr/libexec/neovim-qt/gvim
+    regexp: '^(exec /usr/bin/nvim-qt)'
+    line: '\1 --geometry 1400x900 -- "$@"'
+    backrefs: true
 
-  - name: install zed
-    when: "'zed' in devtools"
-    include_tasks: 'devel_tools/zed.yml'
+- name: Install codeblocks
+  when: "'codeblocks' in devtools"
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - codeblocks
+      - codeblocks-contrib
 
-  - name: install netbeans
-    when: "'netbeans' in devtools"
-    include_tasks: 'devel_tools/netbeans.yml'
+- name: Install vscode
+  when: "'vscode' in devtools"
+  ansible.builtin.include_tasks: 'devel_tools/vscode.yml'
 
-  - name: install codelite
-    when: "'codelite' in devtools"
-    include_tasks: 'devel_tools/codelite.yml'
+- name: Install zed
+  when: "'zed' in devtools"
+  ansible.builtin.include_tasks: 'devel_tools/zed.yml'
 
-  - name: install geany
-    when: "'geany' in devtools"
-    apt:
-      state: present
-      pkg:
-        - geany
-        - geany-plugins
+- name: Install netbeans
+  when: "'netbeans' in devtools"
+  ansible.builtin.include_tasks: 'devel_tools/netbeans.yml'
 
-  - name: install eclipse
-    include_tasks: 'devel_tools/eclipse.yml'
-    when: "'eclipse' in devtools"
+- name: Install codelite
+  when: "'codelite' in devtools"
+  ansible.builtin.include_tasks: 'devel_tools/codelite.yml'
 
-  - name: install intellij tools
-    include_tasks: 'devel_tools/intellij.yml'
-    when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
+- name: Install geany
+  when: "'geany' in devtools"
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - geany
+      - geany-plugins
+- name: Include eclipse
+  ansible.builtin.include_tasks: 'devel_tools/eclipse.yml'
+  when: "'eclipse' in devtools"
 
+- name: Include intellij
+  when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
+  ansible.builtin.include_tasks: 'devel_tools/intellij.yml'
+
+
+- name: install monodevelop
+  when: "('monodevelop' in devtools)"
+  block:
+  - name: key for monodevelop apt repo
+    apt_key:
+      keyserver: keyserver.ubuntu.com
+      id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+      keyring: /etc/apt/trusted.gpg.d/monodevelop.gpg
+  - name: apt repo for monodevelop
+    apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
   - name: install monodevelop
-    when: "('monodevelop' in devtools)"
-    block:
-    - name: key for monodevelop apt repo
-      apt_key:
-        keyserver: keyserver.ubuntu.com
-        id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-        keyring: /etc/apt/trusted.gpg.d/monodevelop.gpg
-    - name: apt repo for monodevelop
-      apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
-    - name: install monodevelop
-      apt:
-        state: present
-        pkg:
-          # Monodevelop and friends: 140mb
-          - monodevelop
-          #- monodevelop-debugger-gdb
+    apt:
+      state: present
+      pkg:
+        # Monodevelop and friends: 140mb
+        - monodevelop
+        #- monodevelop-debugger-gdb
 
-  # - name: clone spacemacs
-  #   git: dest=/opt/spacemacs/emacs.d repo=https://github.com/syl20bnr/spacemacs
-  # - name: create some instructions for spacemacs
-  #   copy:
-  #     dest: /opt/spacemacs/readme.md
-  #     content: |
-  #       You can find spacemacs downloaded from github in /opt/spacemacs/emacs.d
-  #       To use it, you probably want to do something like this:
-  #       ```
-  #       cp -a /opt/spacemacs/emacs.d ~/.emacs.d
-  #       ```
-  # This seems not to really work, since on startup of spacemacs it wants to update/download a bunch of packages...
-  # It's possible to mirror the pacakges and stuff(see https://github.com/d12frosted/elpa-mirror), but it's around 1.1GiB
-  # Probably best to implement some kind of trusted mirror site and allow teams access to that(also for docs)
+# - name: clone spacemacs
+#   git: dest=/opt/spacemacs/emacs.d repo=https://github.com/syl20bnr/spacemacs
+# - name: create some instructions for spacemacs
+#   copy:
+#     dest: /opt/spacemacs/readme.md
+#     content: |
+#       You can find spacemacs downloaded from github in /opt/spacemacs/emacs.d
+#       To use it, you probably want to do something like this:
+#       ```
+#       cp -a /opt/spacemacs/emacs.d ~/.emacs.d
+#       ```
+# This seems not to really work, since on startup of spacemacs it wants to update/download a bunch of packages...
+# It's possible to mirror the pacakges and stuff(see https://github.com/d12frosted/elpa-mirror), but it's around 1.1GiB
+# Probably best to implement some kind of trusted mirror site and allow teams access to that(also for docs)

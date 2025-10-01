@@ -1,0 +1,160 @@
+---
+# Create/setup a root CA + certs
+- name: Install cfssl (and jq) for ca management
+  ansible.builtin.apt:
+    pkg:
+      - golang-cfssl
+      - jq
+    state: present
+
+- name: Create directory to hold or ca
+  ansible.builtin.file:
+    path: /root/{{ item }}
+    state: directory
+    mode: "0700"
+  loop:
+    - ca
+    - ca/intermediate
+    - ca/intermediate/certs
+    - ca/intermediate/private
+
+- name: Generate a custom CA cert for this system
+  block:
+    - name: Create ca.json definition
+      ansible.builtin.copy:
+        mode: "0644"
+        dest: /root/ca/ca.json
+        content: |
+          {
+            "CN": "ICPC Root CA",
+            "key": {
+              "algo": "rsa",
+              "size": 2048
+            },
+            "names": [
+              {
+                "C": "US",
+                "O": "ICPC",
+                "OU": "ICPC SysOps CA"
+              }
+            ]
+          }
+    - name: Generate the CA key and cert
+      ansible.builtin.shell:
+      args:
+        cmd: |
+          set -o pipefail # prevent surprises in the pipeline
+          cfssl gencert -initca ca.json | cfssljson -bare ca
+        chdir: /root/ca
+        creates: /root/ca/ca.pem
+        executable: /bin/bash
+
+    - name: Make directory /root/ca/assemble
+      ansible.builtin.file:
+        state: directory
+        path: /root/ca/assemble
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy the CA cert to the system CA store
+      ansible.builtin.copy:
+        src: /root/ca/ca.pem
+        dest: /usr/local/share/ca-certificates/ca-icpc.crt
+        mode: "0644"
+        remote_src: true
+      notify: Run update-ca-certificates
+
+- name: Create ca-config.json definition
+  ansible.builtin.copy:
+    mode: "0644"
+    dest: /root/ca/ca-config.json
+    # 8760h = 1 year
+    content: |
+      {
+        "signing": {
+          "default": {
+            "expiry": "8760h"
+          },
+          "profiles": {
+            "https": {
+              "usages": ["signing", "digital signing", "key encipherment", "server auth"],
+              "expiry": "8760h"
+            }
+          }
+        }
+      }
+
+- name: Create ca.json definition
+  ansible.builtin.copy:
+    mode: "0644"
+    dest: /root/ca/cert-template.json
+    content: |
+      {
+        "CN": "NAME_GOES_HERE",
+        "hosts": [""],
+        "key": {
+          "algo": "rsa",
+          "size": 2048
+        }
+      }
+
+- name: Generate certs for hosts that need one
+  ansible.builtin.shell:
+  args:
+    cmd: >
+      set -o pipefail &&
+      cat cert-template.json |
+      jq '.CN = "{{ item.cn }}"' |
+      cfssl gencert
+      -config=ca-config.json
+      -ca=ca.pem
+      -ca-key=ca-key.pem
+      -hostname="{{ item.hostnames }}"
+      -profile=https - |
+      cfssljson -bare "{{ item.name }}"
+    chdir: /root/ca/
+    creates: /root/ca/{{ item.name }}.pem
+    executable: /bin/bash
+  environment:
+    CFSSL_CA_PK_PASSWORD: '{{ ca_password | default("") }}'
+  with_items: "{{ ca_target_certs }}"
+
+- name: Copy certs to /etc/ssl
+  ansible.builtin.copy:
+    src: /root/ca/{{ item.name }}.pem
+    dest: /etc/ssl/{{ item.name }}.crt
+    mode: "0644"
+    remote_src: true
+  loop: "{{ ca_target_certs }}"
+- name: Copy keys to /etc/ssl
+  ansible.builtin.copy:
+    src: /root/ca/{{ item.name }}-key.pem
+    dest: /etc/ssl/{{ item.name }}.key
+    mode: "0600"
+    remote_src: true
+  loop: "{{ ca_target_certs }}"
+
+# - name: Copy devdocs.pem to aseemble location
+#   ansible.builtin.copy:
+#     src: /root/ca/devdocs.pem
+#     dest: /root/ca/assemble/01_devdocs.pem
+#     remote_src: true
+#     mode: "0644"
+#     owner: "root"
+#     group: "root"
+
+# - name: Symlink certs to places ansible might expect them to be
+#   ansible.builtin.file:
+#     src: /root/ca/{{ item.src }}
+#     dest: /root/ca/{{ item.dest }}
+#     state: link
+#   loop:
+#     - {src: packages.pem, dest: intermediate/certs/packages.cert.pem}
+#     - {src: packages-key.pem, dest: intermediate/private/packages.key.pem}
+
+# TODO: some magic for making the p12 file that the cds needs
+# openssl pkcs12 -export -chain -inkey intermediate/private/$i.key.pem -in intermediate/certs/$i.cert.pem  -out $i.p12 -name "default" \
+#   -CAfile intermediate/certs/ca-chain.cert.pem
+# on the cds in wlp/usr/servers/cds/resources/security/
+# keytool -importkeystore -deststorepass ICPCTools -destkeystore key.jks -srckeystore ~/cds.p12 -srcstoretype PKCS12 -srcstorepass ICPCTools

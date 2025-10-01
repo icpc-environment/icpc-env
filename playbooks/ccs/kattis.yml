@@ -1,0 +1,27 @@
+# kattis cli, clone git to /opt/kattis-cli: git clone https://github.com/Kattis/kattis-cli
+- name: Clone kattis cli
+  ansible.builtin.git:
+    repo: https://github.com/Kattis/kattis-cli
+    dest: /opt/kattis-cli
+    force: true
+
+- name: Install kattis cli dependencies
+  ansible.builtint.apt:
+    state: present
+    pkg:
+      - python3-lxml
+
+- name: Create a kattis binary wrapper script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/kattis
+    mode: 0755
+    content: |
+      #!/bin/sh
+      python "/opt/kattis-cli/submit.py" "$@"
+
+- name: Symlink to kattis in /usr/local/bin
+  when: submit_ccs == 'kattis'
+  ansible.builtin.file:
+    src: /usr/local/bin/kattis
+    dest: /usr/local/bin/submit
+    state: link

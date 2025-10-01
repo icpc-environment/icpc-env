@@ -1,20 +1,27 @@
 ---
-- name: install the packages necessary to make xfce run
-  apt:
+- name: Install the packages necessary to make xfce run
+  ansible.builtin.apt:
     state: present
     pkg:
       - xserver-xorg
       - lightdm
-      - lightdm-gtk-greeter   # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space autocomplete in eclipse)
+      # This keeps us from installing unity-greeter, which would pull in unity-settings and ibus(which breaks ctrl+space autocomplete in eclipse)
+      - lightdm-gtk-greeter
 # suggests:
 # colord cups-common gvfs liblcms2-utils librsvg2-bin lm-sensors bindfs
 # desktop-base xfonts-100dpi | xfonts-75dpi xfonts-scalable xinput
 # firmware-amd-graphics xserver-xorg-video-r128 xserver-xorg-video-mach64
 # firmware-misc-nonfree
 
+- name: Set background in lightdm-gtk-greeter.conf
+  ansible.builtin.lineinfile:
+    path: /etc/lightdm/lightdm-gtk-greeter.conf
+    regexp: '^#(background).*$'
+    line: '\1=/usr/share/backgrounds/ICPCLogo-greeter.png'
+    backrefs: true
 
-- name: install xfce and friends(without their recommended packages)
-  apt:
+- name: Install xfce and friends(without their recommended packages)
+  ansible.builtin.apt:
     state: present
     install_recommends: false
     pkg:
@@ -26,13 +33,18 @@
       - tango-icon-theme
       - thunar-volman
       - thunar-archive-plugin
-      - engrampa # archive manager
       # power management/terminal
       - xfce4-power-manager
       - xfce4-power-manager-plugins
       - xfce4-terminal
+
+      # network manager
+      #- network-manager-gnome # TODO: this is elsewhere I think
+
       # So we can show the output of commands in the panel (used for showing team name/info)
       - xfce4-genmon-plugin
+      # for PrintScreen
+      - xfce4-screenshooter
 
 
 - name: Add mozilla firefox ppa (because snaps are dumb)
@@ -48,22 +60,53 @@
         state: present
         update_cache: true
 
-- name: apt preference for firefox to only install from the ppa
-  copy:
+- name: Apt preference for firefox to only install from the ppa
+  ansible.builtin.copy:
     dest: /etc/apt/preferences.d/mozilla-firefox
     content: |
       Package: firefox
       Pin: release o=LP-PPA-mozillateam
       Pin-Priority: 1001
+    mode: "0644"
+    owner: "root"
+    group: "root"
 
-- name: install gui apps
-  apt:
+# - name: Ensure /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml exists
+#   ansible.builtin.file:
+#     path: /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+#     state: directory
+#     owner: root
+#     group: root
+#     mode: '0755'
+
+# - name: Copy xfce files
+#   ansible.builtin.copy:
+#     src: "files/{{ item.name }}"
+#     dest: "{{ item.path }}/{{ item.name }}"
+#     mode: "{{ item.mode | default('0644') }}"
+#     owner: root
+#     group: root
+#   with_items:
+#     - { name: ICPCLogo-on-dark-smaller.png, path: /usr/share/backgrounds }
+#     - { name: xfce4-desktop.xml, path: /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml }
+#     - { name: xfce4-panel.xml, path: /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml }
+#     - { name: xfce4-power-manager.xml, path: /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml }
+#     - { name: ICPCLogo-greeter.png, path: /usr/share/backgrounds }
+#     - { name: xfce-contest.directory, path: /usr/share/desktop-directories }
+#     - { name: xfce-documentation.directory, path: /usr/share/desktop-directories }
+#     - { name: xfce-applications.menu, path: /etc/xdg/xdg-xubuntu/menus }
+
+
+
+- name: Install gui apps
+  ansible.builtin.apt:
     state: present
     pkg:
       - firefox   # Web browser (from ppa, not snap)
       - alacarte  # Menu editor
       - mupdf     # Lighweight pdf viewer
       - mate-calc # GUI calculator
+      - engrampa  # archive manager
 
   # kalgebra - seems nice, basically a graphing calculator, but it ends up in some new education submenu
   # gnome-genius - way overkill/has it's own language thing. reminds me of r or ipython notebooks
@@ -72,7 +115,7 @@
   # kcalc - # ok, but mate-calc is better
 
 - name: Remove unneeded packages
-  apt:
+  ansible.builtin.apt:
     state: absent
     purge: yes
     pkg:
@@ -85,20 +128,38 @@
       - desktop-base
       - vlc-data
 
-- name: setup lightdm
-  copy: src=files/lightdm.conf dest=/etc/lightdm/lightdm.conf
+- name: Setup lightdm
+  ansible.builtin.copy:
+    src: files/lightdm.conf
+    dest: /etc/lightdm/lightdm.conf
+    mode: "0644"
+    owner: "root"
+    group: "root"
 
-- name: configure xorg/x11
-  copy: src=files/xorg.conf dest=/etc/X11/xorg.conf
+- name: Set monitor to not blank
+  ansible.builtin.copy:
+    content:
+      # Disable screen blanking/display power management(this will keep the display on all the time)
+      Section "ServerFlags"
+        Option "DPMS"        "false"
+        Option "BlankTime"   "0"
+        Option "StandbyTime" "0"
+        Option "SuspendTime" "0"
+        Option "OffTime"     "0"
+      EndSection
+    dest: /usr/share/X11/xorg.conf.d/icpc.monitor.conf
+    owner: root
+    group: root
+    mode: "0644"
 
-# delete some template stuff (it creates OpenDocument Text.odt, OpenDocument Sheets.ods and something else in the home directory)
-- name: delete the xdg template creator autostart
-  file:
+# Delete some template stuff (it creates OpenDocument Text.odt, OpenDocument Sheets.ods and something else in the home directory)
+- name: Delete the xdg template creator autostart
+  ansible.builtin.file:
     state: absent
     path: /etc/xdg/xdg-xubuntu/autostart/xdg-xubuntu-templates.desktop
 
-- name: delete some .desktop shortcuts (so they don't show up in the applications menu)
-  file:
+- name: Delete some .desktop shortcuts (so they don't show up in the applications menu)
+  ansible.builtin.file:
     state: absent
     path: /usr/share/applications/{{ item }}
   with_items:
@@ -106,8 +167,8 @@
     - xfce4-mail-reader.desktop       # Mail Reader
     - thunar-volman-settings.desktop  # Removable devices and media
 
-- name: copy a script to help mirror displays
-  copy:
+- name: Copy a script to help mirror displays
+  ansible.builtin.copy:
     src: files/mirror-displays.sh
     dest: /usr/local/bin/mirror-displays
     mode: 0755

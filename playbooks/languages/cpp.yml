@@ -1,16 +1,21 @@
 ---
 - name: cpp
-  apt:
+  ansible.builtin.apt:
     state: present
     pkg:
       - g++
-      - g++-14 # TODO: how to make this the default?
-      - stl-manual      # 2.5mb
+      - g++-14 # TODO: how to make this default
       - unzip # for dealing with docs
 
 - name: cpp docs
   when: not devdocs
   block:
+    - name: Install stl-manual
+      ansible.builtin.apt:
+        state: present
+        pkg:
+          - stl-manual      # 2.5mb
+
     # From https://en.cppreference.com/w/Cppreference:Archives
     - name: create directories
       file:
@@ -20,6 +25,7 @@
         - /opt/cppreference-docs
         - /opt/libc-manual
     - name: cppreference.com offline docs
+
       unarchive:
         src: files/html_book_20190607.zip
         dest: /opt/cppreference-docs

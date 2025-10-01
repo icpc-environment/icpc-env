@@ -1,10 +1,11 @@
 ---
 - name: install unzip so we can extract kotlin
-  apt:
+  ansible.builtin.apt:
     pkg: unzip
     state: present
+# TODO review this version,  i think in devtools/intellij it was installing a different version
 - name: install kotlin
-  unarchive: src=files/kotlin-compiler-1.8.10.zip dest=/opt creates=/opt/kotlinc
+  unarchive: src=files/kotlin-compiler-2.2.20.zip dest=/opt creates=/opt/kotlinc
 - name: create symlinks for kotlin
   file:
     src: /opt/kotlinc/bin/{{ binary_name }}
@@ -27,14 +28,14 @@
     - name: create directory for kotlin docs
       file:
         state: directory
-        mode: 0755
+        mode: '0755'
         path: /opt/kotlin-docs
 
     - name: fetch kotlin pdf
       get_url:
         url: https://kotlinlang.org/docs/kotlin-reference.pdf
         dest: /opt/kotlin-docs/kotlin-reference.pdf
-        mode: 0644
+        mode: '0644'
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Kotlin']"

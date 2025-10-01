@@ -21,10 +21,10 @@ server {
 server {
         listen 443 ssl;
         server_name devdocs;
-        ssl_certificate /etc/ssl/reverseproxy.cert;
-        ssl_certificate_key /etc/ssl/reverseproxy.key;
+        ssl_certificate /etc/ssl/devdocs.cert;
+        ssl_certificate_key /etc/ssl/devdocs.key;
         location  / {
-                proxy_pass http://127.0.0.1:9292;
+                proxy_pass http://127.0.0.10:9292;
                 proxy_ssl_server_name on;
                 proxy_set_header Host $host;
         }

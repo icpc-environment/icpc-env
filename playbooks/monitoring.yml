@@ -1,12 +1,12 @@
 ---
 - name: install node-exporter
-  apt: pkg=prometheus-node-exporter state=present
+  ansible.builtin.apt: pkg=prometheus-node-exporter state=present
 
 - name: also make sure moreutils is installed (for sponge)
-  apt: pkg=moreutils state=present
+  ansible.builtin.apt: pkg=moreutils state=present
 
 - name: drop a configuration file for node exporter to disable systemd metrics (it's noisy/slowish)
-  copy:
+  ansible.builtin.copy:
     dest: /etc/default/prometheus-node-exporter
     content: ARGS="--no-collector.systemd"
 #       --collector.disable-defaults
@@ -60,7 +60,7 @@
 #       --collector.zfs
 
 - name: disable some timers that come with node-exporter that we don't want
-  service: name={{item}} enabled=no
+  ansible.builtin.service: name={{item}} enabled=no
   with_items:
     - prometheus-node-exporter-smartmon.timer
     - prometheus-node-exporter-apt.timer
@@ -70,10 +70,10 @@
 
 - name: override node-exporter to run nice'd/idle/low io+cpu priority
   block:
-    - file:
+    - ansible.builtin.file:
         path: /etc/systemd/system/prometheus-node-exporter.service.d
         state: directory
-    - copy:
+    - ansible.builtin.copy:
         dest: /etc/systemd/system/prometheus-node-exporter.service.d/override.conf
         content: |
           [Service]
@@ -82,7 +82,7 @@
           IOSchedulingClass=idle
 
 - name: restart node-exporter
-  service: name=prometheus-node-exporter state=started enabled=yes
+  ansible.builtin.service: name=prometheus-node-exporter state=started enabled=yes
 
 - name: add firewall rule so the contestmanagement host can access prometheus
   ufw:
@@ -141,11 +141,11 @@
 - name: enable icpc-static-node-exporter.path
   service: name=icpc-static-node-exporter.path enabled=yes
 
-# - name: install s.py script
-#   copy:
-#     src: files/s.py
-#     dest: /usr/local/bin/s.py
-#     mode: 0755
+- name: install s.py script
+  copy:
+    src: files/s.py
+    dest: /usr/local/bin/s.py
+    mode: 0755
 
 - name: install python3-xlib for s.py library
   apt:

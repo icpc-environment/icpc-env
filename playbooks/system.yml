@@ -1,38 +1,55 @@
 ---
-- name: useful packages for admins
-  apt:
-    pkg:
+- name: Useful packages for admins
+  ansible.builtin.package:
+    name:
+      - alsa-utils
       # performance tools
       - htop
-      - btop # a modern resource monitor
+      - btop        # a modern resource monitor
       - dstat
       - iotop
       - sysstat
       - dstat
       # misc admin tools
+      - util-linux-extra  # for hwclock
       - net-tools   # for ifconfig/old tools
       - curl        # debugging connection things
       - ncdu
+      - jc          # for json output form various commands
       - jq
-      - jc # for json output form various commands
-      # We'll use network-manager now because it deals with wifi much better
+      - shellcheck
+      # Needed for wifi
       - network-manager
       - network-manager-gnome
       - wpasupplicant
       - iw
+    install_recommends: false
 
-# With network manager, we don't need to do this anymore
-# - name: disable udev persistent net generator
-#   file: state=link name=/etc/udev/rules.d/75-persistent-net-generator.rules src=/dev/null
-# https://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/
-# - name: disable "predictable network interface names"
-#   file: state=link name=/etc/udev/rules.d/80-net-setup-link.rules src=/dev/null
+# - name: Disable ipv6
+#   ansible.builtin.lineinfile:
+#     dest: /etc/default/grub
+#     regexp: "^GRUB_CMDLINE_LINUX="
+#     line: 'GRUB_CMDLINE_LINUX="ipv6.disable=1 net.ifnames=0"'
+#     state: present
+#   notify: Update grub
 
-# - name: push a better default network interfaces file
-#   copy: src=files/01-netcfg.yaml dest=/etc/netplan/01-netcfg.yaml
+- name: Ensure appport & avahi-daemon are not installed
+  ansible.builtin.package:
+    pkg:
+      - apport
+      - avahi-daemon
+    state: absent
+
+- name: Update packages
+  ansible.builtin.apt:
+    name: "*"
+    state: latest  # noqa: package-latest
+    update_cache: true
+    force_apt_get: true
+
 
 - name: Configure netplan to use NetworkManager (and remove all other configs)
-  copy:
+  ansible.builtin.copy:
     dest: /etc/netplan/01-netcfg.yaml
     content: |
       network:
@@ -56,7 +73,7 @@
     - systemd-networkd.socket
 
 - name: Don't let the contestant user mess with any network settings
-  copy:
+  ansible.builtin.copy:
     dest: /etc/polkit-1/rules.d/99-deny-networkmanager.rules
     content: |
       polkit.addRule(function(action, subject) {
@@ -69,33 +86,102 @@
       });
 
 - name: disable console blanking
-  lineinfile: dest=/etc/default/grub regexp="^GRUB_CMDLINE_LINUX_DEFAULT" line='GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0"' state=present
+  ansible.builtin.lineinfile:
+    dest: /etc/default/grub
+    regexp: "^GRUB_CMDLINE_LINUX_DEFAULT"
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="biosdevname=0 consoleblank=0"'
+    state: present
   notify: update grub
 
 - name: journald write to /dev/tty1
-  copy: src=files/systemd-journald.conf dest=/etc/systemd/journald.conf
+  ansible.builtin.copy:
+    src: files/systemd-journald.conf
+    dest: /etc/systemd/journald.conf
 
 - name: systemd disable status messages on console
-  copy: src=files/systemd-system.conf dest=/etc/systemd/system.conf
+  ansible.builtin.copy:
+    src: files/systemd-system.conf
+    dest: /etc/systemd/system.conf
 
 - name: disable avahi-daemon (and socket), because we don't need mDNS
-  service: name={{ item }} state=stopped enabled=no
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
   with_items:
     - avahi-daemon.socket
     - avahi-daemon.service
 
-- name: disable unattended upgrades/apt cache fetching
-  copy:
+
+# TODO do we want this? (conditional on icpc repo)
+- name: Disable unattended upgrades/apt cache fetching
+  ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     content: |
       APT::Periodic::Update-Package-Lists "0";
       APT::Periodic::Unattended-Upgrade "0";
+    mode: "0644"
+    owner: root
+    group: root
 
-- name: Configure firefox policies (trust squid cert, homepage/bookmarks/etc)
-  copy:
+- name: Configure firefox policies
+  ansible.builtin.copy:
     dest: /usr/lib/firefox/distribution/policies.json
     content: |
       {
         "policies":
-        {{ firefox_default_policies|combine(firefox_policies)|to_nice_json }}
+        {{ firefox_default_policies | combine(firefox_policies) | to_nice_json }}
       }
+    mode: "0644"
+    owner: root
+    group: root
+
+# TODO: tune these things
+# - name: Delete some .desktop shortcuts (so they don't show up in the applications menu)
+#   ansible.builtin.file:
+#     state: absent
+#     path: /usr/share/applications/{{ item }}
+#   with_items:
+#     - thunar-bulk-rename.desktop      # System->Bulk Rename
+#     - xfce4-mail-reader.desktop       # Mail Reader
+#     - thunar-volman-settings.desktop  # Removable devices and media
+#     - vlc.desktop
+#     - org.gnome.Eog.desktop
+#     - org.gnome.Remmina.desktop
+#     - vino-preferences.desktop
+#     - x11vnc.desktop
+#     - remmina.desktop
+#     - inkscape.desktop
+#     - devhelp.desktop
+#     - brasero.desktop
+#     - totem.desktop
+#     - gnome-sound-recorder.desktop
+#     - xdiagnose.desktop
+#     - JB-javaws.desktop
+#     - nautilus-connect-server.desktop
+#     - gnome-online-accounts-panel.desktop
+#     - gnome-removable-media-panel.desktop
+#     - display-im6.q16.desktop
+#     - htop.desktop
+#     - btop.desktop
+#     - info.desktop
+#     - nvim.desktop
+#     - nvim-qt.desktop
+
+# - name: Disable most motd items
+#   ansible.builtin.file:
+#     path: /etc/update-motd.d/{{ item }}
+#     state: absent
+#   loop:
+#     - 50-landscape-sysinfo
+#     - 85-fwupd
+#     - 91-contract-ua-esm-status
+#     - 95-hwe-eol
+#     - 97-overlayroot
+#     - 98-fsck-at-reboot
+#     - 98-reboot-required
+#     - 91-release-upgrade
+#     - 10-help-text
+#     - 50-motd-news
+#     - 92-unattended-upgrades
+#     - 90-updates-available
