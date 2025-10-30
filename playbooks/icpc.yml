@@ -135,8 +135,6 @@
     dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
     mode: 0644
 
-- name: configure ssh ca to be trusted for host verification # TODO: make idempotent
-  shell: echo "@cert-authority * $(cat /etc/ssh/ca.pub)" >>/etc/ssh/ssh_known_hosts
 
 - name: Install a set of host keys that are signed by the ssh CA
   copy:
