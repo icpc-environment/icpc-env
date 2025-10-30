@@ -27,6 +27,17 @@
       - open-vm-tools
     install_recommends: false
 
+- name: Disable ssh socket based listening
+  ansible.builtin.systemd_service:
+    name: ssh.socket
+    state: stopped
+    enabled: false
+- name: Ensure ssh service is enabled and started (not socket activated)
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    state: started
+    enabled: true
+
 # - name: Disable ipv6
 #   ansible.builtin.lineinfile:
 #     dest: /etc/default/grub
