@@ -71,7 +71,7 @@
       ansible.builtin.git:
         repo: https://github.com/freeCodeCamp/devdocs.git
         dest: /tmp/devdocs-build
-        version: '0f259e07839d1ba65f645e077b8d22d20c0dfd3f' # main on 2024-08-30 20:20:00 EST
+        version: '83fbb0ac0e2fd77c88cb37aff3c074618e52f0b6' # main on 2025-09-30 19:00:00 EST
         force: true
 
     - name: Update default_docs in lib/app.rb
@@ -98,12 +98,6 @@
         regexp: 'FROM ruby:'
         replace: "FROM docker.io/ruby:" # TODO: or the podman alias for shortnames above?
 
-    - name: Update dockerfile to bind to localhost only
-      ansible.builtin.replace:
-        path: /tmp/devdocs-build/Dockerfile-alpine
-        regexp: '0.0.0.0'
-        replace: "127.0.0.1"
-
     - name: Build and deploy docker container
       when: ansible_connection != "chroot"
       block:
@@ -114,14 +108,13 @@
             path: /tmp/devdocs-build
             build:
               file: Dockerfile-alpine
-
         - name: Generate the container
           containers.podman.podman_container:
             name: devdocs
             image: devdocs:latest
             rm: true
             state: created
-            command: rackup -o 127.0.0.10
+            command: rackup -o 127.0.0.10 # bind only to our special localhost ip
             network: host
         - name: Generate systemd unit file for devdocs container
           containers.podman.podman_generate_systemd:
