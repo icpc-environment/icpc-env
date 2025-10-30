@@ -1,6 +1,7 @@
 [Unit]
 Description=Wireguard Setup
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/wg_setup
