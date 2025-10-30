@@ -2,21 +2,6 @@
 - name: install wireguard-tools
   apt: pkg=wireguard-tools state=present
 
-- name: set up private key
-  copy:
-    src: files/secrets/jumpy@icpc
-    mode: 0400
-    owner: root
-    group: root
-    dest: /root/.ssh/id_ed25519
-- name: set up private key certificate
-  copy:
-    src: files/secrets/jumpy@icpc-cert.pub
-    mode: 0400
-    owner: root
-    group: root
-    dest: /root/.ssh/id_ed25519-cert.pub
-
 - name: copy the wg_setup script
   template:
     src: files/wg_setup.j2
