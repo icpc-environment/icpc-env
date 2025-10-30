@@ -17,6 +17,8 @@ sleep 1
 umount -f /home/contestant/.vscode/extensions-root
 sleep 1
 
+rm -rf /home/contestant/.vscode/extensions-work
+
 # Deletes all files owned by the contestant user, then deletes and recreates the account.
 echo "Deleting team files"
 find / -user contestant -delete
