@@ -38,9 +38,6 @@
       - xfce4-power-manager-plugins
       - xfce4-terminal
 
-      # network manager
-      #- network-manager-gnome # TODO: this is elsewhere I think
-
       # So we can show the output of commands in the panel (used for showing team name/info)
       - xfce4-genmon-plugin
       # for PrintScreen
@@ -148,16 +145,18 @@
 
 - name: Set monitor to not blank
   ansible.builtin.copy:
-    content:
+    content: |
       # Disable screen blanking/display power management(this will keep the display on all the time)
-      Section "ServerFlags"
+      Section "Extensions"
         Option "DPMS"        "false"
+      EndSection
+      Section "ServerFlags"
         Option "BlankTime"   "0"
         Option "StandbyTime" "0"
         Option "SuspendTime" "0"
         Option "OffTime"     "0"
       EndSection
-    dest: /usr/share/X11/xorg.conf.d/icpc.monitor.conf
+    dest: /usr/share/X11/xorg.conf.d/99-icpc-monitor.conf
     owner: root
     group: root
     mode: "0644"
