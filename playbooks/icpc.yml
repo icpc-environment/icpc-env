@@ -157,7 +157,7 @@
       HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
     dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
     mode: 0644
-  notify: restart ssh
+  notify: Restart ssh
 
 
 - name: create gitconfig for icpcadmin(to make updating the home directory easier)
@@ -234,9 +234,9 @@
   ansible.builtin.when: icpc_partition.rc == 0
   block:
   - name: create mountpoint
-    file: path=/mnt/usbdrive state=directory
+    ansible.builtin.file: path=/mnt/usbdrive state=directory
   - name: mount fat32 partition
-    mount: >
+    ansible.builtin.mount: >
       name=/mnt/usbdrive
       src='LABEL=ICPC'
       fstype=vfat

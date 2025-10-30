@@ -46,7 +46,7 @@
     src: /etc/ssl/{{item.src}}
     dest: /etc/ssl/{{item.dest}}
     mode: "{{ item.mode }}"
-  notify: reload nginx
+  notify: Reload nginx
   loop:
     - { src: "private/ssl-cert-snakeoil.key", dest: reverseproxy.key, mode: "0600" }
     - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.cert, mode: "0644" }
