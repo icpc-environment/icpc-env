@@ -1,34 +1,48 @@
 #!/bin/bash
 set -euo pipefail
 
-# Try to start wireguard if we have a config for it
-if [ -f /etc/wireguard/contest.conf ]; then
+# Try to start wireguard if we have a config for it and it isn't already up
+if [ -f /etc/wireguard/contest.conf ] && ! wg show contest >/dev/null 2>&1; then
   wg-quick up contest || true
+  sleep 3 # make sure it has some time to come online
 fi
+
 
 # Nothing to do if the VPN is already up/contestmanager.icpcnet.internal is reachable
 if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
+  # Exit if we've already recorded our hostname
+  [ -f /run/wg_setup-vpn-hostname-updated ] && exit 0
+
+  # Send a ping request to register our hostname
+  curl --fail -X POST https://contestmanager.icpcnet.internal/fleet/{{ contest_id }}/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k
+  touch /run/wg_setup-vpn-hostname-updated
   exit 0
 fi
 
 echo "contestmanager.icpcnet.internal not reachable, reconfiguring VPN"
+rm -f /run/vpn-hostname-updated
 
 # Network is broken/not configured yet, bring it down so we can try to re-initialize it
 wg-quick down contest || true
 
-wg_config=$(/usr/bin/ssh \
-  -o "ServerAliveInterval 30" \
-  -o "ServerAliveCountMax 3" \
-  {{ wireguard_client_user }}@{{ wireguard_host }} \
-  -p {{ wireguard_port }} \
-  -i /root/.ssh/id_ed25519)
+wg_config=$(curl --fail -X POST https://{{ remote_management_server }}/fleet/{{ contest_id }}/register)
 
 if [ $? != 0 ]; then
   exit 1 # failed, exit so it tries again
 fi
 
-echo "$wg_config" > /etc/wireguard/contest.conf
+echo "$wg_config" | jq -r .config > /etc/wireguard/contest.conf
 wg-quick up contest
+
+server_ip=$(echo "$wg_config" | jq -r .server_ip)
+server_port=$(echo "$wg_config" | jq -r .port)
+
+# Update the hosts file with the server ip and contestmanager.icpcnet.internal hostname
+if ! grep -q "contestmanager.icpcnet.internal" /etc/hosts; then
+  echo "$server_ip contestmanager.icpcnet.internal contestmanager" >> /etc/hosts
+else
+  sed -ie "s/^.*contestmanager.icpcnet.internal.*$/${server_ip} contestmanager.icpcnet.internal contestmanager/" /etc/hosts
+fi
 
 # Wait a few moments
 sleep 5
