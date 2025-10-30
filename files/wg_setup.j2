@@ -41,8 +41,13 @@ fi
 # Bring it down so we can try wstunnel instead
 wg-quick down contest || true
 
-# If it's still not reachable, try using wstunnel to wrap the connection
-sed -i -e 's/^Endpoint=.*/Endpoint=127.0.0.10:51820/' /etc/wireguard/contest.conf
+# Stop all instances of wstunnel
+systemctl stop 'wstunnel@*'
+systemctl start "wstunnel@$server_port"
+
+# Wrap the connection with wstunnel (and set MTU to 1300)
+sed -i -e 's/^Endpoint.*/Endpoint=127.0.0.10:51820/' /etc/wireguard/contest.conf
+sed -i -e '/Address/a\MTU = 1300' /etc/wireguard/contest.conf
 
 # Bring it back up
 wg-quick up contest
