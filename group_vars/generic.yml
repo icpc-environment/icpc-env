@@ -1,0 +1,51 @@
+---
+# This is a generic config example that locks the system down to open.kattis.com and configures tooling
+# to match what kattis typically has.You should copy and adapt this file to your needs.
+# It is also configured to connect to a remote management server for running as lastminute ansible
+# playbook and to enable remote access via a wireguard vpn tunnel.
+remote_management_server: mgmt.env.cloudcontest.org
+contest_id: generic
+icpc_timezone: 'America/New_York'
+icpcadmin_pass: icpcadmin
+
+# If unset, clion will be installed, but will not be configured with a license
+# clion_license_key: SET_YOUR_KEY_HERE
+
+# A list of sites to configure in the nginx proxy. Only these will pass through, all others will be blocked.
+reverseproxy_sites:
+  open.kattis.com:
+    paths:
+      - {path: "/"}
+
+# Firefox policies. Documented here:
+# https://mozilla.github.io/policy-templates/
+firefox_policies:
+  # Set (and lock) the homepage to the kattis url
+  Homepage:
+    URL: "https://open.kattis.com"
+    Locked: true
+    StartPage: homepage-locked
+  # Add some bookmark entries (and always show the bookmarks toolbar)
+  DisplayBookmarksToolbar: always
+  Bookmarks:
+    - Title: Open Kattis
+      URL: "https://open.kattis.com"
+      Placement: "toolbar"
+    - Title: Documentation
+      URL: "https://devdocs/"
+      Placement: "toolbar"
+
+# These scripts match open.kattis.com as of 2025-10-26
+# The memory limits for runjava/runkotlin will need to be adjusted for your specific contest problem memory limit
+language_scripts:
+  compilec:       gcc-14 -g -O2 -std=gnu23 -static "$@" -lm
+  compilecpp:     g++-14 -g -O2 -std=gnu++23 -static -lrt -Wl,--whole-archive -lpthread -Wl,--no-whole-archive "$@"
+  compilejava:    javac -encoding UTF-8 -sourcepath . -d . "$@"
+  compilekotlin:  /usr/local/bin/kotlinc -d . "$@"
+  compilepython3: pypy3 -m py_compile "$@"
+
+  runc:       ulimit -s 2097152 && ./a.out "$@"
+  runcpp:     ulimit -s 2097152 && ./a.out "$@"
+  runjava:    java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms1920m -Xmx1920m "$@"
+  runkotlin:  kotlin -J-XX:+UseSerialGC -J-Xss64m -J-Xms1920m -J-Xmx1920m "$@"
+  runpython3: pypy3 "$@"
