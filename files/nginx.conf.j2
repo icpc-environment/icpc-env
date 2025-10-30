@@ -3,25 +3,25 @@ server_names_hash_bucket_size 128;
 resolver 127.0.0.55 ipv6=off;
 
 server {
-  listen 80 default_server;
-  listen 443 ssl default_server;
+  listen 127.0.0.1:80 default_server;
+  listen 127.0.0.1:443 ssl default_server;
   server_name _;
-  ssl_certificate /etc/ssl/reverseproxy.cert;
+  ssl_certificate /etc/ssl/reverseproxy.crt;
   ssl_certificate_key /etc/ssl/reverseproxy.key;
 
   root /opt/localwww;
 }
 
-# Local devdocs server
+# Local devdocs server (on 127.0.0.10)
 server {
-        listen 80;
+        listen 127.0.0.10:80;
         server_name devdocs;
         return 301 https://$host$request_uri;
 }
 server {
-        listen 443 ssl;
+        listen 127.0.0.10:443 ssl;
         server_name devdocs;
-        ssl_certificate /etc/ssl/devdocs.cert;
+        ssl_certificate /etc/ssl/devdocs.crt;
         ssl_certificate_key /etc/ssl/devdocs.key;
         location  / {
                 proxy_pass http://127.0.0.10:9292;
@@ -32,10 +32,10 @@ server {
 
 {% for server,config in reverseproxy_sites.items() %}
 server {
-        listen 80;
-        listen 443 ssl;
+        listen 127.0.0.1:80;
+        listen 127.0.0.1:443 ssl;
         server_name {{ server }};
-        ssl_certificate /etc/ssl/reverseproxy.cert;
+        ssl_certificate /etc/ssl/reverseproxy.crt;
         ssl_certificate_key /etc/ssl/reverseproxy.key;
 
         # Tune some buffer settings
