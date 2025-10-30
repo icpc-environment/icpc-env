@@ -125,14 +125,6 @@
       ShowStatus=false
     dest: /etc/systemd/system.conf
 
-- name: disable avahi-daemon (and socket), because we don't need mDNS
-  ansible.builtin.service:
-    name: "{{ item }}"
-    state: stopped
-    enabled: no
-  with_items:
-    - avahi-daemon.socket
-    - avahi-daemon.service
 
 
 # TODO do we want this? (conditional on icpc repo)
