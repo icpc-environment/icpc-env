@@ -23,6 +23,8 @@
       - network-manager-gnome
       - wpasupplicant
       - iw
+      # For sites that run this as VM
+      - open-vm-tools
     install_recommends: false
 
 # - name: Disable ipv6
