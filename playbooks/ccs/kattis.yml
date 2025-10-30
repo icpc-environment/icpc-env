@@ -6,7 +6,7 @@
     force: true
 
 - name: Install kattis cli dependencies
-  ansible.builtint.apt:
+  ansible.builtin.apt:
     state: present
     pkg:
       - python3-lxml
