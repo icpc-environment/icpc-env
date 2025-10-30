@@ -4,6 +4,7 @@
     pkg:
       - nginx
       - ssl-cert # for the snakeoil stuff
+      - dnsmasq # for local dns resolver
     state: present
 
 - name: Remove default nginx configuration
@@ -16,7 +17,7 @@
 # - name: Assemble the public cert for nginx
 #   ansible.builtin.assemble:
 #     src: /root/ca/assemble
-#     dest: /etc/ssl/reverseproxy.cert
+#     dest: /etc/ssl/reverseproxy.crt
 #     mode: "0644"
 #     owner: "root"
 #     group: "root"
@@ -38,9 +39,9 @@
 #   notify: reload nginx
 #   loop:
 #     - { content: "{{ reverseproxy_key }}", dest: reverseproxy.key, mode: "0600" }
-#     - { content: "{{ reverseproxy_cert }}", dest: reverseproxy.cert, mode: "0644" }
+#     - { content: "{{ reverseproxy_cert }}", dest: reverseproxy.crt, mode: "0644" }
 
-- name: use the snakeoil cert, since squid will be proxying everything and mitms things/accepts any certificate
+- name: Use the snakeoil cert, since squid will be proxying everything and mitms things/accepts any certificate
   ansible.builtin.copy:
     remote_src: true
     src: /etc/ssl/{{item.src}}
@@ -49,7 +50,7 @@
   notify: Reload nginx
   loop:
     - { src: "private/ssl-cert-snakeoil.key", dest: reverseproxy.key, mode: "0600" }
-    - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.cert, mode: "0644" }
+    - { src: "certs/ssl-cert-snakeoil.pem", dest: reverseproxy.crt, mode: "0644" }
 
 - name: Make sure web dir exists
   ansible.builtin.file:
@@ -127,6 +128,7 @@
 
 - name: Enable + start dnsmasq
   ansible.builtin.systemd:
+    daemon_reload: true # required otherwise the original dnsmasq service will be used instead
     name: dnsmasq
     enabled: true
     state: started
