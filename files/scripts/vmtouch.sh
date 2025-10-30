@@ -1,6 +1,6 @@
 #!/bin/bash
 # Load some useful things into the kernels cache
-VMTOUCH="/usr/bin/vmtouch -t"
+VMTOUCH="/usr/bin/vmtouch -ft"
 
 $VMTOUCH /opt/eclipse # 251M
 $VMTOUCH /usr/lib/jvm # 312M
@@ -16,6 +16,6 @@ if  [ "$phymem" -gt "5000000" ]; then
 fi
 
 # Do these last to make sure they end up in memory
-$VMTOUCH -f /icpc     # 250K
-$VMTOUCH -f /bin      # 12M
-$VMTOUCH -f /usr/bin  # 365M
+$VMTOUCH /icpc     # 250K
+$VMTOUCH /bin      # 12M
+$VMTOUCH /usr/bin  # 365M
