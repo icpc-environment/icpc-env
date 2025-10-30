@@ -90,9 +90,7 @@
     direction: in
     interface: contest
     proto: tcp
-    src: "{{ contestmanager_ip }}"
     port: 9100
-
 
 # add some custom "metrics" like roles/sites/etc
 - name: install our custom icpc-metrics script
