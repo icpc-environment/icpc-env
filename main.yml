@@ -110,6 +110,9 @@
     - name: Include system
       ansible.builtin.import_tasks: 'playbooks/system.yml'
 
+    - name: Include ccs related things
+      ansible.builtin.import_tasks: 'playbooks/ccs.yml'
+
     # Management related things
     - import_tasks: 'playbooks/ansible-pull.yml'
     - import_tasks: 'playbooks/vpn.yml'

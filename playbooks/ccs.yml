@@ -1,0 +1,4 @@
+---
+- name: Include ccs tools
+  ansible.builtin.include_tasks: "ccs/{{ item }}.yml"
+  loop: "{{ ccs_tools | default(['kattis']) }}"
