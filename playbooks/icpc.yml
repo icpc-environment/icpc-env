@@ -226,7 +226,7 @@
   changed_when: false
 
 - name: If there is an icpc partition
-  ansible.builtin.when: icpc_partition.rc == 0
+  when: icpc_partition.rc == 0
   block:
   - name: create mountpoint
     ansible.builtin.file: path=/mnt/usbdrive state=directory
@@ -237,6 +237,14 @@
       fstype=vfat
       opts="defaults,uid=contestant,gid=contestant"
       state=present
+  - name: Create a symlink to the usb drive in /etc/skel
+    ansible.builtin.file:
+      src: /mnt/usbdrive
+      dest: /etc/skel/USB Drive
+      state: link
+      owner: root
+      group: root
+      mode: '0755'
 
 - name: write the homepage to a file so we can make sure access works in the self_test
   copy:
