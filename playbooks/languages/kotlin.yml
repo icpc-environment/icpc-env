@@ -3,9 +3,8 @@
   ansible.builtin.apt:
     pkg: unzip
     state: present
-# TODO review this version,  i think in devtools/intellij it was installing a different version
-- name: install kotlin
-  unarchive: src=files/kotlin-compiler-2.2.20.zip dest=/opt creates=/opt/kotlinc
+- name: install kotlin # 2.1.21 matches kattis as of 2025-09-30
+  unarchive: src=files/kotlin-compiler-2.1.21.zip dest=/opt creates=/opt/kotlinc
 - name: create symlinks for kotlin
   file:
     src: /opt/kotlinc/bin/{{ binary_name }}
@@ -19,7 +18,6 @@
     - kotlinc
     - kotlinc-js
     - kotlinc-jvm
-    - kotlin-dce-js
 
 - name: kotlin docs
   when: not devdocs
