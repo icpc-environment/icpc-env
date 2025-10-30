@@ -95,7 +95,14 @@
 
 - name: journald write to /dev/tty1
   ansible.builtin.copy:
-    src: files/systemd-journald.conf
+    content: |
+      [Journal]
+      Storage=volatile # no sense persisting logs to disk, we don't care about them that much
+      ForwardToSyslog=no
+      ForwardToKMsg=no
+      ForwardToConsole=yes
+      ForwardToWall=no
+      TTYPath=/dev/tty1
     dest: /etc/systemd/journald.conf
 
 - name: systemd disable status messages on console
