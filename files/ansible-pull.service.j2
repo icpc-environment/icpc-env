@@ -7,13 +7,12 @@ Restart=on-failure
 RestartSec=30
 Type=oneshot
 ExecStart=/usr/bin/ansible-pull \
-  --private-key /root/.ssh/id_ed25519 \
   --directory /root/ansible-pull \
   --sleep 30 \
   --clean \
   --diff \
   --inventory localhost, \
-  --url ssh://git@{{ ansible_pull_host }}:{{ ansible_pull_port }}/{{ ansible_pull_path }}
+  --url https://{{ remote_management_server }}/git/{{ contest_id }}.git
 
 [Install]
 WantedBy=multi-user.target
