@@ -4,7 +4,7 @@
     url: https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc
     dest: /etc/apt/keyrings/jetbrains.asc
 - name: Apt repo for IntelliJ IDEA
-  ansible.builtint.apt_repository:
+  ansible.builtin.apt_repository:
     repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/jetbrains.asc] http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main
     update_cache: true
 # TODO: conditional on using icpc-repos or not
@@ -31,15 +31,29 @@
     owner: root
     group: root
 # 14mb
-# TODO: from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt ex: 1.9.24-release-822
+# version comes from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt ex: 2.1.21-release-317
 - name: Fetch some things from maven
-  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24" -Dmaven.repo.local="/opt/m2/repository"
+  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.21" -Dmaven.repo.local="/opt/m2/repository"
   register: maven_get
   changed_when: maven_get.rc != 0
-- name: fetch some things from maven # TODO: make idempotent
-  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib:2.0.10" -Dmaven.repo.local="/opt/m2/repository"
-  register: maven_get
-  changed_when: maven_get.rc != 0
+
+- name: Create .m2 directory in /etc/skel
+  file:
+    path: /etc/skel/.m2
+    state: directory
+- name: Set up m2 settings.xml to point to /opt/m2/repository
+  copy:
+    content: |
+      <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+        <localRepository>/opt/m2/repository</localRepository>
+        <offline>true</offline>
+      </settings>
+    dest: /etc/skel/.m2/settings.xml
+    owner: root
+    group: root
+    mode: '0644'
+
 # PyCharm Community(1818mb installed in /opt/pycharm-community)
 - name: Install PyCharm
   when: "'intellij-pycharm' in devtools"
@@ -69,11 +83,11 @@
           if [ "$EUID" -eq 0 ]; then
             exit 0
           fi
-          mkdir -p $HOME/.config/JetBrains/CLion2024.2
+          mkdir -p $HOME/.config/JetBrains/CLion2025.2
           (
             printf '\xFF\xFF';
             echo -en "<certificate-key>\n{{ clion_license_key }}" | iconv -f UTF-8 -t UCS2 -
-          ) > $HOME/.config/JetBrains/CLion2024.2/clion.key
+          ) > $HOME/.config/JetBrains/CLion2025.2/clion.key
       when: clion_license_key | length > 0
 
     - name: Add licensekey script to autostart
@@ -94,3 +108,22 @@
       args:
         creates: /usr/share/applications/clion.desktop.disabled
       when: clion_license_key | length == 0
+
+- name: Make sure directory exists for accepting eula prefs
+  ansible.builtin.file:
+    # This wild path is the java encoded version of `privacy_policy`
+    path: /etc/skel/.java/.userPrefs/jetbrains/_!(!!cg"p!(}!}@"j!(k!|w"w!'8!b!"p!':!e@==
+    state: directory
+- name: Accept some eula for intellij products
+  ansible.builtin.copy:
+    dest: /etc/skel/.java/.userPrefs/jetbrains/_!(!!cg"p!(}!}@"j!(k!|w"w!'8!b!"p!':!e@==/prefs.xml
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      <!DOCTYPE map SYSTEM "http://java.sun.com/dtd/preferences.dtd">
+      <map MAP_XML_VERSION="1.0">
+        <entry key="eua_accepted_version" value="2.0"/>
+      </map>
+
