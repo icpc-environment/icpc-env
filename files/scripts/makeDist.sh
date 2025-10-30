@@ -65,11 +65,6 @@ systemctl stop wg-setup
 wg-quick down contest
 rm -f /etc/wireguard/contest.conf
 
-# Logout of tailscale
-tailscale logout
-systemctl stop tailscaled
-rm -rf /var/lib/tailscale/*
-
 # Free up space(just to make the image smaller)
 dd if=/dev/zero of=/empty bs=1M || true
 rm -f /empty
