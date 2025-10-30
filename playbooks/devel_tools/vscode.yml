@@ -17,6 +17,15 @@
     state: absent
     regexp: '^.*marketplace.visualstudio.com.*$'
 
+# debconf-get-selections | grep ^code
+# code    code/add-microsoft-repo boolean true
+- name: Configure the vscode package to install sources.list
+  ansible.builtin.debconf:
+    name: code
+    question: code/add-microsoft-repo
+    value: true
+    vtype: boolean
+
 - name: Install vscode
   ansible.builtin.apt:
     state: present
@@ -34,11 +43,13 @@
     owner: "root"
     group: "root"
 
-- name: Install vscode extensions # TODO: make idempotent
-  ansible.builtin.command: code --extensions-dir /opt/vscode/extensions --user-data-dir /opt/vscode --no-sandbox --install-extension {{ item }}
+- name: Install vscode extensions
+  ansible.builtin.shell: >
+    stat /opt/vscode/extensions/{{ item }}* ||
+    code --extensions-dir /opt/vscode/extensions --user-data-dir /opt/vscode --no-sandbox --install-extension {{ item }}
   loop: "{{ vscode_extensions }}"
-  changed_when: true # TODO: make this idempotent
-# approx 669MB (when functional)
+  register: result
+  changed_when: "'successfully installed' in result.stdout"
 
 - name: Cleanup vscode extension related directories
   ansible.builtin.file:
@@ -58,18 +69,18 @@
       #!/bin/bash
       # TODO: maybe we can make this conditional on the group instead of the user?
       # Exit if we're not the contestant (because we don't need to bother doing it for anyone else)
-      if [ "$SUDO_USER" -ne "contestant" ]; then
+      if [ "$SUDO_USER" != "contestant" ]; then
         exit 0
       fi
 
       # Get the home directory for the user based on UID
       USERHOME=$(getent passwd $SUDO_UID | cut -d: -f6)
 
-      # TODO: is this actually needed now that our certs are installed properly? Commented out to verify
       # Make sure to import our root CA into the nssdb so vscode trusts our extension server
-      # mkdir -p $USERHOME/.pki/nssdb
-      # certutil -d sql:$USERHOME/.pki/nssdb -A -t "C,," -n "ICPC Root CA" -i /usr/local/share/ca-certificates/ca-icpc.crt
-      # chown -R $SUDO_UID:$SUDO_GID $USERHOME/.pki
+      mkdir -p $USERHOME/.pki/nssdb
+      certutil -d sql:$USERHOME/.pki/nssdb -A -t "C,," -n "ICPC Root CA" -i /usr/local/share/ca-certificates/ca-icpc.crt
+      certutil -d sql:$USERHOME/.pki/nssdb -A -t "C,," -n "ICPC Network Filter" -i /usr/local/share/ca-certificates/squid-ca.crt
+      chown -R $SUDO_UID:$SUDO_GID $USERHOME/.pki
 
       mkdir -p $USERHOME/.vscode/extensions $USERHOME/.vscode/extensions-work $USERHOME/.vscode/extensions-overlay $USERHOME/.vscode/extensions-root
 
@@ -122,12 +133,13 @@
     state: directory
     mode: "0755"
 
+# TODO: this is flaky; it crashes from time to time :sigh:
 - name: Create a specified.json file for vscode optional extensions
   ansible.builtin.copy:
     dest: /opt/vscodeoffline/specified.json
     content: |
       {
-        "extensions": {{ vscode_optional_extensions }}
+        "extensions": {{ vscode_optional_extensions | ansible.builtin.to_json }}
       }
     mode: '0644'
 
@@ -186,6 +198,7 @@
     group: root
 
 - name: Add container-vscgallery.service.d/10-ConditionHost file
+  when: false # TODO: For World finals image only
   ansible.builtin.copy:
     dest: /etc/systemd/system/container-vscgallery.service.d/10-ConditionHost.conf
     mode: '0644'
@@ -216,7 +229,33 @@
 - name: Update hosts file so the vscode update sites are present
   ansible.builtin.lineinfile:
     path: /etc/hosts
+    regexp: '^.*marketplace.visualstudio.com.*$'
     line: "127.0.0.5	update.code.visualstudio.com az764295.vo.msecnd.net marketplace.visualstudio.com"
     owner: root
     group: root
     mode: '0644'
+
+- name: Make sure settings directory exists
+  ansible.builtin.file:
+    path: /etc/skel/.config/Code/User
+    state: directory
+- name: Set some global vscode settings
+  ansible.builtin.copy:
+    dest: /etc/skel/.config/Code/User/settings.json
+    mode: '0644'
+    owner: root
+    group: root
+    content: |
+      {
+        "chat.disableAIFeatures": true,
+        "security.workspace.trust.enabled": false
+      }
+
+- name: Put a shortcut to vscode on the desktop
+  ansible.builtin.copy:
+    dest: /etc/skel/Desktop/code.desktop
+    src: /usr/share/applications/code.desktop
+    mode: "0755"
+    owner: "root"
+    group: "root"
+    remote_src: true
