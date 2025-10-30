@@ -56,8 +56,16 @@
       Session:
               [default=1 success=ignore] pam_succeed_if.so quiet user = contestant
               required     pam_env.so user_readenv=0 envfile=/etc/environment-proxied
-- name: run pam-auth-update to install the proxyenv pam config # TODO make idempotent
+
+- name: check if proxyenv PAM config is already enabled
+  shell: grep -q "pam_succeed_if.so quiet user = contestant" /etc/pam.d/common-session
+  register: proxyenv_enabled
+  failed_when: false
+  changed_when: false
+
+- name: enable proxyenv PAM configuration
   command: pam-auth-update --enable proxyenv
+  when: proxyenv_enabled.rc != 0
 
 - name: Make sure inbound policy is deny
   ufw: direction=incoming policy=deny
