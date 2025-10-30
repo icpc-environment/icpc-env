@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Wipe Team Account
+Comment=
+Exec=xfce4-terminal --maximize -T "Wipe Team Account" -H -e 'sudo  /icpc/scripts/deleteUser.sh'
+Icon=edit-clear
+Path=
+Terminal=true
+StartupNotify=false
+Name[en_US]=Wipe Team Account

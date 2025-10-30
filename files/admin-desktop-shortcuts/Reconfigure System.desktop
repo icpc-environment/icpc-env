@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Reconfigure System
+Comment=
+Exec=xfce4-terminal --maximize -T "System Configuration" -H -e 'sudo /icpc/scripts/icpc_setup -f'
+Icon=gconf-editor
+Path=
+Terminal=true
+StartupNotify=false
+GenericName=

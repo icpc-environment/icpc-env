@@ -87,33 +87,35 @@
 
 ###### MOVE ELSEWHERE ######
 
-- name: copy local git repos to server # TODO: make idempotent
-  synchronize:
-    use_ssh_args: yes
-    src: home_dirs/{{item}}/.git
-    dest: /tmp/{{item}}.git
-  with_items:
-    - contestant
-    - admin
 
-- name: remove existing skel directory # TODO: make idempotent
-  file: path=/etc/skel state=absent
-- name: setup user skeleton directory  # TODO: make idempotent
-  git: dest=/etc/skel repo=file:///tmp/contestant.git
 
 - name: create icpcadmin group
   group: name='icpcadmin' state='present'
 - name: create icpcadmin user # TODO: make idempotent
   user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
-- name: fix permissions so git won't complain # TODO: make idempotent
+
+- name: Make sure desktop directory exists
   ansible.builtin.file:
-    path: /tmp/admin.git
+    path: /home/icpcadmin/Desktop
+    state: directory
     owner: icpcadmin
-    recurse: true
-- name: setup icpcadmin home directory
-  git: dest=/home/icpcadmin repo=file:///tmp/admin.git
-  become: yes
-  become_user: icpcadmin
+    group: icpcadmin
+- name: Copy admin desktop shortcuts
+  ansible.builtin.copy:
+    src: files/admin-desktop-shortcuts/{{ item }}
+    dest: /home/icpcadmin/Desktop/{{ item }}
+    owner: icpcadmin
+    group: icpcadmin
+    mode: '0755'
+  loop:
+    - 'Factory Reset.desktop'
+    - 'Reconfigure System.desktop'
+    - 'Self Test.desktop'
+    - 'Wipe Team Account.desktop'
+- name: Remove any autostart files for icpcadmin that might have come over from /etc/skel
+  ansible.builtin.file:
+    path: /home/icpcadmin/.config/autostart
+    state: absent
 
 - name: create contestant group
   group: name='contestant' state='present'
@@ -122,16 +124,6 @@
   notify:
       - clear user password
 
-# This will get cleared when the user is re-created
-- name: create gitconfig for contestant(to make updating the home directory easier)
-  copy:
-    dest: /home/contestant/.gitconfig
-    owner: contestant
-    group: contestant
-    content: |
-      [user]
-      	email = contestant@icpcenv
-      	name = icpcenv
 
 - name: copy ssh ca
   copy:
