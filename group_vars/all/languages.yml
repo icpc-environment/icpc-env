@@ -1,0 +1,53 @@
+---
+# Use devdocs instead of random local docs
+devdocs: true
+
+# Simple wrapper scripts to install on the image, so that contestants have a consistent view of how to compile and run programs
+# that matches with how the contest control system will run it.
+language_scripts:
+  compilec:       /usr/bin/gcc -x c -g -O2 -std=gnu11 -static "$@" -lm
+  compilecpp:     /usr/bin/g++ -x c++ -g -O2 -std=gnu++20 -static "$@"
+  compilejava:    javac -encoding UTF-8 -sourcepath . -d . "$@"
+  compilekotlin:  /usr/local/bin/kotlinc -d . "$@"
+  compilepython3: pypy3 -m py_compile "$@"
+
+  runc:       ulimit -s 2097152 && ./a.out "$@"
+  runcpp:     ulimit -s 2097152 && ./a.out "$@"
+  runjava:    java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms1920m -Xmx1920m "$@"
+  runkotlin:  kotlin -Dfile.encoding=UTF-8 -J-XX:+UseSerialGC -J-Xss64m -J-Xms1920m -J-Xmx1920m "$@"
+  runpython3: pypy3 "$@"
+
+# https://downloads.python.org/pypy/ - match a version from here
+pypy3_version: pypy3.11-v7.3.18
+
+# Which compilers/languages to install
+languages:
+  - c
+  - cpp
+  - java
+  - kotlin
+  - python3
+  # - clojure
+  # - c-sharp
+  # - dart
+  # - d
+  # - elixir
+  # - erlang
+  # - fortran
+  # - f-sharp
+  # - gnu_ada
+  # - go
+  # - groovy
+  # - haskell
+  # - js
+  # - lua
+  # - nim
+  # - obj-c
+  # - ocaml
+  # - pascal
+  # - prolog
+  # - python2
+  # - ruby
+  # - rust
+  # - r
+  # - scala
