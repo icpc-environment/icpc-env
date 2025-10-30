@@ -1,0 +1,28 @@
+---
+devtools:
+  - vscode
+  - intellij-idea
+  - intellij-clion
+  - intellij-pycharm
+  - eclipse
+  - geany
+  # - codeblocks
+  - zed
+  - codelite
+  # - netbeans
+  # - monodevelop
+
+# These extensions will be installed out of the box
+vscode_extensions:
+  - ms-vscode.cpptools # c/cpp (~280MB)
+  - redhat.java               # java language (~135MB)
+  - ms-python.python   # python (~175MB)
+  - ms-python.vscode-pylance
+  - vscjava.vscode-java-debug # java debugger (~4MB)
+  - fwcd.kotlin
+
+# These extensions will be mirrored and available for installation, but not installed out of the box
+vscode_optional_extensions:
+  - vscodevim.vim
+  - ms-vscode.sublime-keybindings
+# TODO: Find other extensions people might want?
