@@ -107,7 +107,9 @@
 
 - name: systemd disable status messages on console
   ansible.builtin.copy:
-    src: files/systemd-system.conf
+    content: |
+      [Manager]
+      ShowStatus=false
     dest: /etc/systemd/system.conf
 
 - name: disable avahi-daemon (and socket), because we don't need mDNS
