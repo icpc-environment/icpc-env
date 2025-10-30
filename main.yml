@@ -81,7 +81,6 @@
 
     # Management related things
     - import_tasks: 'playbooks/ansible-pull.yml'
-    - import_tasks: 'playbooks/reversetunnel.yml'
     - import_tasks: 'playbooks/vpn.yml'
     - import_tasks: 'playbooks/monitoring.yml'
 
