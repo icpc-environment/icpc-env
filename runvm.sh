@@ -73,7 +73,9 @@ EOF
   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE --diff --become -u imageadmin --private-key $SSHKEY --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" main.yml
   rm -f $INVENTORY_FILE
   echo "Ansible finished at $(date)"
+}
 
+function reboot {
   echo "Rebooting..."
   runssh sudo reboot
   # Wait 5 seconds for reboot to happen so we don't ssh back in before it actually reboots
@@ -129,6 +131,7 @@ while [ $CMD != 0 ]; do
   echo "    3. Save contestant home directory"
   echo "    4. Save admin home directory"
   echo "    5. Set resolution(1440x900)"
+  echo "    6. Reboot"
   echo "    0. Halt VM"
   read -p "Action(Default 1): " CMD
   CMD=${CMD:-1}
@@ -139,6 +142,7 @@ while [ $CMD != 0 ]; do
     3) saveuserhome ;;
     4) saveadminhome ;;
     5) setresolution ;;
+    6) reboot ;;
     *) launchssh ;;
   esac
 done
