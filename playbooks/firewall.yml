@@ -1,40 +1,52 @@
 ---
 - name: Install squid
-  apt:
+  ansible.builtin.apt:
     pkg:
       - squid-common
       - squid-openssl
     state: present
 
-- name: configure squid
-  template: src=files/squid/squid.conf.j2 dest=/etc/squid/squid.conf
+- name: Configure squid
+  ansible.builtin.template:
+    src: files/squid/squid.conf.j2
+    dest: /etc/squid/squid.conf
   notify: Restart squid
 
-- name: make sure an autologin.conf file exists or squid won't start
-  copy: content="#placeholder\n" dest=/etc/squid/autologin.conf mode=0640 owner=root group=root
+- name: Make sure an autologin.conf file exists or squid won't start
+  copy:
+    content: "#placeholder\n"
+    dest: /etc/squid/autologin.conf
+    mode: 0640
+    owner: root
+    group: root
 
-- name: copy a pretty error page for squid to use
-  template: src=files/squid/block.html.j2 dest=/usr/share/squid/errors/templates/ICPC_ERR_ACCESS_DENIED
+# TODO: squid complains about "unsupported error page %code near %}body" and "%}sub" and `%">`
+# TODO: which is because of the embedded pretty css we have.
+- name: Copy a pretty error page for squid to use
+  ansible.builtin.template:
+    src: files/squid/block.html.j2
+    dest: /usr/share/squid/errors/templates/ICPC_ERR_ACCESS_DENIED
 
-- name: generate a fake CA for squid to use
-  shell: openssl req -new -newkey rsa:2048 -days 360 -nodes -x509 -keyout /etc/squid/squidCA.pem -out /etc/squid/squidCA.crt -subj "/O=ICPC Network Filter/CN=ICPC Network Filter"
+# TODO: make this CA an intermediate signed by the ICPC root CA
+- name: Generate a fake CA for squid to use
+  ansible.builtin.shell: openssl req -new -newkey rsa:2048 -days 360 -nodes -x509 -keyout /etc/squid/squidCA.pem -out /etc/squid/squidCA.crt -subj "/O=ICPC Network Filter/CN=ICPC Network Filter"
   args:
     creates: /etc/squid/squidCA.crt
 
-- name: ensure that the squidCA is trusted by the system
-  file:
+- name: Ensure that the squidCA is trusted by the system
+  ansible.builtin.file:
     src: /etc/squid/squidCA.crt
     dest: /usr/local/share/ca-certificates/squid-ca.crt
     state: link
   notify: Run update-ca-certificates
 
-- name: initialize squid ssl cache
-  shell: /usr/lib/squid/security_file_certgen -c -s /var/spool/squid/ssl_db -M 4MB
+- name: Initialize squid ssl cache
+  ansible.builtin.shell: /usr/lib/squid/security_file_certgen -c -s /var/spool/squid/ssl_db -M 4MB
   args:
     creates: /var/spool/squid/ssl_db/index.txt
 
-- name: copy proxy environment config (to be applied to contestant user)
-  copy:
+- name: Copy proxy environment config (to be applied to contestant user)
+  ansible.builtin.copy:
     dest: /etc/environment-proxied
     content: |
       http_proxy="http://localhost:3128/"
@@ -45,8 +57,8 @@
       HTTPS_PROXY="http://localhost:3128/"
       FTP_PROXY="http://localhost:3128/"
       NO_PROXY="localhost,127.0.0.1"
-- name: copy the pam-auth-update config file to load the proxy environment for the contestant user
-  copy:
+- name: Copy the pam-auth-update config file to load the proxy environment for the contestant user
+  ansible.builtin.copy:
     dest: /usr/share/pam-configs/proxyenv
     content: |
       Name: Load /etc/environment-proxied for the contestant user
@@ -57,31 +69,31 @@
               [default=1 success=ignore] pam_succeed_if.so quiet user = contestant
               required     pam_env.so user_readenv=0 envfile=/etc/environment-proxied
 
-- name: check if proxyenv PAM config is already enabled
-  shell: grep -q "pam_succeed_if.so quiet user = contestant" /etc/pam.d/common-session
+- name: Check if proxyenv PAM config is already enabled
+  ansible.builtin.shell: grep -q "pam_succeed_if.so quiet user = contestant" /etc/pam.d/common-session
   register: proxyenv_enabled
   failed_when: false
   changed_when: false
 
-- name: enable proxyenv PAM configuration
-  command: pam-auth-update --enable proxyenv
+- name: Enable proxyenv PAM configuration
+  ansible.builtin.command: pam-auth-update --enable proxyenv
   when: proxyenv_enabled.rc != 0
 
 - name: Make sure inbound policy is deny
-  ufw: direction=incoming policy=deny
+  ansible.builtin.ufw: direction=incoming policy=deny
 
-- name: allow inbound ssh
-  ufw: rule=allow name=OpenSSH
+- name: Allow inbound ssh
+  ansible.builtin.ufw: rule=allow name=OpenSSH
 
-- name: enable the firewall
-  ufw: state=enabled logging=off
+- name: Enable the firewall
+  ansible.builtin.ufw: state=enabled logging=off
 
-- name: prevent the 'contestant' user from using the network(except through the proxy or to localhost)
-  lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+- name: Prevent the 'contestant' user from using the network(except through the proxy or to localhost)
+  ansible.builtin.lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
 - name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
-  lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
+  ansible.builtin.lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
 
-- name: prevent the 'contestant' user from using the ipv6 network(except through the proxy or to localhost)
-  lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
+- name: Prevent the 'contestant' user from using the ipv6 network(except through the proxy or to localhost)
+  ansible.builtin.lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
 - name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
-  lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -s ::1/128 -d ::1/128 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
+  ansible.builtin.lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -s ::1/128 -d ::1/128 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
