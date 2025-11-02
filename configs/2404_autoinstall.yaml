@@ -86,6 +86,10 @@ autoinstall:
   #       pin: release *
   #       pin-priority: -1
 
+  # Use the HWE kernel for better hardware compatibility
+  kernel:
+    flavor: hwe
+
   # Install packages for efi secure boot
   packages:
     - grub-efi
