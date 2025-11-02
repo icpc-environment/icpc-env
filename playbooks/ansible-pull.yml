@@ -27,6 +27,7 @@
       [Install]
       WantedBy=multi-user.target
     dest: /etc/systemd/system/ansible-pull.service
+    mode: "0644"
 
 - name: Enable ansible-pull.service (runs on boot)
   ansible.builtin.service:
@@ -44,6 +45,7 @@
       [Install]
       WantedBy=multi-user.target
     dest: /etc/systemd/system/ansible-pull.path
+    mode: "0644"
 
 - name: Enable ansible-pull.path (triggers on /icpc/trigger-ansible existing)
   ansible.builtin.service:
