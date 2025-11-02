@@ -135,7 +135,7 @@
 
     # Copy some build information to the image
     - name: Gather build information  # noqa: command-instead-of-shell risky-shell-pipe
-      ansible.builtin.shell: 'echo "Built on $(date +"%Y-%m-%d %H:%M:%S")\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)\n"'
+      ansible.builtin.shell: 'echo -e "Built on $(date +"%Y-%m-%d %H:%M:%S")\nRevision: $(git rev-list --full-history --all --abbrev-commit | head -1)\n"'
       become: false
       register: git_revision
       delegate_to: 127.0.0.1
