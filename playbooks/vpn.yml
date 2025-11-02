@@ -1,40 +1,42 @@
 ---
-- name: install wireguard-tools
-  apt: pkg=wireguard-tools state=present
-
-- name: copy the wg_setup script
-  template:
-    src: files/wg_setup.j2
-    dest: /usr/local/bin/wg_setup
-    mode: 0755
-
-- name: create wireguard service to initialize vpn details (fetch credentials and whatnot)
-  template: src=files/wg-setup.service.j2 dest=/etc/systemd/system/wg-setup.service
-
-- name: enable wg-setup service
-  service: enabled=yes name=wg-setup
-
-- name: add some aliases for the vpn server to our /etc/hosts file
-  lineinfile:
-    dest: /etc/hosts
-    line: '{{ contestmanager_ip }} contestmanager.icpcnet.internal contestmanager'
+- name: Install wireguard-tools
+  ansible.builtin.apt:
+    pkg: wireguard-tools
     state: present
 
-- name: install wstunnel (for wireguard websocket tunnel fallback)
-  unarchive:
+- name: Copy the wg_setup script
+  ansible.builtin.template:
+    src: files/wg_setup.j2
+    dest: /usr/local/bin/wg_setup
+    mode: "0755"
+
+- name: Create wireguard service to initialize vpn details (fetch credentials and whatnot)
+  ansible.builtin.template:
+    src: files/wg-setup.service.j2
+    dest: /etc/systemd/system/wg-setup.service
+    mode: "0644"
+
+- name: Enable wg-setup service
+  ansible.builtin.service:
+    enabled: true
+    name: wg-setup
+
+- name: Install wstunnel (for wireguard websocket tunnel fallback)
+  ansible.builtin.unarchive:
     src: https://github.com/erebe/wstunnel/releases/download/v10.5.0/wstunnel_10.5.0_linux_amd64.tar.gz
     dest: /usr/local/bin
     remote_src: true
     include: ['wstunnel']
     creates: /usr/local/bin/wstunnel
-- name: make wstunnel executable
-  file:
+- name: Make wstunnel executable
+  ansible.builtin.file:
     state: file
     path: /usr/local/bin/wstunnel
-    mode: 0755
-- name: set up wstunnel service so we can access it via websocket (at 127.0.0._10_, not .1 for security
-  copy:
+    mode: "0755"
+- name: Set up wstunnel service so we can access it via websocket (at 127.0.0._10_, not .1 for security
+  ansible.builtin.copy:
     dest: /etc/systemd/system/wstunnel@.service
+    mode: "0644"
     content: |
       [Unit]
       Description=Tunnel WG UDP over websocket to our management host on port %i
@@ -45,7 +47,7 @@
       DynamicUser=yes
       ExecStart=/usr/local/bin/wstunnel client \
         -L udp://127.0.0.10:51820:127.0.0.1:%i?timeout_sec=0 \
-        wss://{{ wireguard_host }} \
+        wss://{{ remote_management_server }} \
         --http-upgrade-path-prefix /wgtunnel/%i
       Restart=always
       RestartSec=5

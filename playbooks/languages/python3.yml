@@ -19,7 +19,7 @@
       ansible.builtin.unarchive:
         src: https://downloads.python.org/pypy/{{ pypy3_version }}-linux64.tar.bz2
         dest: /opt
-        remote_src: yes
+        remote_src: true
         creates: /opt/{{ pypy3_version }}-linux64
     - name: Create symlinks for it
       ansible.builtin.file:

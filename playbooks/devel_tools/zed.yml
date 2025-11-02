@@ -4,7 +4,7 @@
   ansible.builtin.unarchive:
     src: https://zed.dev/api/releases/stable/latest/zed-linux-x86_64.tar.gz
     dest: /opt
-    remote_src: yes
+    remote_src: true
 
 - name: symlink zed to somewhere on the path
   ansible.builtin.file:

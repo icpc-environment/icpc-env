@@ -81,7 +81,7 @@
 - name: disable systemd-networkd so that it uses networkmanager instead
   ansible.builtin.service:
     name: "{{ item }}"
-    masked: yes
+    masked: true
     enabled: no
   with_items:
     - systemd-networkd

@@ -119,7 +119,7 @@
 - name: create contestant user (with empty/blank password)
   user: name='contestant' group='contestant' groups='lpadmin' password='$1$salty$lOyh/41oDtq.J4v0Lltp4.' shell='/bin/bash'
   notify:
-      - clear user password
+      - Clear user password
 
 
 - name: copy ssh ca

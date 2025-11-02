@@ -1,13 +1,15 @@
 ---
-- name: install node-exporter
-  ansible.builtin.apt: pkg=prometheus-node-exporter state=present
+- name: Install node-exporter
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - prometheus-node-exporter
+      - moreutils # so we can use sponge when writing some custom metrics information
 
-- name: also make sure moreutils is installed (for sponge)
-  ansible.builtin.apt: pkg=moreutils state=present
-
-- name: drop a configuration file for node exporter to disable systemd metrics (it's noisy/slowish)
+- name: Drop a configuration file for node exporter to disable systemd metrics (it's noisy/slowish)
   ansible.builtin.copy:
     dest: /etc/default/prometheus-node-exporter
+    mode: "0644"
     content: ARGS="--no-collector.systemd"
 #       --collector.disable-defaults
 #       --collector.arp
@@ -59,8 +61,10 @@
 #       --collector.xfs
 #       --collector.zfs
 
-- name: disable some timers that come with node-exporter that we don't want
-  ansible.builtin.service: name={{item}} enabled=no
+- name: Disable some timers that come with node-exporter that we don't want
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: false
   with_items:
     - prometheus-node-exporter-smartmon.timer
     - prometheus-node-exporter-apt.timer
@@ -68,24 +72,31 @@
     - prometheus-node-exporter-ipmitool-sensor.timer    # inactive because no /usr/bin/ipmitool binary (and /sys/class/ipmi empty)
     - prometheus-node-exporter-mellanox-hca-temp.timer  # inactive because no /usr/bin/mget_temp_ext binary (and /sys/class/infiniband missing)
 
-- name: override node-exporter to run nice'd/idle/low io+cpu priority
+- name: Override node-exporter to run nice'd/idle/low io+cpu priority
   block:
-    - ansible.builtin.file:
+    - name: Create override directory
+      ansible.builtin.file:
         path: /etc/systemd/system/prometheus-node-exporter.service.d
         state: directory
-    - ansible.builtin.copy:
+        mode: "0755"
+    - name: Create override file
+      ansible.builtin.copy:
         dest: /etc/systemd/system/prometheus-node-exporter.service.d/override.conf
         content: |
           [Service]
           CPUSchedulingPolicy=other
           Nice=19
           IOSchedulingClass=idle
+        mode: "0644"
 
-- name: restart node-exporter
-  ansible.builtin.service: name=prometheus-node-exporter state=started enabled=yes
+- name: Restart node-exporter
+  ansible.builtin.service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true
 
-- name: add firewall rule so the contestmanagement host can access prometheus
-  ufw:
+- name: Add firewall rule so the contestmanagement host can access prometheus
+  community.general.ufw:
     rule: allow
     direction: in
     interface: contest
@@ -93,14 +104,15 @@
     port: 9100
 
 # add some custom "metrics" like roles/sites/etc
-- name: install our custom icpc-metrics script
-  copy:
+- name: Install our custom icpc-metrics script
+  ansible.builtin.copy:
     src: files/icpc-metrics
     dest: /usr/local/bin/icpc-metrics
-    mode: 0755
-- name: static metrics exporter
-  copy:
+    mode: "0755"
+- name: Static metrics exporter
+  ansible.builtin.copy:
     dest: /etc/systemd/system/icpc-static-node-exporter.service
+    mode: "0644"
     content: |
       [Unit]
       Description=Update static node-exporter metrics with icpc things
@@ -115,12 +127,15 @@
       [Install]
       WantedBy=multi-user.target
 
-- name: enable icpc-static-node-exporter.service
-  service: name=icpc-static-node-exporter.service enabled=yes
+- name: Enable icpc-static-node-exporter.service
+  ansible.builtin.service:
+    name: icpc-static-node-exporter.service
+    enabled: true
 
-- name: static metric trigger
-  copy:
+- name: Static metric trigger
+  ansible.builtin.copy:
     dest: /etc/systemd/system/icpc-static-node-exporter.path
+    mode: "0644"
     content: |
       # trigger metrics update whenever TEAM/SITE/version/update-version change so we can update the values in prometheus
       [Path]
@@ -136,30 +151,34 @@
       [Install]
       WantedBy=multi-user.target
 
-- name: enable icpc-static-node-exporter.path
-  service: name=icpc-static-node-exporter.path enabled=yes
+- name: Enable icpc-static-node-exporter.path
+  ansible.builtin.service:
+    name: icpc-static-node-exporter.path
+    enabled: true
 
-- name: install s.py script
-  copy:
+- name: Install s.py script
+  ansible.builtin.copy:
     src: files/s.py
     dest: /usr/local/bin/s.py
-    mode: 0755
+    mode: "0755"
 
-- name: install python3-xlib for s.py library
-  apt:
+- name: Install python3-xlib for s.py library
+  ansible.builtin.apt:
     state: present
     pkg: python3-xlib
 
 
-- name: key for grafana apt repo
-  apt_key:
+- name: Key for grafana apt repo
+  ansible.builtin.apt_key:
     url: https://apt.grafana.com/gpg.key
     state: present
     keyring: /etc/apt/trusted.gpg.d/grafana.gpg
-- name: apt repo for grafana
-  apt_repository: repo="deb https://apt.grafana.com stable main" update_cache=yes
-- name: install promtail (for sending logs to our server)
-  apt:
+- name: Apt repo for grafana
+  ansible.builtin.apt_repository:
+    repo: "deb https://apt.grafana.com stable main"
+    update_cache: true
+- name: Install promtail (for sending logs to our server)
+  ansible.builtin.apt:
     state: present
     pkg:
       - promtail

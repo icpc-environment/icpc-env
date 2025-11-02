@@ -7,7 +7,7 @@
 - name: apt repo for vscode
   ansible.builtin.apt_repository:
     repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
-    update_cache: yes
+    update_cache: true
     filename: vscode
 #TODO: conditional on icpc-global repos
 

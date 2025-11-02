@@ -114,7 +114,7 @@
 - name: Remove unneeded packages
   ansible.builtin.apt:
     state: absent
-    purge: yes
+    purge: true
     pkg:
       - gdm3
       - gnome-shell
