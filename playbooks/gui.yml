@@ -181,3 +181,15 @@
     src: files/mirror-displays.sh
     dest: /usr/local/bin/mirror-displays
     mode: 0755
+
+- name: Configure firefox policies
+  ansible.builtin.copy:
+    dest: /usr/lib/firefox/distribution/policies.json
+    content: |
+      {
+        "policies":
+        {{ firefox_default_policies | combine(firefox_policies) | to_nice_json }}
+      }
+    mode: "0644"
+    owner: root
+    group: root

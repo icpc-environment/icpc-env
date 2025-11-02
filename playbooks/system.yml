@@ -140,18 +140,6 @@
     owner: root
     group: root
 
-- name: Configure firefox policies
-  ansible.builtin.copy:
-    dest: /usr/lib/firefox/distribution/policies.json
-    content: |
-      {
-        "policies":
-        {{ firefox_default_policies | combine(firefox_policies) | to_nice_json }}
-      }
-    mode: "0644"
-    owner: root
-    group: root
-
 # TODO: tune these things
 # - name: Delete some .desktop shortcuts (so they don't show up in the applications menu)
 #   ansible.builtin.file:
