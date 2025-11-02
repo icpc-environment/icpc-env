@@ -20,6 +20,13 @@
       {% endfor %}
     mode: "0644"
 
+- name: Write out the initial contest config file
+  ansible.builtin.copy:
+    dest: /icpc/CONFIG
+    content:
+      REMOTE_MANAGEMENT_SERVER={{ remote_management_server }}
+      CONTEST={{ contest_id }}
+
 - name: Write out the contest id (if specified)
   ansible.builtin.copy:
     dest: /icpc/CONTEST

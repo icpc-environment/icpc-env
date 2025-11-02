@@ -378,6 +378,15 @@ def apply_configuration():
         f"{configuration['team']['id']} - {configuration['team']['name']} ({configuration['team']['affiliation']})\n"
     )
 
+    Path("/icpc/CONFIG").write_text(f"""# Write a config file that can be sourced by various scripts
+REMOTE_MANAGEMENT_SERVER=mgmt.env.cloudcontest.org
+CONTEST={configuration["contest"]}
+SITE={configuration["site"]}
+TEAM_ID={configuration["team"]["id"]}
+TEAM_NAME={configuration["team"]["name"]}
+TEAM_AFFILIATION={configuration["team"]["affiliation"]}
+""")
+
     # Update the hostname to the team's id
     new_hostname = "icpc-team-" + configuration["team"]["id"]
     Path("/etc/hostname").write_text(new_hostname + "\n")

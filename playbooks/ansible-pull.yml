@@ -16,13 +16,14 @@
       Restart=on-failure
       RestartSec=30
       Type=oneshot
+      EnvironmentFile=/icpc/CONFIG
       ExecStart=/usr/bin/ansible-pull \
         --directory /root/ansible-pull \
         --sleep 30 \
         --clean \
         --diff \
         --inventory localhost, \
-        --url https://{{ remote_management_server }}/git/{{ contest_id }}.git
+        --url https://$REMOTE_MANAGEMENT_SERVER/git/$CONTEST.git
 
       [Install]
       WantedBy=multi-user.target
