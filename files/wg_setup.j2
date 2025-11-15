@@ -21,7 +21,7 @@ if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
 fi
 
 echo "contestmanager.icpcnet.internal not reachable, reconfiguring VPN"
-rm -f /run/vpn-hostname-updated
+rm -f /run/wg_setup-vpn-hostname-updated
 
 # Network is broken/not configured yet, bring it down so we can try to re-initialize it
 wg-quick down contest || true
