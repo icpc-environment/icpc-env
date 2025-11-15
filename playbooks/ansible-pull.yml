@@ -10,7 +10,8 @@
     content: |
       [Unit]
       Description=Execute ansible-pull to do any last minute changes to the system
-      After=network.target
+      After=network-online.target
+      Wants=network-online.target
 
       [Service]
       Restart=on-failure
