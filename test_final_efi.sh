@@ -1,4 +1,5 @@
 #!/bin/bash
+VARIANT=${1:-""}
 
 SSHPORT=2222
 SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
@@ -6,7 +7,8 @@ PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-BASEIMG="*12_image-amd64.img"
+BASEIMG=$(ls -tr output/$VARIANT*image-amd64.img | tail -n1)
+echo "Booting $BASEIMG"
 
 function launchssh() {
   echo "Launching ssh session"
@@ -20,14 +22,14 @@ function cleanup() {
 
 set -x
 qemu-system-x86_64 -machine q35 -smp 2 -m 4096 --enable-kvm \
-  -hda output/$BASEIMG \
+  -hda $BASEIMG \
   -global driver=cfi.pflash01,property=secure,value=on \
   -drive if=pflash,format=raw,unit=0,file=efi/OVMF_CODE.fd,readonly=on \
   -drive if=pflash,format=raw,unit=1,file=efi/OVMF_VARS.fd \
   -net user,hostfwd=tcp::$SSHPORT-:22 -net nic \
   --daemonize --pidfile $PIDFILE \
   $SNAPSHOT \
-  -vnc :0 -vga qxl -spice port=5901,disable-ticketing \
+  -vnc :0 -device VGA,edid=on,xres=1440,yres=900 \
   -usbdevice tablet
 
 set +x

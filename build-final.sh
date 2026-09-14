@@ -10,9 +10,9 @@ SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
 PIDFILE="tmp/qemu.pid"
 ALIVE=0
 
-IMGFILE="output-ssd/$(date +%Y-%m-%d)_image-amd64.img"
+IMGFILE="output/$(date +%Y-%m-%d)_image-amd64.img"
 if [[ $VARIANT != 'all' ]]; then
-  IMGFILE="output-ssd/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
+  IMGFILE="output/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
 fi
 
 BASEIMG="base-amd64.img"
@@ -64,7 +64,7 @@ function waitforssh() {
   fi
 }
 
-qemu-system-x86_64 -smp 2 -m 4096 -drive file="$IMGFILE",index=0,media=disk,format=raw -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE -vnc :0 -vga qxl -spice port=5901,disable-ticketing -usbdevice tablet
+qemu-system-x86_64 -smp 2 -m 4096 -drive file="$IMGFILE",index=0,media=disk,format=raw --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE -vnc :0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet
 
 ALIVE=0
 waitforssh
@@ -77,7 +77,7 @@ vm ansible_port=$SSHPORT ansible_host=127.0.0.1
 vm
 EOF
 
-ANSIBLE_HOST_KEY_CHECKING=False time ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
 rm -f $INVENTORY_FILE
 
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo reboot
@@ -99,6 +99,6 @@ fallocate -d $IMGFILE
 echo "Image file created: $IMGFILE($(du -h $IMGFILE | cut -f1))"
 
 # Move off our ssd to slow/bulk storage
-mv $IMGFILE output/
+# mv $IMGFILE output/
 
 exit 0

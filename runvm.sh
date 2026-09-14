@@ -119,7 +119,15 @@ function setresolution() {
   runssh sudo -u contestant env DISPLAY=:0 xrandr --size 1440x900
 }
 
-qemu-system-x86_64 -smp 2 -m 4096 -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 -global isa-fdc.driveA= --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE $SNAPSHOT -vnc :0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet
+qemu-system-x86_64 -machine q35,smm=on -cpu host -smp 4 -m 6144 --enable-kvm \
+  -global driver=cfi.pflash01,property=secure,value=on \
+  -drive if=pflash,format=raw,unit=0,file="/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd",readonly=on \
+  -drive if=pflash,format=raw,unit=1,file="./OVMF_VARS_4M.ms.fd" \
+  -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 \
+  -net user,hostfwd=tcp::$SSHPORT-:22 -net nic \
+  --daemonize --pidfile $PIDFILE $SNAPSHOT \
+  -vnc :0 -device VGA,edid=on,xres=1440,yres=900 \
+  -usbdevice tablet -boot menu=on
 ALIVE=0
 waitforssh
 
