@@ -56,8 +56,8 @@ server {
                                 {%- if item.path != '/' -%}
                                         {{ item.path }}
                                 {%- endif -%}
+                                {%- if 'with_args' in item and item.with_args %}$is_args$args{% endif -%}
                         {%- endif -%}
-                        {%- if 'with_args' in item and item.with_args %}$is_args$args{% endif -%}
                         ;
                 proxy_ssl_server_name on;
                 proxy_set_header Host $host;
