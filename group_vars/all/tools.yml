@@ -7,7 +7,7 @@ devtools:
   - eclipse
   - geany
   # - codeblocks
-  - zed
+  # - zed # TODO: broken?
   - codelite
   # - netbeans
   # - monodevelop

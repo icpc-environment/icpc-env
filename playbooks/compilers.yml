@@ -71,7 +71,7 @@
       ansible.builtin.git:
         repo: https://github.com/freeCodeCamp/devdocs.git
         dest: /tmp/devdocs-build
-        version: '83fbb0ac0e2fd77c88cb37aff3c074618e52f0b6' # main on 2025-09-30 19:00:00 EST
+        version: 'c7973164127fe21a5776b13453b1f37881d940a7' # main on 2026-01-19 (docker 20260201)
         force: true
 
     - name: Update default_docs in lib/app.rb
