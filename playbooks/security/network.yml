@@ -1,0 +1,3 @@
+---
+- ansible.builtin.import_tasks: squid.yml
+- ansible.builtin.import_tasks: nftables.yml

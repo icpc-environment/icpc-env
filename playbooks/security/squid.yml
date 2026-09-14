@@ -78,22 +78,3 @@
 - name: Enable proxyenv PAM configuration
   ansible.builtin.command: pam-auth-update --enable proxyenv
   when: proxyenv_enabled.rc != 0
-
-- name: Make sure inbound policy is deny
-  ansible.builtin.ufw: direction=incoming policy=deny
-
-- name: Allow inbound ssh
-  ansible.builtin.ufw: rule=allow name=OpenSSH
-
-- name: Enable the firewall
-  ansible.builtin.ufw: state=enabled logging=off
-
-- name: Prevent the 'contestant' user from using the network(except through the proxy or to localhost)
-  ansible.builtin.lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
-- name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
-  ansible.builtin.lineinfile: dest=/etc/ufw/before.rules line="-I ufw-before-output -s 127.0.0.1 -d 127.0.0.1 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present
-
-- name: Prevent the 'contestant' user from using the ipv6 network(except through the proxy or to localhost)
-  ansible.builtin.lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -m owner --uid-owner contestant -j REJECT" insertbefore="^# don't delete the 'COMMIT' line" state=present
-- name: Allow the contestant user(and others) to talk to localhost from localhost). Fixes issue with intellij/eclipse compilation/debugging.
-  ansible.builtin.lineinfile: dest=/etc/ufw/before6.rules line="-I ufw6-before-output -s ::1/128 -d ::1/128 -j ACCEPT" insertafter="uid-owner contestant -j REJECT" state=present

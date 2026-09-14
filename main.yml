@@ -107,18 +107,23 @@
     - name: Include vmtouch
       ansible.builtin.import_tasks: 'playbooks/vmtouch.yml'
 
-    - name: Include firewall
-      ansible.builtin.import_tasks: 'playbooks/firewall.yml'
+    - name: Include network security (squid and nftables)
+      ansible.builtin.import_tasks: 'playbooks/security/network.yml'
+    - name: Include system restrictions
+      ansible.builtin.import_tasks: 'playbooks/security/system-restrictions.yml'
     - name: Include system
       ansible.builtin.import_tasks: 'playbooks/system.yml'
 
     - name: Include ccs related things
-      ansible.builtin.import_tasks: 'playbooks/ccs.yml'
+      ansible.builtin.import_tasks: 'playbooks/ccs/ccs.yml'
 
     # Management related things
-    - import_tasks: 'playbooks/ansible-pull.yml'
-    - import_tasks: 'playbooks/vpn.yml'
-    - import_tasks: 'playbooks/monitoring.yml'
+    - name: Include lastminute ansible
+      ansible.builtin.import_tasks: 'playbooks/management/ansible-pull.yml'
+    - name: Include remote management vpn
+      ansible.builtin.import_tasks: 'playbooks/management/vpn.yml'
+    - name: Include monitoring
+      ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
 
     - name: Autoremove/autoclean/clean apt
       block:
@@ -169,6 +174,12 @@
     - name: Restart ssh
       ansible.builtin.service:
         name: ssh
+        state: restarted
+        enabled: true
+
+    - name: Restart nftables
+      ansible.builtin.service:
+        name: nftables
         state: restarted
         enabled: true
 

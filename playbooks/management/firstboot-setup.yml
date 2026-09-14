@@ -1,0 +1,102 @@
+---
+- name: Install tools so we can do a gui initial setup wizard
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - dbus-x11
+      - xinit
+      - python3-pip
+      - python3-venv
+      - python3-tk
+- name: Create a virtualenv for freesimplegui
+  command: python3 -m venv --system-site-packages /icpc/scripts/venv
+  args:
+    creates: /icpc/scripts/venv
+- name: Install freesimplegui
+  pip:
+    name: freesimplegui
+    executable: /icpc/scripts/venv/bin/pip
+
+
+
+
+
+- name: Make sure the directory structure exists
+  file:
+    dest: /root/setup/{{item}}
+    state: directory
+  with_items:
+    - .config
+    - .config/autostart
+
+- name: create xinitrc file
+  copy:
+    dest: /root/setup/.xinitrc
+    content: |
+      xset s off
+      xset s noblank
+      xset s off -dpms
+      exec dbus-launch startxfce4
+
+- name: Disable creating user dirs
+  copy:
+    dest: /root/setup/.config/user-dirs.conf
+    content: |
+      enabled=False
+
+- name: Create firstboot-gui script
+  ansible.builtin.copy:
+    content: |
+      #!/bin/bash
+      # exit cleanly if /icpc/setup-complete already exists
+      if [ -f /icpc/setup-complete ]; then
+        exit 0
+      fi
+      startx -- :0 -nolisten tcp
+    dest: /icpc/scripts/firstboot-gui
+    mode: 0744
+
+- name: Create the systemd service that will run the setup
+  copy:
+    dest: /etc/systemd/system/firstboot.service
+    content: |
+      [Unit]
+      Description=Initial configuration of the image
+      Before=lightdm.service
+      After=cups.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      TimeoutSec=0
+      Environment=HOME=/root/setup
+      Environment=XDG_CONFIG_HOME=/root/setup/.config
+      ExecStart=/icpc/scripts/firstboot-gui
+
+      [Install]
+      WantedBy=graphical.target
+      WantedBy=multi-user.target
+
+- name: enable firstboot service
+  service:
+    name: firstboot
+    enabled: yes
+
+- name: Create autostart file to run icpc-setup
+  copy:
+    dest: /root/setup/.config/autostart/icpc-setup.desktop
+    mode: 0755
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=ICPC Setup
+      Exec=xfce4-terminal --maximize --hold --execute bash -c "/icpc/scripts/venv/bin/python3 /icpc/scripts/icpc_setup"
+      Terminal=false
+      StartupNotify=false
+      NoDisplay=true
+
+- name: Install new icpc_setup script (gui based!)
+  copy:
+    dest: /icpc/scripts/icpc_setup
+    src: setup-gui/main.py
+    mode: 0755

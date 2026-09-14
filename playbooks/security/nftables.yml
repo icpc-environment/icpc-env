@@ -1,0 +1,54 @@
+---
+- name: Install nftables
+  ansible.builtin.apt:
+    pkg:
+      - nftables
+    state: present
+
+- name: Configure nftables main ruleset
+  ansible.builtin.copy:
+    dest: /etc/nftables.conf
+    content: |
+      #!/usr/sbin/nft -f
+
+      # Flush all existing rules
+      flush ruleset
+
+      # Define table for filtering
+      table inet filter {
+        # Input chain - reject by default
+        chain input {
+          type filter hook input priority 0; policy drop;
+
+          iif lo accept comment "Accept all loopback traffic"
+          ct state established,related accept comment "Accept established/related connections"
+
+          tcp dport 22 accept comment "Allow SSH (OpenSSH)"
+          iifname "contest" tcp dport 9100 accept comment "Allow prometheus from contest interface"
+
+          reject comment "Reject everything else"
+        }
+
+        # Forward chain
+        chain forward {
+          type filter hook forward priority 0; policy drop;
+        }
+
+        # Output chain - handle outgoing traffic
+        chain output {
+          type filter hook output priority 0; policy accept;
+
+          # Allow localhost to localhost traffic (fixes IntelliJ/Eclipse)
+          oif lo accept comment "Allow loopback to loopback"
+
+          # Reject all traffic from contestant user (except what was already accepted above)
+          meta skuid "contestant" reject comment "Block contestant user from network"
+        }
+      }
+  notify: Restart nftables
+
+- name: Enable nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    state: started
+    enabled: yes

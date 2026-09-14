@@ -95,19 +95,6 @@
     - systemd-networkd
     - systemd-networkd.socket
 
-- name: Don't let the contestant user mess with any network settings
-  ansible.builtin.copy:
-    dest: /etc/polkit-1/rules.d/99-deny-networkmanager.rules
-    content: |
-      polkit.addRule(function(action, subject) {
-          if (action.id.startsWith("org.freedesktop.NetworkManager.") &&
-              subject.user == "contestant")
-          {
-              return polkit.Result.NO;
-              // return polkit.Result.AUTH_ADMIN; // If we want to allow prompting to auth as admin to do networkmanager related things form the contestant session
-          }
-      });
-
 - name: Disable console blanking
   ansible.builtin.lineinfile:
     dest: /etc/default/grub

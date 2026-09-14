@@ -95,14 +95,6 @@
     state: started
     enabled: true
 
-- name: Add firewall rule so the contestmanagement host can access prometheus
-  community.general.ufw:
-    rule: allow
-    direction: in
-    interface: contest
-    proto: tcp
-    port: 9100
-
 # add some custom "metrics" like roles/sites/etc
 - name: Install our custom icpc-metrics script
   ansible.builtin.copy:

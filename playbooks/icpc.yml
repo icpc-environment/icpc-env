@@ -59,7 +59,9 @@
       export PATH="/icpc/scripts:$PATH"
 
 - name: Copy icpc default wallpaper
-  ansible.builtin.copy: dest=/icpc/wallpaper.png src=files/wallpaper.png
+  ansible.builtin.copy:
+    dest: /icpc/wallpaper.png
+    src: files/wallpaper.png
 
 - name: Set timezone
   community.general.timezone:
@@ -75,7 +77,6 @@
       - vlc
       - openprinting-ppds
       - git
-      - ufw
       - imagemagick
       - git
       - cups
@@ -95,6 +96,41 @@
     name: cups-browsed
     state: stopped
     enabled: false
+
+
+
+
+- name: copy ssh ca
+  copy:
+    src: files/secrets/server_ca.pub
+    dest: /etc/ssh/ca.pub
+    mode: 0644
+
+- name: configure ssh ca to be enabled for allowing users to log in
+  copy:
+    content:
+      TrustedUserCAKeys /etc/ssh/ca.pub
+    dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
+    mode: 0644
+
+- name: Install a set of host keys that are signed by the ssh CA
+  copy:
+    src: files/secrets/contestant.icpcnet.internal_{{ item }}
+    dest: /etc/ssh/ssh_{{ item }}
+  with_items:
+    - host_ed25519_key
+    - host_ed25519_key.pub
+    - host_ed25519_key-cert.pub
+
+- name: sshd host certificate
+  copy:
+    content: |
+      HostKey /etc/ssh/ssh_host_ed25519_key
+      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
+    mode: 0644
+  notify: Restart ssh
+
 
 ###### MOVE ELSEWHERE ######
 
@@ -136,62 +172,6 @@
       - Clear user password
 
 
-- name: copy ssh ca
-  copy:
-    src: files/secrets/server_ca.pub
-    dest: /etc/ssh/ca.pub
-    mode: 0644
-
-- name: configure ssh ca to be enabled for allowing users to log in
-  copy:
-    content:
-      TrustedUserCAKeys /etc/ssh/ca.pub
-    dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
-    mode: 0644
-
-
-- name: Install a set of host keys that are signed by the ssh CA
-  copy:
-    src: files/secrets/contestant.icpcnet.internal_{{ item }}
-    dest: /etc/ssh/ssh_{{ item }}
-  with_items:
-    - host_ed25519_key
-    - host_ed25519_key.pub
-    - host_ed25519_key-cert.pub
-
-- name: sshd host certificate
-  copy:
-    content: |
-      HostKey /etc/ssh/ssh_host_ed25519_key
-      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
-    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
-    mode: 0644
-  notify: Restart ssh
-
-
-- name: create gitconfig for icpcadmin(to make updating the home directory easier)
-  copy:
-    dest: /home/icpcadmin/.gitconfig
-    owner: icpcadmin
-    group: icpcadmin
-    content: |
-      [user]
-      	email = icpcadmin@icpcenv
-      	name = icpcenv
-#### MOVE ELSEWHERE ####
-
-- name: Use polkit to disable mounting
-  ansible.builtin.copy:
-    dest: /etc/polkit-1/rules.d/99-deny-udisks2.rules
-    content: |
-      polkit.addRule(function(action, subject) {
-          if (action.id.startsWith("org.freedesktop.udisks2.") &&
-              subject.user == "contestant")
-          {
-              return polkit.Result.NO;
-          }
-      });
-
 - name: create team reset group
   group: name='teamreset' state='present'
 - name: create team reset user # TODO: make idempotent (I think it's the password hash causing trouble here)
@@ -201,7 +181,7 @@
 - name: create autostart file
   copy: src=files/teamreset.desktop dest=/home/teamreset/.config/autostart/teamreset.desktop
 
-- name: setup sudo for the admin
+- name: Setup sudo for the admin(s)
   copy:
     dest: /etc/sudoers.d/icpcadmins
     mode: 0440
@@ -209,28 +189,6 @@
       # icpcadmin can run any command without a password
       icpcadmin ALL=NOPASSWD: ALL
       teamreset ALL=NOPASSWD: ALL
-
-# - name: Create icpc group
-#   ansible.builtin.group:
-#     name: 'icpc'
-#     state: present
-
-# - name: Create teams group
-#   ansible.builtin.group:
-#     name: 'teams'
-#     state: present
-#     gid: 2000
-
-# - name: Create users
-#   ansible.builtin.user:
-#     name: "{{ item.username }}"
-#     comment: "{{ item.comment | default('') }}"
-#     group: "{{ item.group | default(item.username) }}"
-#     groups: "{{ item.groups | default('') }}"
-#     shell: "{{ item.shell | default('/bin/bash') }}"
-#     password: "{{ item.password_hash }}"
-#   with_items: "{{ icpc_users_array }}"
-
 
 - name: Check for ICPC partition
   ansible.builtin.shell: blkid -L "ICPC"
@@ -260,135 +218,8 @@
       group: root
       mode: '0755'
 
-- name: write the homepage to a file so we can make sure access works in the self_test
-  copy:
-    dest: /icpc/config_homepage
-    content: |
-      {{ firefox_policies.Homepage.URL }}
 
-
-
-
-
-# MOVE THIS TO A DIFFERENT PLAYBOOK
-# install dbus-x11, xinit
-- name: Install tools so we can do a gui initial setup wizard
-  ansible.builtin.apt:
-    state: present
-    pkg:
-      - dbus-x11
-      - xinit
-
-- name: Make sure the directory structure exists
-  file:
-    dest: /root/setup/{{item}}
-    state: directory
-  with_items:
-    - .config
-    - .config/autostart
-
-- name: create xinitrc file
-  copy:
-    dest: /root/setup/.xinitrc
-    content: |
-      xset s off
-      xset s noblank
-      xset s off -dpms
-      exec dbus-launch startxfce4
-
-- name: Disable creating user dirs
-  copy:
-    dest: /root/setup/.config/user-dirs.conf
-    content: |
-      enabled=False
-
-- name: create firstboot-gui script
-  ansible.builtin.copy:
-    content: |
-      #!/bin/bash
-      # exit cleanly if /icpc/setup-complete already exists
-      if [ -f /icpc/setup-complete ]; then
-        exit 0
-      fi
-      startx -- :0 -nolisten tcp
-    dest: /icpc/scripts/firstboot-gui
-    mode: 0744
-
-- name: Create the systemd service that will run the setup
-  copy:
-    dest: /etc/systemd/system/firstboot.service
-    content: |
-      [Unit]
-      Description=Initial configuration of the image
-      Before=lightdm.service
-      After=cups.service
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      TimeoutSec=0
-      Environment=HOME=/root/setup
-      Environment=XDG_CONFIG_HOME=/root/setup/.config
-      ExecStart=/icpc/scripts/firstboot-gui
-
-      [Install]
-      WantedBy=graphical.target
-      WantedBy=multi-user.target
-
-- name: enable firstboot service
-  service: name=firstboot enabled=yes
-
-- name: create autostart file to run icpc-setup
-  copy:
-    dest: /root/setup/.config/autostart/icpc-setup.desktop
-    mode: 0755
-    content: |
-      [Desktop Entry]
-      Type=Application
-      Name=ICPC Setup
-      Exec=xfce4-terminal --maximize --hold --execute bash -c "/icpc/scripts/venv/bin/python3 /icpc/scripts/icpc_setup"
-      Terminal=false
-      StartupNotify=false
-      NoDisplay=true
-
-# need to install python3-pip and python3-venv
-# then pip install freesimplegui into a virtualenv (maybe with python3 -m venv --system-site-packages venv-path)
-# and an apt install python3-tk
-- name: Install tools so we can do a gui initial setup wizard
-  apt:
-    state: present
-    pkg:
-      - python3-pip
-      - python3-venv
-      - python3-tk
-- name: create a virtualenv for freesimplegui
-  command: python3 -m venv --system-site-packages /icpc/scripts/venv
-  args:
-    creates: /icpc/scripts/venv
-- name: Install freesimplegui
-  pip:
-    name: freesimplegui
-    executable: /icpc/scripts/venv/bin/pip
-- name: install new icpc_setup script (gui based!)
-  copy:
-    dest: /icpc/scripts/icpc_setup
-    src: setup-gui/main.py
-    mode: 0755
-# END MOVE THIS TO A DIFFERENT PLAYBOOK
-
-- name: Uninstall commands we do not want
-  ansible.builtin.apt:
-    state: absent
-    name:
-      - command-not-found
-      - bluez
-      - bluez-obexd
-      - apport
-
-- name: Cleanup command-not-found dir
-  ansible.builtin.file:
-    path: /var/lib/command-not-found
-    state: absent
+- import_tasks: management/firstboot-setup.yml
 
 - name: Create /usr/share/doc/icpc
   ansible.builtin.file:

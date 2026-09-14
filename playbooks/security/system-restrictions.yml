@@ -1,0 +1,26 @@
+---
+- name: Prevent the contestant user from mounting/unmounting drives
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/99-deny-udisks2.rules
+    content: |
+      polkit.addRule(function(action, subject) {
+          if (action.id.startsWith("org.freedesktop.udisks2.") &&
+              subject.user == "contestant")
+          {
+              return polkit.Result.NO;
+              // return polkit.Result.AUTH_ADMIN; // If we want to allow prompting to auth as admin to mount a disk
+          }
+      });
+
+- name: Prevent the contestant user from adjusting any network settings
+  ansible.builtin.copy:
+    dest: /etc/polkit-1/rules.d/99-deny-networkmanager.rules
+    content: |
+      polkit.addRule(function(action, subject) {
+          if (action.id.startsWith("org.freedesktop.NetworkManager.") &&
+              subject.user == "contestant")
+          {
+              return polkit.Result.NO;
+              // return polkit.Result.AUTH_ADMIN; // If we want to allow prompting to auth as admin to do networkmanager related things form the contestant session
+          }
+      });
