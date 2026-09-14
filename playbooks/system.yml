@@ -112,7 +112,8 @@
   ansible.builtin.copy:
     content: |
       [Journal]
-      Storage=volatile # no sense persisting logs to disk, we don't care about them that much
+      # no sense persisting logs to disk, we don't care about them that much
+      Storage=volatile
       ForwardToSyslog=no
       ForwardToKMsg=no
       ForwardToConsole=yes
