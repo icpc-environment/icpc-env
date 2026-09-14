@@ -30,8 +30,11 @@ autoinstall:
   network:
     version: 2
     ethernets:
-      # We disable persistent network interface naming on the kernel command line, so this is always eth0
-      eth0: {dhcp4: true}
+      vmnic:
+        match:
+          # driver: e1000e
+          name: e*
+        dhcp4: true
   storage:
     version: 2
     # Disable swap
