@@ -1,6 +1,18 @@
 *.iso
 configs/ssh*
-group_vars/all
-venv/
+.venv/
 printer-configs/
 environment.cloudcontest.org/
+
+# Local credentials and scratch state - never commit
+.env
+.env-*
+secrets/
+tmp_inventory
+
+# Build artifacts and local tooling state
+.ansible/
+__pycache__/
+OVMF_VARS*.fd
+tests/goss
+lastminute-ansible/
