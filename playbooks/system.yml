@@ -48,11 +48,20 @@
 #     state: present
 #   notify: Update grub
 
-- name: Ensure appport & avahi-daemon are not installed
+- name: Remove packages we don't want present
   ansible.builtin.package:
     pkg:
+      - command-not-found
+      - bluez
+      - bluez-obexd
       - apport
       - avahi-daemon
+      - ufw
+    state: absent
+
+- name: Cleanup command-not-found dir
+  ansible.builtin.file:
+    path: /var/lib/command-not-found
     state: absent
 
 - name: Update packages
@@ -62,7 +71,6 @@
     update_cache: true
     force_apt_get: true
 
-
 - name: Configure netplan to use NetworkManager (and remove all other configs)
   ansible.builtin.copy:
     dest: /etc/netplan/01-netcfg.yaml
@@ -71,14 +79,14 @@
         version: 2
         renderer: NetworkManager
 
-- name: tell networkmanager to and ignore vpn related devices
+- name: Tell NetworkManager to ignore VPN related devices
   ansible.builtin.copy:
     dest: /etc/NetworkManager/conf.d/10-globally-managed-devices.conf
     content: |
       [keyfile]
       unmanaged-devices=type:wireguard,type:tun,type:bridge,type:veth
 
-- name: disable systemd-networkd so that it uses networkmanager instead
+- name: Disable systemd-networkd so that it uses networkmanager instead
   ansible.builtin.service:
     name: "{{ item }}"
     masked: true
@@ -128,7 +136,24 @@
       ShowStatus=false
     dest: /etc/systemd/system.conf
 
+- name: Uninstall rsyslog package (to avoid the disk writes)
+  ansible.builtin.apt:
+    name: rsyslog
+    state: absent
+    autoremove: true
+    purge: true
 
+- name: Remove old log files
+  ansible.builtin.file:
+    path: /var/log/{{ item }}
+    state: absent
+  with_items:
+    - syslog
+    - kern.log
+    - auth.log
+    - dpkg.log
+    - boot.log
+    - apport.log
 
 # TODO do we want this? (conditional on icpc repo)
 - name: Disable unattended upgrades/apt cache fetching
