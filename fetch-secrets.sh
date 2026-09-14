@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -exuo pipefail
 usage() {
   echo "usage: fetch-secrets.sh <contestid>"
   exit 1
@@ -7,11 +7,6 @@ usage() {
 [ $# -eq 1 ] || usage
 
 mkdir -p files/secrets
-
-# copy jumpy public key
-cp secrets/$1/jumpy@icpc.pub files/secrets/
-# copy jumpy user private key + ca certificate signature
-cp secrets/$1/jumpy@icpc{,-cert.pub} files/secrets/
 
 # copy icpcadmin@contestmanager public key
 cp secrets/$1/icpcadmin@contestmanager.pub files/secrets/
