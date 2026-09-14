@@ -118,12 +118,16 @@
       ansible.builtin.import_tasks: 'playbooks/ccs/ccs.yml'
 
     # Management related things
-    - name: Include lastminute ansible
-      ansible.builtin.import_tasks: 'playbooks/management/ansible-pull.yml'
-    - name: Include remote management vpn
-      ansible.builtin.import_tasks: 'playbooks/management/vpn.yml'
-    - name: Include monitoring
-      ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
+    - name: Configure lastminute ansible execution (if enabled)
+      ansible.builtin.include_tasks: 'playbooks/management/ansible-pull.yml'
+      when: remote_management_server and (remote_management_lastminute_enabled | bool)
+
+    - name: Configure remote management vpn (if enabled)
+      ansible.builtin.include_tasks: 'playbooks/management/vpn.yml'
+      when: remote_management_server and (remote_management_vpn_enabled | bool)
+
+    - name: Configure monitoring
+      ansible.builtin.include_tasks: 'playbooks/management/monitoring.yml'
 
     - name: Autoremove/autoclean/clean apt
       block:
