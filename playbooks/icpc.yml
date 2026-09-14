@@ -23,9 +23,16 @@
 - name: Write out the initial contest config file
   ansible.builtin.copy:
     dest: /icpc/CONFIG
-    content:
+    content: |
       REMOTE_MANAGEMENT_SERVER={{ remote_management_server }}
       CONTEST={{ contest_id }}
+      ICPC_BROWSER_URL={{ firefox_policies.Homepage.URL | default('') }}
+
+- name: Write the homepage to a file so we can make sure access works in the self_test
+  ansible.builtin.copy:
+    dest: /icpc/config_homepage
+    content: |
+      {{ firefox_policies.Homepage.URL }}
 
 - name: Write out the contest id (if specified)
   ansible.builtin.copy:
