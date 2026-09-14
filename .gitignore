@@ -7,7 +7,7 @@ environment.cloudcontest.org/
 # Local credentials and scratch state - never commit
 .env
 .env-*
-secrets/
+secrets/*/
 tmp_inventory
 
 # Build artifacts and local tooling state
