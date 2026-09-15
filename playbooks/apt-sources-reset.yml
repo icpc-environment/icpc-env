@@ -1,0 +1,21 @@
+---
+# Undo any build-time-only apt source changes, so the shipped image points at
+# the sources a contest machine should actually use.
+
+- name: Restore the original ubuntu archive mirror
+  when:
+    - ubuntu_mirror_change is defined
+    - ubuntu_mirror_change.changed | default(false)
+    - ubuntu_mirror_change.backup_file is defined
+  block:
+    - name: Put the original ubuntu.sources back
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ ubuntu_mirror_change.backup_file }}"
+        dest: /etc/apt/sources.list.d/ubuntu.sources
+        mode: "0644"
+
+    - name: Remove the ubuntu.sources backup
+      ansible.builtin.file:
+        state: absent
+        path: "{{ ubuntu_mirror_change.backup_file }}"

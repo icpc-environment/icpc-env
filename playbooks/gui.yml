@@ -44,7 +44,10 @@
       - xfce4-screenshooter
 
 
+# Skipped when building against the sysops mirror, which carries its own
+# mirror of this ppa (see playbooks/apt-sources.yml).
 - name: Add mozilla firefox ppa (because snaps are dumb)
+  when: apt_package_source != 'pc2'
   block:
     - name: Fetch the signing key
       ansible.builtin.get_url:

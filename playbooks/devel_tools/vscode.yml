@@ -1,15 +1,18 @@
+# Skipped when building against the sysops mirror, which carries its own
+# mirror of this repository (see playbooks/apt-sources.yml).
 - name: apt key for vscode
   ansible.builtin.apt_key:
     url: https://packages.microsoft.com/keys/microsoft.asc
     state: present
     keyring: /etc/apt/trusted.gpg.d/microsoft.gpg
+  when: apt_package_source != 'pc2'
 
 - name: apt repo for vscode
   ansible.builtin.apt_repository:
     repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
     update_cache: true
     filename: vscode
-#TODO: conditional on icpc-global repos
+  when: apt_package_source != 'pc2'
 
 - name: Remove any entries from the hosts file for vscode extensions, so we can install/update them properly
   ansible.builtin.lineinfile:

@@ -86,3 +86,33 @@ firefox_default_policies:
 ca_target_certs:
   - { name: "devdocs", cn: "reverseproxy", hostnames: "devdocs,libretranslate,icpc"}
   - { name: "vscgallery", cn: "marketplace.visualstudio.com", hostnames: "update.code.visualstudio.com,az764295.vo.msecnd.net,marketplace.visualstudio.com"}
+
+# Where apt packages come from while the image is being built.
+#   ubuntu - the public Ubuntu archive plus each vendor's own apt repository
+#   pc2    - the ICPC sysops mirror, which carries its own copies of all of them
+# See playbooks/apt-sources.yml for what each one does.
+apt_package_source: ubuntu
+
+# Only used when apt_package_source is 'ubuntu'. The installer writes the
+# archive host below into ubuntu.sources; set apt_ubuntu_mirror to swap it for
+# a faster one during the build. The original is restored before the image is
+# finalized, so this only affects build time. Null leaves it alone.
+# Pick one from https://launchpad.net/ubuntu/+archivemirrors
+apt_ubuntu_default_mirror: us.archive.ubuntu.com
+apt_ubuntu_mirror: null
+
+# Only used when apt_package_source is 'pc2'. The signing keys are not in this
+# repo; put them in files/apt-keys/ before building with this source.
+apt_pc2_mirror_url: https://sysopspackages.icpc.global
+apt_pc2_keys:
+  ubuntu: pc2packages.asc
+  jetbrains: jetbrains.list.asc
+  vscode: vscode.list.asc
+  firefox: firefox.list.asc
+  sysopspackages: pc2packages.asc
+apt_pc2_repositories:
+  - {name: ubuntu, path: 'ubuntu-{{ ansible_distribution_release }}'}
+  - {name: jetbrains, path: 'jetbrains-{{ ansible_distribution_release }}'}
+  - {name: vscode, path: 'vscode-{{ ansible_distribution_release }}'}
+  - {name: firefox, path: 'mozillateam-{{ ansible_distribution_release }}'}
+  - {name: sysopspackages, path: 'apt/{{ ansible_distribution_release }}'}

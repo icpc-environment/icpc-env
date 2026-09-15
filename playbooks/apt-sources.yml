@@ -1,0 +1,64 @@
+---
+# Selects where apt packages come from while the image is being built.
+#
+#   ubuntu - the public Ubuntu archive, plus each vendor's own apt repository
+#            (added by gui.yml, devel_tools/vscode.yml and
+#            devel_tools/intellij.yml). Optionally swap the archive host for a
+#            faster mirror with apt_ubuntu_mirror.
+#
+#   pc2    - the ICPC sysops mirror, which carries its own copies of the ubuntu
+#            archive and of the jetbrains/vscode/mozilla repositories, so the
+#            vendor repositories above are skipped. The detached signing keys
+#            are not redistributable and are not in this repo; drop them into
+#            files/apt-keys/ before building. Ask ICPC sysops for them.
+
+- name: Check that a known package source was requested
+  ansible.builtin.assert:
+    that: apt_package_source in ['ubuntu', 'pc2']
+    fail_msg: >-
+      apt_package_source must be 'ubuntu' or 'pc2',
+      got '{{ apt_package_source }}'
+    quiet: true
+
+# ---------------------------------------------------------------- pc2 mirror
+- name: Configure the ICPC sysops package mirror
+  when: apt_package_source == 'pc2'
+  block:
+    - name: Install the sysops mirror signing keys
+      ansible.builtin.copy:
+        src: files/apt-keys/{{ item }}
+        dest: /etc/apt/trusted.gpg.d/{{ item }}
+        mode: "0644"
+        owner: root
+        group: root
+      loop: "{{ apt_pc2_keys.values() | unique }}"
+
+    - name: Point apt at the sysops mirror
+      ansible.builtin.deb822_repository:
+        name: "{{ item.name }}"
+        types: deb
+        uris: "{{ apt_pc2_mirror_url }}/{{ item.path }}"
+        suites: "{{ ansible_distribution_release }}"
+        # aptly publishes everything under main: aptly-dev/aptly#1373
+        components: main
+        architectures: amd64
+        signed_by: /etc/apt/trusted.gpg.d/{{ apt_pc2_keys[item.name] }}
+      loop: "{{ apt_pc2_repositories }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+# -------------------------------------------------------------- ubuntu archive
+- name: Build against a faster ubuntu archive mirror
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list.d/ubuntu.sources
+    regexp: '{{ apt_ubuntu_default_mirror | regex_escape }}'
+    replace: "{{ apt_ubuntu_mirror }}"
+    backup: true
+  register: ubuntu_mirror_change
+  when:
+    - apt_package_source == 'ubuntu'
+    - apt_ubuntu_mirror is not none
+
+- name: Refresh the apt cache for the new sources
+  ansible.builtin.apt:
+    update_cache: true

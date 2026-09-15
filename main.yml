@@ -8,6 +8,8 @@
     ansible_python_interpreter: /usr/bin/python3
 
   tasks:
+    - name: Include apt sources
+      ansible.builtin.import_tasks: 'playbooks/apt-sources.yml'
 
     - name: Disable fsync for dpkg
       ansible.builtin.copy:
@@ -87,7 +89,10 @@
         state: absent
         path: /etc/netplan/50-cloud-init.yaml
 
-
+    - name: Clean up old ubuntu.sources from installation time
+      ansible.builtin.file:
+        path: /etc/apt/sources.list.d/ubuntu.sources.curtin.orig
+        state: absent
 
     - name: Include gui
       ansible.builtin.import_tasks: 'playbooks/gui.yml'
@@ -141,6 +146,8 @@
           ansible.builtin.apt:
             clean: true
 
+    - name: Include apt sources reset
+      ansible.builtin.import_tasks: 'playbooks/apt-sources-reset.yml'
 
     # Copy some build information to the image
     - name: Gather build information  # noqa: command-instead-of-shell risky-shell-pipe

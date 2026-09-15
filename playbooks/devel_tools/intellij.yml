@@ -1,13 +1,16 @@
 # IntelliJ repository (unofficial ppa: https://github.com/JonasGroeger/jetbrains-ppa)
+# Skipped when building against the sysops mirror, which carries its own
+# mirror of this repository (see playbooks/apt-sources.yml).
 - name: Apt key for IntelliJ IDEA
   ansible.builtin.get_url:
     url: https://s3.eu-central-1.amazonaws.com/jetbrains-ppa/0xA6E8698A.pub.asc
     dest: /etc/apt/keyrings/jetbrains.asc
+  when: apt_package_source != 'pc2'
 - name: Apt repo for IntelliJ IDEA
   ansible.builtin.apt_repository:
     repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/jetbrains.asc] http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main
     update_cache: true
-# TODO: conditional on using icpc-repos or not
+  when: apt_package_source != 'pc2'
 
 
 # IntelliJ IDEA community(2642mb installed in /opt/intellij-idea-community)
