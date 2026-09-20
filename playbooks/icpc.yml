@@ -71,10 +71,14 @@
     state: present
     pkg:
       - apache2-utils
+      # For streaming a contestant desktop/webcam
       - ffmpeg
       - intel-media-va-driver-non-free
-      - pulseaudio
       - vlc
+      # Audio stack. 26.04 defaults to pipewire, and the pulseaudio package
+      # conflicts with pipewire-pulse, so asking for it downgrades the system.
+      - pipewire-audio
+      - wireplumber
       - openprinting-ppds
       - git
       - imagemagick
