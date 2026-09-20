@@ -1,4 +1,5 @@
 ---
+# TODO: just set the wallpaper properly with xfce?
 - name: Create autostart entry for firefox
   ansible.builtin.copy:
     dest: /etc/skel/.config/autostart/firefox.desktop
