@@ -8,9 +8,9 @@
     group: root
 
 - name: Copy Profile Entries for pc2submit
-  ansible.builtin.copy:
-    src: "files/pc2submit_profile.sh"
-    dest: "/etc/profile.d"
+  ansible.builtin.template:
+    src: "files/pc2submit_profile.sh.j2"
+    dest: "/etc/profile.d/pc2submit_profile.sh"
     mode: "0644"
     owner: root
     group: root

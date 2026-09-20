@@ -5,8 +5,17 @@ icpcadmin_pass: icpcadmin
 # On the config server, what contest id is this for. Files will be fetched from {{ config_url }}/{{ contest_id }}
 contest_id: generic
 
-# Install a submit client for a contest control system (domjudge, pc2, or kattis)
+# Which contest control system submit clients to install. One playbook per
+# entry under playbooks/ccs/.
+ccs_tools:
+  - kattis
+
+# Which of the installed clients /usr/local/bin/submit points at
+# (domjudge, pc2, or kattis)
 submit_ccs: 'kattis'
+
+# Only used when 'pc2' is in ccs_tools - where the pc2 submit client posts to
+pc2_submit_base_url: https://pc2server.icpc-vcss.org:50443
 
 # Set to the hostname of a remote management server. See RemoteManagement.md for more details
 # This is the host that has your lastminute git repositories, as well as a wg-fleet install that is aware of your contest-id
