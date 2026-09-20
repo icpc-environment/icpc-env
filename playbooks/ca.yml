@@ -1,10 +1,17 @@
 ---
 # Create/setup a root CA + certs
-- name: Install cfssl (and jq) for ca management
+# Pinned rather than taken from an apt repo: smallstep is not in the ubuntu
+# archive, and a pinned .deb keeps a third party repository out of the shipped
+# image's sources. Same pattern as wstunnel in playbooks/management/vpn.yml.
+- name: Install step-cli for ca management
   ansible.builtin.apt:
-    pkg:
-      - golang-cfssl
-      - jq
+    deb: https://github.com/smallstep/cli/releases/download/v{{ step_cli_version }}/step-cli_{{ step_cli_version }}_amd64.deb
+
+# jq lives here rather than with the other admin tools in system.yml because
+# devel_tools/vscode.yml uses it and main.yml runs that first.
+- name: Install jq
+  ansible.builtin.apt:
+    pkg: jq
     state: present
 
 - name: Create directory to hold or ca
@@ -18,107 +25,48 @@
     - ca/intermediate/certs
     - ca/intermediate/private
 
-- name: Generate a custom CA cert for this system
-  block:
-    - name: Create ca.json definition
-      ansible.builtin.copy:
-        mode: "0644"
-        dest: /root/ca/ca.json
-        content: |
-          {
-            "CN": "ICPC Root CA",
-            "key": {
-              "algo": "rsa",
-              "size": 2048
-            },
-            "names": [
-              {
-                "C": "US",
-                "O": "ICPC",
-                "OU": "ICPC SysOps CA"
-              }
-            ]
-          }
-    - name: Generate the CA key and cert
-      ansible.builtin.shell:
-      args:
-        cmd: |
-          set -o pipefail # prevent surprises in the pipeline
-          cfssl gencert -initca ca.json | cfssljson -bare ca
-        chdir: /root/ca
-        creates: /root/ca/ca.pem
-        executable: /bin/bash
+- name: Generate the CA key and cert
+  ansible.builtin.command:
+    # 43800h = 5 years, which is what cfssl's initca defaulted to
+    cmd: >
+      step certificate create "ICPC Root CA" ca.pem ca-key.pem
+      --profile root-ca
+      --kty RSA --size 2048
+      --not-after 43800h
+      --no-password --insecure
+    chdir: /root/ca
+    creates: /root/ca/ca.pem
 
-    - name: Make directory /root/ca/assemble
-      ansible.builtin.file:
-        state: directory
-        path: /root/ca/assemble
-        owner: root
-        group: root
-        mode: "0755"
+- name: Make directory /root/ca/assemble
+  ansible.builtin.file:
+    state: directory
+    path: /root/ca/assemble
+    owner: root
+    group: root
+    mode: "0755"
 
-    - name: Copy the CA cert to the system CA store
-      ansible.builtin.copy:
-        src: /root/ca/ca.pem
-        dest: /usr/local/share/ca-certificates/ca-icpc.crt
-        mode: "0644"
-        remote_src: true
-      notify: Run update-ca-certificates
-
-- name: Create ca-config.json definition
+- name: Copy the CA cert to the system CA store
   ansible.builtin.copy:
+    src: /root/ca/ca.pem
+    dest: /usr/local/share/ca-certificates/ca-icpc.crt
     mode: "0644"
-    dest: /root/ca/ca-config.json
-    # 8760h = 1 year
-    content: |
-      {
-        "signing": {
-          "default": {
-            "expiry": "8760h"
-          },
-          "profiles": {
-            "https": {
-              "usages": ["signing", "digital signing", "key encipherment", "server auth"],
-              "expiry": "8760h"
-            }
-          }
-        }
-      }
-
-- name: Create ca.json definition
-  ansible.builtin.copy:
-    mode: "0644"
-    dest: /root/ca/cert-template.json
-    content: |
-      {
-        "CN": "NAME_GOES_HERE",
-        "hosts": [""],
-        "key": {
-          "algo": "rsa",
-          "size": 2048
-        }
-      }
+    remote_src: true
+  notify: Run update-ca-certificates
 
 - name: Generate certs for hosts that need one
-  ansible.builtin.shell:
-  args:
+  ansible.builtin.command:
+    # 8760h = 1 year, matching the old ca-config.json https profile
     cmd: >
-      set -o pipefail &&
-      cat cert-template.json |
-      jq '.CN = "{{ item.cn }}"' |
-      cfssl gencert
-      -config=ca-config.json
-      -ca=ca.pem
-      -ca-key=ca-key.pem
-      -hostname="{{ item.hostnames }}"
-      -profile=https - |
-      cfssljson -bare "{{ item.name }}"
-    chdir: /root/ca/
+      step certificate create "{{ item.cn }}" {{ item.name }}.pem {{ item.name }}-key.pem
+      --profile leaf
+      --ca ca.pem --ca-key ca-key.pem
+      --kty RSA --size 2048
+      --not-after 8760h
+      --no-password --insecure
+      {% for host in item.hostnames.split(',') %}--san {{ host }} {% endfor %}
+    chdir: /root/ca
     creates: /root/ca/{{ item.name }}.pem
-    executable: /bin/bash
-  environment:
-    CFSSL_CA_PK_PASSWORD: '{{ ca_password | default("") }}'
-  with_items: "{{ ca_target_certs }}"
+  loop: "{{ ca_target_certs }}"
 
 - name: Copy certs to /etc/ssl
   ansible.builtin.copy:

@@ -111,6 +111,10 @@ firefox_default_policies:
     Locked: true
   SkipTermsOfUse: true
 
+# The CA tooling. smallstep is not in the ubuntu archive, so this is pinned to
+# a release .deb - check https://github.com/smallstep/cli/releases and bump.
+step_cli_version: 0.28.6
+
 ca_target_certs:
   - { name: "devdocs", cn: "reverseproxy", hostnames: "devdocs,libretranslate,icpc"}
   - { name: "vscgallery", cn: "marketplace.visualstudio.com", hostnames: "update.code.visualstudio.com,az764295.vo.msecnd.net,marketplace.visualstudio.com"}
