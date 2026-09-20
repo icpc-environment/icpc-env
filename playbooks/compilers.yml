@@ -73,26 +73,43 @@
             path: /tmp/devdocs-build
             build:
               file: Dockerfile-alpine
-        - name: Generate the container
-          containers.podman.podman_container:
+        - name: Make sure the quadlet directory exists
+          ansible.builtin.file:
+            path: /etc/containers/systemd
+            state: directory
+            mode: "0755"
+            owner: root
+            group: root
+        - name: Install the devdocs quadlet unit
+          ansible.builtin.copy:
+            dest: /etc/containers/systemd/devdocs.container
+            mode: "0644"
+            owner: root
+            group: root
+            content: |
+              [Unit]
+              Description=Local devdocs documentation server
+
+              [Container]
+              ContainerName=devdocs
+              Image=localhost/devdocs:latest
+              Network=host
+              # bind only to our special localhost ip
+              Exec=rackup -o 127.0.0.10
+
+              [Service]
+              Restart=always
+
+              [Install]
+              WantedBy=multi-user.target
+        # The quadlet generator turns the file above into devdocs.service on
+        # daemon-reload, and honours [Install] itself, so there is nothing to
+        # enable - a generated unit cannot be enabled with systemctl anyway.
+        - name: Ensure devdocs container is started
+          ansible.builtin.systemd_service:
             name: devdocs
-            image: devdocs:latest
-            rm: true
-            state: created
-            command: rackup -o 127.0.0.10 # bind only to our special localhost ip
-            network: host
-        - name: Generate systemd unit file for devdocs container
-          containers.podman.podman_generate_systemd:
-            name: devdocs
-            new: true
-            dest: /etc/systemd/system
-            restart_policy: always
-        - name: Ensure devdocs container is started and enabled
-          ansible.builtin.systemd:
-            name: container-devdocs
             daemon_reload: true
             state: started
-            enabled: true
 
 
 - name: Install language scripts

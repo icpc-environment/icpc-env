@@ -188,32 +188,51 @@
 #         --threads $THREADS \
 #         server:application
 
-- name: Generate the container
-  containers.podman.podman_container:
-    name: vscgallery
-    image: docker.io/lolinternet/vscgallery:latest
-    rm: true
-    state: created
-    network: host
-    env:
-      BIND: "127.0.0.5:443"
-    volumes:
-      - /opt/vscodeoffline:/artifacts
-      - /root/ca/vscgallery.pem:/opt/vscoffline/vscgallery/ssl/vscoffline.crt
-      - /root/ca/vscgallery-key.pem:/opt/vscoffline/vscgallery/ssl/vscoffline.key
-
-- name: Add container-vscgallery.service.d directory
+- name: Make sure the quadlet directory exists
   ansible.builtin.file:
-    name: /etc/systemd/system/container-vscgallery.service.d
+    path: /etc/containers/systemd
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Install the vscgallery quadlet unit
+  ansible.builtin.copy:
+    dest: /etc/containers/systemd/vscgallery.container
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      [Unit]
+      Description=Offline vscode extension marketplace
+
+      [Container]
+      ContainerName=vscgallery
+      Image=docker.io/lolinternet/vscgallery:latest
+      Network=host
+      Environment=BIND=127.0.0.5:443
+      Volume=/opt/vscodeoffline:/artifacts
+      Volume=/root/ca/vscgallery.pem:/opt/vscoffline/vscgallery/ssl/vscoffline.crt
+      Volume=/root/ca/vscgallery-key.pem:/opt/vscoffline/vscgallery/ssl/vscoffline.key
+
+      [Service]
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Add vscgallery.service.d directory
+  ansible.builtin.file:
+    name: /etc/systemd/system/vscgallery.service.d
     state: directory
     mode: '0755'
     owner: root
     group: root
 
-- name: Add container-vscgallery.service.d/10-ConditionHost file
+- name: Add vscgallery.service.d/10-ConditionHost file
   when: false # TODO: For World finals image only
   ansible.builtin.copy:
-    dest: /etc/systemd/system/container-vscgallery.service.d/10-ConditionHost.conf
+    dest: /etc/systemd/system/vscgallery.service.d/10-ConditionHost.conf
     mode: '0644'
     owner: root
     group: root
@@ -225,19 +244,14 @@
       ConditionHost=|judge*
       ConditionHost=|*admin*
 
-- name: Generate systemd unit file for vscgallery container
-  containers.podman.podman_generate_systemd:
+# The quadlet generator turns the file above into vscgallery.service on
+# daemon-reload, and honours [Install] itself, so there is nothing to enable -
+# a generated unit cannot be enabled with systemctl anyway.
+- name: Ensure vscgallery container is started
+  ansible.builtin.systemd_service:
     name: vscgallery
-    new: true
-    dest: /etc/systemd/system
-    restart_policy: always
-
-- name: Ensure vscgallery container is started and enabled
-  ansible.builtin.systemd:
-    name: container-vscgallery
     daemon_reload: true
     state: started
-    enabled: true
 
 - name: Update hosts file so the vscode update sites are present
   ansible.builtin.lineinfile:
