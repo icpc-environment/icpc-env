@@ -84,7 +84,7 @@
       - imagemagick
       - cups
       - cups-bsd
-      - enscript
+      - paps # UTF-8 clean replacement for enscript, used by files/scripts/pcpr
       - jc # for json output from various commands (used by firstLogin.sh)
       - python3-typing-extensions # needed for firstboot script
 
