@@ -160,17 +160,9 @@
     pkg: python3-xlib
 
 
-- name: Key for grafana apt repo
-  ansible.builtin.apt_key:
-    url: https://apt.grafana.com/gpg.key
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/grafana.gpg
-- name: Apt repo for grafana
-  ansible.builtin.apt_repository:
-    repo: "deb https://apt.grafana.com stable main"
-    update_cache: true
-- name: Install promtail (for sending logs to our server)
-  ansible.builtin.apt:
-    state: present
-    pkg:
-      - promtail
+# TODO: ship logs to the management server with grafana alloy.
+# promtail used to live here, but it was only ever installed - no config file
+# and no service - and grafana ended promtail support in early 2026. Alloy is
+# the replacement; it needs its own apt repo and a config before it goes back
+# in. Dropping promtail also drops the apt.grafana.com repo, which was being
+# left behind in the shipped image.
