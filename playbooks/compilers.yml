@@ -69,16 +69,17 @@
   block:
     - name: Fetch the devdocs repo
       ansible.builtin.git:
-        repo: https://github.com/freeCodeCamp/devdocs.git
+        # The icpcsysops fork carries the scraper fixes needed for current kotlin
+        repo: https://github.com/icpcsysops/devdocs.git
         dest: /tmp/devdocs-build
-        version: 'c7973164127fe21a5776b13453b1f37881d940a7' # main on 2026-01-19 (docker 20260201)
+        version: '6d2b0cd7ef8026180ccb9c4ed3a37d5cb08cf154' # main on 2026-08-20
         force: true
 
     - name: Update default_docs in lib/app.rb
       ansible.builtin.replace:
         path: /tmp/devdocs-build/lib/app.rb
         regexp: 'set :default_docs, %w.*'
-        replace: 'set :default_docs, %w(c cpp kotlin~1.9 openjdk~21 python~3.12)'
+        replace: 'set :default_docs, %w({{ devdocs_docs | join(" ") }})'
 
     - name: Update hideIntro in assets/javascripts/app/settings.js
       ansible.builtin.replace:
@@ -90,7 +91,7 @@
       ansible.builtin.replace:
         path: /tmp/devdocs-build/Dockerfile-alpine
         regexp: 'thor docs:download --all'
-        replace: "thor docs:download c cpp python@3.12 kotlin@1.9 openjdk@21"
+        replace: 'thor docs:download {{ devdocs_docs | map("regex_replace", "~", "@") | join(" ") }}'
 
     - name: Update dockerfile to fix the image name
       ansible.builtin.replace:

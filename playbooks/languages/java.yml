@@ -3,8 +3,8 @@
   ansible.builtin.apt:
     state: present
     pkg:
-      - openjdk-21-jdk
-      - openjdk-21-source   # 60 mb
+      - openjdk-{{ java_version }}-jdk
+      - openjdk-{{ java_version }}-source   # 46 mb
 
 - name: Register docs
   when: not devdocs
@@ -13,14 +13,14 @@
       ansible.builtin.apt:
         state: present
         pkg:
-          - openjdk-21-doc   # 246 mb
+          - openjdk-{{ java_version }}-doc   # 17 mb
     - ansible.utils.update_fact:
         updates:
           - path: "lang_docs['Java']"
             value:
               name: Java API Documentation
               id: java_api
-              path: /usr/share/doc/openjdk-21-doc/api
+              path: /usr/share/doc/openjdk-{{ java_version }}-doc/api
               index: index.html
       register: updated
     - set_fact:

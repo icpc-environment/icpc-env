@@ -17,8 +17,30 @@ language_scripts:
   runkotlin:  kotlin -Dfile.encoding=UTF-8 -J-XX:+UseSerialGC -J-Xss64m -J-Xms1920m -J-Xmx1920m "$@"
   runpython3: pypy3 "$@"
 
+# Compiler versions. These should match whatever the contest control system
+# judges with, so they are pinned here rather than tracking whatever the
+# distribution happens to ship.
+
 # https://downloads.python.org/pypy/ - match a version from here
 pypy3_version: pypy3.11-v7.3.18
+
+# openjdk-<version>-jdk must exist in the release being built against. 25 is in
+# 26.04; building against 24.04 needs 21.
+java_version: 25
+
+# Fetched from https://github.com/JetBrains/kotlin/releases
+kotlin_version: 2.4.10
+
+# Language documentation built into the devdocs image. devdocs has its own
+# version slugs, coarser than the versions above, so these have to be kept in
+# step with pypy3_version/java_version/kotlin_version by hand. The same list is
+# used for the docs devdocs downloads and the ones it shows by default.
+devdocs_docs:
+  - c
+  - cpp
+  - kotlin~2.4
+  - openjdk~25
+  - python~3.11
 
 # Which compilers/languages to install
 languages:

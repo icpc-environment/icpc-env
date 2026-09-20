@@ -3,8 +3,19 @@
   ansible.builtin.apt:
     pkg: unzip
     state: present
-- name: install kotlin # 2.1.21 matches kattis as of 2025-09-30
-  unarchive: src=files/kotlin-compiler-2.1.21.zip dest=/opt creates=/opt/kotlinc
+# Fetched at build time rather than shipped in files/, so kotlin_version is the
+# only thing that needs changing to move versions.
+- name: Download the kotlin compiler
+  ansible.builtin.get_url:
+    url: https://github.com/JetBrains/kotlin/releases/download/v{{ kotlin_version }}/kotlin-compiler-{{ kotlin_version }}.zip
+    dest: /tmp/kotlin-compiler-{{ kotlin_version }}.zip
+    mode: "0644"
+- name: Install kotlin
+  ansible.builtin.unarchive:
+    src: /tmp/kotlin-compiler-{{ kotlin_version }}.zip
+    dest: /opt
+    remote_src: true
+    creates: /opt/kotlinc
 - name: create symlinks for kotlin
   file:
     src: /opt/kotlinc/bin/{{ binary_name }}
