@@ -47,6 +47,7 @@
       - bindfs
       - libnss3-tools # for modifying the nssdb pki store (where vscode holds trusted root certificate authorities)
       - moreutils # for sponge to let us modify files "in-place"
+      - jq # rewrites the extension metadata further down, piped into sponge
 
 - name: Make sure vscode extension directory exists
   ansible.builtin.file:

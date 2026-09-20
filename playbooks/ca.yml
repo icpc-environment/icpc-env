@@ -7,13 +7,6 @@
   ansible.builtin.apt:
     deb: https://github.com/smallstep/cli/releases/download/v{{ step_cli_version }}/step-cli_{{ step_cli_version }}_amd64.deb
 
-# jq lives here rather than with the other admin tools in system.yml because
-# devel_tools/vscode.yml uses it and main.yml runs that first.
-- name: Install jq
-  ansible.builtin.apt:
-    pkg: jq
-    state: present
-
 - name: Create directory to hold or ca
   ansible.builtin.file:
     path: /root/{{ item }}
