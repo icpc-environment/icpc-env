@@ -34,6 +34,8 @@
     state: link
     force: true
 
+# TODO: this is still the 24.04 (noble) build - check whether the project
+# publishes a 26.04 one now that the image has moved
 - name: Install ghostty from unofficial deb (https://github.com/mkasberg/ghostty-ubuntu)
   ansible.builtin.apt:
     state: present

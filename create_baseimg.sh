@@ -1,32 +1,13 @@
 #!/bin/bash
 
 # Settings
-# Which ubuntu release to build a base image for. The previous release is kept
-# around so a known-good image can still be rebuilt mid-season:
-#   UBUNTU_RELEASE=24.04 ./create_baseimg.sh
-UBUNTU_RELEASE="${UBUNTU_RELEASE:-26.04}"
-
-case "$UBUNTU_RELEASE" in
-  24.04)
-    ISO64="ubuntu-24.04.3-live-server-amd64.iso"
-    CONFIGS="2404"
-    ;;
-  26.04)
-    ISO64="ubuntu-26.04-live-server-amd64.iso"
-    CONFIGS="2604"
-    ;;
-  *)
-    echo "Unknown UBUNTU_RELEASE '$UBUNTU_RELEASE' (expected 24.04 or 26.04)" >&2
-    exit 1
-    ;;
-esac
-
+ISO64="ubuntu-26.04-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
-IMG64="base-${UBUNTU_RELEASE}-amd64.img"
+IMG64="base-amd64.img"
 
 TMPDIR="tmp"
-USERDATA="configs/${CONFIGS}_autoinstall.yaml"
-METADATA="configs/${CONFIGS}_metadata"
+USERDATA="configs/2604_autoinstall.yaml"
+METADATA="configs/2604_metadata"
 
 function usage() {
   echo "Usage: create_baseimage.sh [-s size]"

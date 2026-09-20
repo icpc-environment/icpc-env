@@ -8,7 +8,7 @@
 set -euo pipefail
 
 VARIANT=${1:-generic}
-BASEIMG="${BASEIMG:-base-26.04-amd64.img}"
+BASEIMG="${BASEIMG:-base-amd64.img}"
 IMGFILE="${IMGFILE:-output/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img}"
 MNT="$PWD/tmp/chroot"
 

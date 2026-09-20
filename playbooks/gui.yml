@@ -150,8 +150,7 @@
 # The image is X11 throughout - the xorg.conf below, xrandr resolution setting,
 # X0.hosts, mirror-displays.sh and the screenshot tooling all assume it - so a
 # team landing in a wayland session silently loses all of that. Rename the
-# session files so only the X11 sessions are on offer. Harmless on 24.04, where
-# the files are not there and each task is skipped.
+# session files so only the X11 sessions are on offer.
 - name: Disable the wayland sessions
   ansible.builtin.command:
     cmd: mv /usr/share/wayland-sessions/{{ item }} /usr/share/wayland-sessions/{{ item }}.DISABLED
