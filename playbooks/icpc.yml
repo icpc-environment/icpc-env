@@ -103,35 +103,46 @@
 
 
 
-- name: copy ssh ca
-  copy:
+- name: Copy the ssh CA
+  ansible.builtin.copy:
     src: files/secrets/server_ca.pub
     dest: /etc/ssh/ca.pub
-    mode: 0644
+    mode: "0644"
+    owner: root
+    group: root
 
-- name: configure ssh ca to be enabled for allowing users to log in
-  copy:
-    content:
+- name: Configure the ssh CA to be enabled for allowing users to log in
+  ansible.builtin.copy:
+    content: |
       TrustedUserCAKeys /etc/ssh/ca.pub
     dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
-    mode: 0644
+    mode: "0644"
+    owner: root
+    group: root
 
 - name: Install a set of host keys that are signed by the ssh CA
-  copy:
-    src: files/secrets/contestant.icpcnet.internal_{{ item }}
-    dest: /etc/ssh/ssh_{{ item }}
-  with_items:
-    - host_ed25519_key
-    - host_ed25519_key.pub
-    - host_ed25519_key-cert.pub
+  ansible.builtin.copy:
+    src: files/secrets/contestant.icpcnet.internal_{{ item.name }}
+    dest: /etc/ssh/ssh_{{ item.name }}
+    mode: "{{ item.mode }}"
+    owner: root
+    group: root
+  loop:
+    # sshd refuses a host key that anything but root can read
+    - {name: host_ed25519_key, mode: "0600"}
+    - {name: host_ed25519_key.pub, mode: "0644"}
+    - {name: host_ed25519_key-cert.pub, mode: "0644"}
+  notify: Restart ssh
 
 - name: sshd host certificate
-  copy:
+  ansible.builtin.copy:
     content: |
       HostKey /etc/ssh/ssh_host_ed25519_key
       HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
     dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
-    mode: 0644
+    mode: "0644"
+    owner: root
+    group: root
   notify: Restart ssh
 
 
@@ -139,10 +150,21 @@
 
 
 
-- name: create icpcadmin group
-  group: name='icpcadmin' state='present'
-- name: create icpcadmin user # TODO: make idempotent
-  user: name='icpcadmin' comment="ICPC Local Admin" group='icpcadmin' groups='sudo,adm,lpadmin' password='{{ icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
+- name: Create the icpcadmin group
+  ansible.builtin.group:
+    name: icpcadmin
+    state: present
+- name: Create the icpcadmin user
+  ansible.builtin.user:
+    name: icpcadmin
+    comment: ICPC Local Admin
+    group: icpcadmin
+    groups: sudo,adm,lpadmin
+    password: "{{ icpcadmin_pass | password_hash('sha512') }}"
+    # password_hash picks a new salt every run, so without this the task always
+    # reports changed
+    update_password: on_create
+    shell: /bin/bash
 
 - name: Make sure desktop directory exists
   ansible.builtin.file:
@@ -167,66 +189,101 @@
     path: /home/icpcadmin/.config/autostart
     state: absent
 
-- name: create contestant group
-  group: name='contestant' state='present'
-- name: create contestant user (with empty/blank password)
-  user: name='contestant' group='contestant' groups='lpadmin' password='$1$salty$lOyh/41oDtq.J4v0Lltp4.' shell='/bin/bash'
+- name: Create the contestant group
+  ansible.builtin.group:
+    name: contestant
+    state: present
+- name: Create the contestant user (with empty/blank password)
+  ansible.builtin.user:
+    name: contestant
+    group: contestant
+    groups: lpadmin
+    password: '$1$salty$lOyh/41oDtq.J4v0Lltp4.'
+    update_password: on_create
+    shell: /bin/bash
   notify:
-      - Clear user password
+    - Clear user password
 
 
-- name: create team reset group
-  group: name='teamreset' state='present'
-- name: create team reset user # TODO: make idempotent (I think it's the password hash causing trouble here)
-  user: name='teamreset' comment="Clear Team Account" group='teamreset' groups='sudo,adm,lpadmin' createhome=no password='{{icpcadmin_pass | password_hash('sha512') }}' shell='/bin/bash'
-- name: make home folder/autostart path
-  file: state=directory path=/home/teamreset/.config/autostart owner=teamreset group=teamreset
-- name: create autostart file
-  copy: src=files/teamreset.desktop dest=/home/teamreset/.config/autostart/teamreset.desktop
+- name: Create the team reset group
+  ansible.builtin.group:
+    name: teamreset
+    state: present
+- name: Create the team reset user
+  ansible.builtin.user:
+    name: teamreset
+    comment: Clear Team Account
+    group: teamreset
+    groups: sudo,adm,lpadmin
+    create_home: false
+    password: "{{ icpcadmin_pass | password_hash('sha512') }}"
+    update_password: on_create
+    shell: /bin/bash
+- name: Make the teamreset home folder/autostart path
+  ansible.builtin.file:
+    path: /home/teamreset/.config/autostart
+    state: directory
+    owner: teamreset
+    group: teamreset
+    mode: "0755"
+- name: Create the teamreset autostart file
+  ansible.builtin.copy:
+    src: files/teamreset.desktop
+    dest: /home/teamreset/.config/autostart/teamreset.desktop
+    owner: teamreset
+    group: teamreset
+    mode: "0644"
 
 - name: Setup sudo for the admin(s)
-  copy:
+  ansible.builtin.copy:
     dest: /etc/sudoers.d/icpcadmins
-    mode: 0440
+    mode: "0440"
+    owner: root
+    group: root
     content: |
       # icpcadmin can run any command without a password
       icpcadmin ALL=NOPASSWD: ALL
       teamreset ALL=NOPASSWD: ALL
 
 - name: Check for ICPC partition
-  ansible.builtin.shell: blkid -L "ICPC"
+  ansible.builtin.command: blkid -L "ICPC"
   register: icpc_partition
-  ignore_errors: true
   failed_when: false
   changed_when: false
 
 - name: If there is an icpc partition
   when: icpc_partition.rc == 0
   block:
-  - name: create mountpoint
-    ansible.builtin.file: path=/mnt/usbdrive state=directory
-  - name: mount fat32 partition
-    ansible.builtin.mount: >
-      name=/mnt/usbdrive
-      src='LABEL=ICPC'
-      fstype=vfat
-      opts="defaults,uid=contestant,gid=contestant"
-      state=present
-  - name: Create a symlink to the usb drive in /etc/skel
-    ansible.builtin.file:
-      src: /mnt/usbdrive
-      dest: /etc/skel/USB Drive
-      state: link
-      owner: root
-      group: root
-      mode: '0755'
+    - name: Create the usb drive mountpoint
+      ansible.builtin.file:
+        path: /mnt/usbdrive
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Mount the fat32 partition
+      ansible.posix.mount:
+        path: /mnt/usbdrive
+        src: LABEL=ICPC
+        fstype: vfat
+        opts: defaults,uid=contestant,gid=contestant
+        state: present
+    - name: Create a symlink to the usb drive in /etc/skel
+      ansible.builtin.file:
+        src: /mnt/usbdrive
+        dest: "/etc/skel/USB Drive"
+        state: link
+        owner: root
+        group: root
+        mode: '0755'
 
 
-- import_tasks: management/firstboot-setup.yml
+- name: Include firstboot setup
+  ansible.builtin.import_tasks: management/firstboot-setup.yml
 
 - name: Create /usr/share/doc/icpc
   ansible.builtin.file:
-    name: /usr/share/doc/icpc
+    path: /usr/share/doc/icpc
     state: directory
     mode: '0755'
     owner: root
