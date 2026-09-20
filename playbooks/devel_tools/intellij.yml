@@ -7,8 +7,18 @@
     dest: /etc/apt/keyrings/jetbrains.asc
   when: apt_package_source != 'pc2'
 - name: Apt repo for IntelliJ IDEA
-  ansible.builtin.apt_repository:
-    repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/jetbrains.asc] http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com any main
+  ansible.builtin.deb822_repository:
+    name: jetbrains
+    types: deb
+    uris: http://jetbrains-ppa.s3-website.eu-central-1.amazonaws.com
+    suites: any
+    components: main
+    architectures: amd64
+    signed_by: /etc/apt/keyrings/jetbrains.asc
+  when: apt_package_source != 'pc2'
+
+- name: Refresh the apt cache for the jetbrains repository
+  ansible.builtin.apt:
     update_cache: true
   when: apt_package_source != 'pc2'
 

@@ -1,14 +1,21 @@
 ---
 - name: install dart repo key
-  apt_key:
+  ansible.builtin.get_url:
     url: https://dl-ssl.google.com/linux/linux_signing_key.pub
-    id: 7FAC5991
-    keyring: /etc/apt/trusted.gpg.d/google.gpg
+    dest: /etc/apt/keyrings/dart.asc
 
 - name: install dart repo
-  apt_repository:
-    repo: "deb [arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main"
-    state: present
-    filename: 'google-dart'
+  ansible.builtin.deb822_repository:
+    name: google-dart
+    types: deb
+    uris: https://storage.googleapis.com/download.dartlang.org/linux/debian
+    suites: stable
+    components: main
+    architectures: amd64
+    signed_by: /etc/apt/keyrings/dart.asc
+
 - name: install dart
-  apt: pkg=dart state=present
+  ansible.builtin.apt:
+    pkg: dart
+    state: present
+    update_cache: true

@@ -55,9 +55,17 @@
         dest: /etc/apt/keyrings/mozillateamppa.asc
 
     - name: Add the mozilla team ppa
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/mozillateamppa.asc] https://ppa.launchpadcontent.net/mozillateam/ppa/ubuntu  {{ ansible_distribution_release }} main"
-        state: present
+      ansible.builtin.deb822_repository:
+        name: mozillateamppa
+        types: deb
+        uris: https://ppa.launchpadcontent.net/mozillateam/ppa/ubuntu
+        suites: "{{ ansible_distribution_release }}"
+        components: main
+        architectures: amd64
+        signed_by: /etc/apt/keyrings/mozillateamppa.asc
+
+    - name: Refresh the apt cache for the mozilla team ppa
+      ansible.builtin.apt:
         update_cache: true
 
 - name: Apt preference for firefox to only install from the ppa

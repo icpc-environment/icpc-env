@@ -1,17 +1,27 @@
 # Skipped when building against the sysops mirror, which carries its own
 # mirror of this repository (see playbooks/apt-sources.yml).
-- name: apt key for vscode
-  ansible.builtin.apt_key:
+- name: Fetch the vscode signing key
+  ansible.builtin.get_url:
     url: https://packages.microsoft.com/keys/microsoft.asc
-    state: present
-    keyring: /etc/apt/trusted.gpg.d/microsoft.gpg
+    dest: /etc/apt/keyrings/microsoft.asc
   when: apt_package_source != 'pc2'
 
-- name: apt repo for vscode
-  ansible.builtin.apt_repository:
-    repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+# The code package's postinst manages this same file once it is installed,
+# which is what the code/add-microsoft-repo debconf answer below is about.
+- name: Add the vscode repository
+  ansible.builtin.deb822_repository:
+    name: vscode
+    types: deb
+    uris: https://packages.microsoft.com/repos/vscode
+    suites: stable
+    components: main
+    architectures: amd64
+    signed_by: /etc/apt/keyrings/microsoft.asc
+  when: apt_package_source != 'pc2'
+
+- name: Refresh the apt cache for the vscode repository
+  ansible.builtin.apt:
     update_cache: true
-    filename: vscode
   when: apt_package_source != 'pc2'
 
 - name: Remove any entries from the hosts file for vscode extensions, so we can install/update them properly
