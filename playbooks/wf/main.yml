@@ -1,0 +1,23 @@
+---
+# Things specific to the world finals icpc image
+
+# - name: Create icpc group
+#   ansible.builtin.group:
+#     name: 'icpc'
+#     state: present
+
+# - name: Create teams group
+#   ansible.builtin.group:
+#     name: 'teams'
+#     state: present
+#     gid: 2000
+
+# - name: Create users
+#   ansible.builtin.user:
+#     name: "{{ item.username }}"
+#     comment: "{{ item.comment | default('') }}"
+#     group: "{{ item.group | default(item.username) }}"
+#     groups: "{{ item.groups | default('') }}"
+#     shell: "{{ item.shell | default('/bin/bash') }}"
+#     password: "{{ item.password_hash }}"
+#   with_items: "{{ icpc_users_array }}"

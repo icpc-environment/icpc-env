@@ -1,4 +1,0 @@
-# Install netbeans debian package
-- name: Install netbeans debian package
-  apt:
-    deb: https://dlcdn.apache.org/netbeans/netbeans-installers/20/apache-netbeans_20-1_all.deb

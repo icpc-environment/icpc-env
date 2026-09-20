@@ -64,14 +64,6 @@
   when: "'vscode' in devtools"
   ansible.builtin.include_tasks: 'devel_tools/vscode.yml'
 
-- name: Install zed
-  when: "'zed' in devtools"
-  ansible.builtin.include_tasks: 'devel_tools/zed.yml'
-
-- name: Install netbeans
-  when: "'netbeans' in devtools"
-  ansible.builtin.include_tasks: 'devel_tools/netbeans.yml'
-
 - name: Install codelite
   when: "'codelite' in devtools"
   ansible.builtin.include_tasks: 'devel_tools/codelite.yml'
@@ -97,24 +89,6 @@
   when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
   ansible.builtin.include_tasks: 'devel_tools/intellij.yml'
 
-
-- name: install monodevelop
-  when: "('monodevelop' in devtools)"
-  block:
-  - name: key for monodevelop apt repo
-    apt_key:
-      keyserver: keyserver.ubuntu.com
-      id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-      keyring: /etc/apt/trusted.gpg.d/monodevelop.gpg
-  - name: apt repo for monodevelop
-    apt_repository: repo="deb https://download.mono-project.com/repo/ubuntu stable-bionic main" update_cache=yes
-  - name: install monodevelop
-    apt:
-      state: present
-      pkg:
-        # Monodevelop and friends: 140mb
-        - monodevelop
-        #- monodevelop-debugger-gdb
 
 # - name: clone spacemacs
 #   git: dest=/opt/spacemacs/emacs.d repo=https://github.com/syl20bnr/spacemacs

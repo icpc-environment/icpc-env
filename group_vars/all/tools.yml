@@ -7,10 +7,7 @@ devtools:
   - eclipse
   - geany
   # - codeblocks
-  # - zed # TODO: broken?
   - codelite
-  # - netbeans
-  # - monodevelop
 
 # These extensions will be installed out of the box
 vscode_extensions:
