@@ -64,7 +64,15 @@ function waitforssh() {
   fi
 }
 
-qemu-system-x86_64 -smp 2 -m 4096 -drive file="$IMGFILE",index=0,media=disk,format=raw --enable-kvm -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE -vnc :0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet
+# Cloud builders often have no /dev/kvm, where --enable-kvm is fatal rather than slow
+if [ -r /dev/kvm ]; then
+  KVMARGS="--enable-kvm"
+else
+  echo "No /dev/kvm - falling back to emulation, this will be slow"
+  KVMARGS=""
+fi
+
+qemu-system-x86_64 -smp 2 -m 4096 -drive file="$IMGFILE",index=0,media=disk,format=raw $KVMARGS -net user,hostfwd=tcp::$SSHPORT-:22 -net nic --daemonize --pidfile $PIDFILE -vnc :0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet
 
 ALIVE=0
 waitforssh
@@ -103,6 +111,13 @@ tail --pid=$(cat $PIDFILE) -f /dev/null
 # Dig holes in the file to make it sparse (i.e. smaller!)
 fallocate -d $IMGFILE
 echo "Image file created: $IMGFILE($(du -h $IMGFILE | cut -f1))"
+
+# Opt-in, since it changes what the downstream tooling has to consume.
+# pigz rather than gzip so this uses every core: http://zlib.net/pigz/
+if [ "${COMPRESS:-0}" != "0" ]; then
+  pigz -9 "$IMGFILE"
+  echo "Compressed to $IMGFILE.gz($(du -h "$IMGFILE.gz" | cut -f1))"
+fi
 
 # Move off our ssd to slow/bulk storage
 # mv $IMGFILE output/
