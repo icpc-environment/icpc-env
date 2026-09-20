@@ -42,29 +42,3 @@
 # it's a readthedocs site, but doesn't have any downloads :(
 # https://readthedocs.org/projects/pypy/downloads/
 
-- name: python3 docs
-  when: not devdocs
-  block:
-    - name: Python 3 docs
-      ansible.builtin.apt:
-        state: present
-        pkg:
-          - python3-doc     # 37.2 mb
-          - pypy3-doc # 5mb
-    - ansible.utils.update_fact:
-        updates:
-          - path: "lang_docs['Python 3']"
-            value:
-              name: Python 3 Documentation
-              id: py3
-              path: /usr/share/doc/python3-doc/html
-              index: index.html
-          - path: "lang_docs['PyPy 3']"
-            value:
-              name: PyPy3 Documentation
-              id: pypy3
-              path: /usr/share/doc/pypy3-doc/html
-              index: index.html
-      register: updated
-    - set_fact:
-        lang_docs: "{{ updated.lang_docs }}"

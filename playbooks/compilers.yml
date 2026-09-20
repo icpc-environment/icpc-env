@@ -4,48 +4,12 @@
     pkg: build-essential
     state: present
 
-- name: Create a lang docs fact
-  ansible.builtin.set_fact:
-    lang_docs: {}
-
 - name: Include various languages
   ansible.builtin.include_tasks: "languages/{{ language }}.yml"
   loop: "{{ languages }}"
   loop_control:
     loop_var: language
 
-- name: Old style docs
-  when: not devdocs
-  block:
-    - name: Dump the lang_docs fact
-      ansible.builtin.debug:
-        var: lang_docs
-    - name: Make sure web dir exists
-      ansible.builtin.file:
-        state: directory
-        path: /opt/localwww
-        mode: "0755"
-        owner: "root"
-        group: "root"
-    - name: Create symlinks to docs
-      ansible.builtin.file:
-        state: link
-        src: "{{ item.value.path }}"
-        dest: /opt/localwww/{{ item.value.id }}
-        mode: "0644"
-        owner: "root"
-        group: "root"
-      loop: "{{ lang_docs | dict2items }}"
-    - name: Create simple index page for links to docs
-      ansible.builtin.template:
-        src: files/language-docs.html.j2
-        dest: /opt/localwww/index.html
-        mode: "0644"
-        owner: "root"
-        group: "root"
-
-
-# This set of devdocs stuff takes about ~700MiB or so for the docker containers
 - name: Install podman (for devdocs)
   ansible.builtin.apt:
     pkg: podman

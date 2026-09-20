@@ -1,7 +1,4 @@
 ---
-# Use devdocs instead of random local docs
-devdocs: true
-
 # Simple wrapper scripts to install on the image, so that contestants have a consistent view of how to compile and run programs
 # that matches with how the contest control system will run it.
 language_scripts:
