@@ -1,0 +1,58 @@
+---
+# A static iptables ruleset, for contests that already maintain one as
+# iptables-save output. The rules live in the iptables_rules variable so they
+# sit with the rest of a contest's configuration in group_vars, rather than in
+# a separate per-contest file under files/.
+- name: Check that a ruleset was provided
+  ansible.builtin.assert:
+    that:
+      - iptables_rules is not none
+      - iptables_rules | trim | length > 0
+    fail_msg: >-
+      firewall_backend is 'iptables_static' but iptables_rules is empty.
+      Set it to the contents of an iptables-save file.
+    quiet: true
+
+- name: Install iptables
+  ansible.builtin.apt:
+    pkg:
+      - iptables
+    state: present
+
+- name: Write the iptables ruleset
+  ansible.builtin.copy:
+    content: "{{ iptables_rules }}"
+    dest: /etc/iptables.rules
+    mode: "0600"
+    owner: root
+    group: root
+  notify: Reload iptables
+
+# The ruleset is not persistent across boots on its own, so reload it whenever
+# an interface comes up. Covers NetworkManager (what the image actually uses),
+# networkd-dispatcher and ifupdown, so the rules still land if the network
+# configuration changes later.
+- name: Install the iptables restore hooks
+  vars:
+    restore_hooks:
+      - /etc/NetworkManager/dispatcher.d/pre-up.d/iptablesload
+      - /etc/networkd-dispatcher/routable.d/50-iptablesload
+      - /etc/network/if-pre-up.d/iptablesload
+  block:
+    - name: Make sure the network dispatcher directories exist
+      ansible.builtin.file:
+        path: "{{ item | dirname }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      loop: "{{ restore_hooks }}"
+
+    - name: Install the iptables restore hook
+      ansible.builtin.copy:
+        src: files/iptablesload
+        dest: "{{ item }}"
+        mode: "0755"
+        owner: root
+        group: root
+      loop: "{{ restore_hooks }}"

@@ -1,0 +1,8 @@
+#!/bin/bash
+# Restore the static iptables ruleset written by playbooks/security/iptables.yml.
+# Run from the network dispatcher hooks, since the ruleset is not persistent.
+set -e
+
+if [ -f /etc/iptables.rules ]; then
+  iptables-restore -w < /etc/iptables.rules
+fi

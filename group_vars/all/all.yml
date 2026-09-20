@@ -17,6 +17,25 @@ submit_ccs: 'kattis'
 # Only used when 'pc2' is in ccs_tools - where the pc2 submit client posts to
 pc2_submit_base_url: https://pc2server.icpc-vcss.org:50443
 
+# How the image filters traffic.
+#
+#   nftables        - the ruleset in playbooks/security/nftables.yml, which
+#                     blocks the contestant user from the network directly and
+#                     leaves everything else to squid.
+#   iptables_static - a ruleset a contest already maintains, taken verbatim from
+#                     iptables_rules below.
+firewall_backend: nftables
+
+# Only used when firewall_backend is 'iptables_static'. Set to the contents of
+# an iptables-save file, e.g.
+#
+#   iptables_rules: |
+#     *filter
+#     :INPUT ACCEPT [0:0]
+#     -A INPUT -i lo -j ACCEPT
+#     COMMIT
+iptables_rules: null
+
 # Set to the hostname of a remote management server. See RemoteManagement.md for more details
 # This is the host that has your lastminute git repositories, as well as a wg-fleet install that is aware of your contest-id
 # Set to null to disable the remote vpn and lastminute ansible

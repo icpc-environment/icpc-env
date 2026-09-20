@@ -1,3 +1,13 @@
 ---
 - ansible.builtin.import_tasks: squid.yml
-- ansible.builtin.import_tasks: nftables.yml
+
+# Packet filtering. nftables is the default and is generated from this repo;
+# iptables_static takes a ruleset a contest already maintains. See
+# firewall_backend in group_vars/all/all.yml.
+- name: Configure the nftables firewall
+  ansible.builtin.include_tasks: nftables.yml
+  when: firewall_backend == 'nftables'
+
+- name: Configure a static iptables firewall
+  ansible.builtin.include_tasks: iptables.yml
+  when: firewall_backend == 'iptables_static'
