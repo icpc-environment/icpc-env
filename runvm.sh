@@ -9,7 +9,7 @@ PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
 
-BASEIMG="base-amd64.img"
+BASEIMG="${BASEIMG:-base-26.04-amd64.img}"
 
 trap ctrl_c INT
 function ctrl_c() {

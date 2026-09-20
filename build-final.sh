@@ -15,7 +15,7 @@ if [[ $VARIANT != 'all' ]]; then
   IMGFILE="output/$VARIANT-$(date +%Y-%m-%d)_image-amd64.img"
 fi
 
-BASEIMG="base-amd64.img"
+BASEIMG="${BASEIMG:-base-26.04-amd64.img}"
 
 # Copy to a raw disk image
 qemu-img convert -O raw output/$BASEIMG $IMGFILE
