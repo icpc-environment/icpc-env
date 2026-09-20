@@ -112,6 +112,27 @@
         creates: /usr/share/applications/clion.desktop.disabled
       when: clion_license_key | length == 0
 
+# JetBrains ships AI assistant/completion plugins with the IDEs. Remove them from
+# every product we install rather than per-product, since which plugin lands in
+# which IDE moves around between releases and a missing path is a no-op.
+- name: Remove the AI plugins bundled with the JetBrains IDEs
+  ansible.builtin.file:
+    path: "/opt/{{ item.0 }}/plugins/{{ item.1 }}"
+    state: absent
+  loop: "{{ ['intellij-idea-community', 'pycharm-community', 'clion'] | product(['fullLine', 'full-line-completion', 'llm', 'ml-llm']) | list }}"
+
+# The IDEs also look for a .noai marker to disable all AI features machine-wide.
+- name: Create the .noai marker so the JetBrains IDEs disable AI features
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: ""
+    mode: "0644"
+    owner: root
+    group: root
+  loop:
+    - /.noai
+    - /etc/skel/.noai
+
 - name: Make sure directory exists for accepting eula prefs
   ansible.builtin.file:
     # This wild path is the java encoded version of `privacy_policy`

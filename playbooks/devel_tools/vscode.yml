@@ -251,6 +251,8 @@
     content: |
       {
         "chat.disableAIFeatures": true,
+        "github.completions.enabled": false,
+        "editor.inlineSuggest.enabled": false,
         "security.workspace.trust.enabled": false
       }
 
