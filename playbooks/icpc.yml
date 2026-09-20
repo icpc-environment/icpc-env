@@ -82,7 +82,6 @@
       - openprinting-ppds
       - git
       - imagemagick
-      - git
       - cups
       - cups-bsd
       - enscript

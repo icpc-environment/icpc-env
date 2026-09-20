@@ -9,7 +9,6 @@
       - dstat
       - iotop
       - sysstat
-      - dstat
       # misc admin tools
       - util-linux-extra  # for hwclock
       - net-tools   # for ifconfig/old tools
