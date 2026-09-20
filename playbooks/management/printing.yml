@@ -1,5 +1,0 @@
-- name: Install pappl-dev to support our custom print server wrapper
-  ansible.builtin.apt:
-    name: pappl-dev
-    state: present
-    update_cache: yes
