@@ -22,7 +22,8 @@
       - ripgrep        # a fast grep replacement
       - zoxide         # smarter cd replacement
       - fd-find        # a simple, fast and user-friendly alternative to 'find'
-      - kitty   # an alternative terminal emulator
+      - kitty          # an alternative terminal emulator
+      - ghostty        # another one - in universe as of 26.04
 
       # TODO: better fonts?
       # https://learn.omacom.io/2/the-omarchy-manual/94/fonts
@@ -33,13 +34,6 @@
     dest: /usr/local/bin/fd
     state: link
     force: true
-
-# TODO: this is still the 24.04 (noble) build - check whether the project
-# publishes a 26.04 one now that the image has moved
-- name: Install ghostty from unofficial deb (https://github.com/mkasberg/ghostty-ubuntu)
-  ansible.builtin.apt:
-    state: present
-    deb: https://github.com/mkasberg/ghostty-ubuntu/releases/download/1.2.0-0-ppa2/ghostty_1.2.0-0.ppa2_amd64_24.04.deb
 
 - name: set vim.gtk3 as the default gvim, not neovim-qt (since neovim-qt probably isn't what people expect)
   community.general.alternatives:
