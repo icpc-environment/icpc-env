@@ -86,6 +86,12 @@ sleep 5
 ALIVE=0
 waitforssh
 
+# Run the self test and pull the package/module inventory off the image before
+# makeDist.sh strips it down, so builds can be diffed against each other.
+ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/self_test"
+scp -i $SSH_ICPCADMIN_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -P $SSHPORT icpcadmin@localhost:/icpc/filesystem.manifest.amd64.txt output/
+scp -i $SSH_ICPCADMIN_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -P $SSHPORT icpcadmin@localhost:/icpc/pypy3.modules.txt output/
+
 echo "Preparing image for distribution"
 set -x
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/makeDist.sh"

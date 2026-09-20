@@ -179,3 +179,13 @@ echo "${BLUE}Image Details${RESET}"
 VERSIONINFO=$(cat /icpc/version 2>/dev/null)
 VERSIONDEFAULT="${RED}No version info found!${DEFAULT}"
 echo -e "${VERSIONINFO:-$VERSIONDEFAULT}"
+
+# Dump a machine-readable inventory of what actually landed in the image, so two
+# builds can be diffed against each other. Needs root, so this is skipped when a
+# user runs the self test interactively from the desktop shortcut.
+if [ -w /icpc ]; then
+  dpkg-query -W --showformat='${Package} ${Version}\n' > /icpc/filesystem.manifest.amd64.txt
+  if command -v pypy3 >/dev/null 2>&1; then
+    pypy3 -c "help('modules')" > /icpc/pypy3.modules.txt 2>/dev/null
+  fi
+fi
