@@ -1,0 +1,15 @@
+# Only the shared defaults and the generic example belong in git. Per-contest
+# configs, and all/secret.yml (which holds a real jetbrains license key), stay
+# local. This is an allowlist so a new file dropped in here is ignored by
+# default rather than needing someone to remember a new rule.
+#
+# !.gitignore keeps this file itself tracked - it used to be swallowed by the
+# leading * below, which meant none of these rules existed in a fresh clone.
+*
+!.gitignore
+!generic.yml
+!all/
+all/*
+!all/all.yml
+!all/languages.yml
+!all/tools.yml
