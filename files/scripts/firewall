@@ -1,0 +1,28 @@
+#!/bin/bash
+# Check, enable or disable the packet filter, for either firewall_backend:
+# nftables (/etc/nftables.conf) or a static iptables ruleset (/etc/iptables.rules).
+
+case "$1" in
+  status)
+    if [ -f /etc/iptables.rules ]; then
+      iptables-save | grep -q '^-A'
+    else
+      nft list table inet filter >/dev/null 2>&1
+    fi
+    ;;
+  enable)
+    if [ -f /etc/iptables.rules ]; then
+      iptables-restore -w < /etc/iptables.rules
+    else
+      systemctl restart nftables
+    fi
+    ;;
+  disable)
+    systemctl stop nftables 2>/dev/null
+    nft flush ruleset
+    ;;
+  *)
+    echo "usage: $0 status|enable|disable" >&2
+    exit 2
+    ;;
+esac

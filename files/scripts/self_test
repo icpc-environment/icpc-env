@@ -105,7 +105,7 @@ echo "$PRINTERS"
 echo
 echo "${BLUE}Connectivity Test${RESET}"
 print_check "Checking if the firewall is enabled"
-ufw status 2>&1 | grep 'Status: active' >/dev/null
+/icpc/scripts/firewall status
 check_return $?
 
 

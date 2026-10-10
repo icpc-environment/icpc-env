@@ -1,3 +1,3 @@
 #!/bin/bash
-ufw enable
+/icpc/scripts/firewall enable
 zenity --info --text="Firewall enabled."

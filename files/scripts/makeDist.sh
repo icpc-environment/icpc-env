@@ -48,7 +48,7 @@ rm -rf /var/lib/apt/lists
 mkdir -p /var/lib/apt/lists/partial
 
 # enable the firewall
-ufw --force enable
+$UTILDIR/scripts/firewall enable
 
 # Delete /etc/machine-id so the image generates a new one on boot
 echo
