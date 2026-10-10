@@ -1,3 +1,5 @@
+mod vm 'dev/vm.just'
+
 test:
     ./runvm.sh
 
