@@ -87,7 +87,7 @@ up image="" timeout="600": && (wait-ssh timeout)
     qemu-system-x86_64 -name "icpc-$VM_NAME" -machine q35,smm=on "${ACCEL[@]}" -smp "$VM_CPUS" -m "$VM_MEM" \
       -global driver=cfi.pflash01,property=secure,value=on \
       -drive if=pflash,format=raw,unit=0,file="$VM_OVMF_CODE",readonly=on \
-      -drive if=pflash,format=qcow2,unit=1,file="$VM_STATE/vars.qcow2" \
+      -drive if=pflash,format=qcow2,unit=1,file="$VM_STATE/vars.qcow2",cache=unsafe \
       -drive file="$VM_STATE/disk.qcow2",index=0,media=disk,format=qcow2,cache=unsafe \
       -net user,hostfwd=tcp:127.0.0.1:"$VM_SSHPORT"-:22 -net nic \
       -vnc 127.0.0.1:"$VM_VNC" -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet \
