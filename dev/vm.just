@@ -198,11 +198,15 @@ ssh *cmd:
 admin *cmd:
     @{{ssh}} vm-admin "$@"
 
-# Run a shell command as the desktop session's user (normally contestant) on its display, e.g. `just vm gui 'xfce4-terminal &'`
+# Run a shell command as the desktop session's user (normally contestant) in its environment, e.g. `just vm gui 'xfce4-terminal &'`
 gui *cmd:
-    @{{ssh}} {{sudo_host}} "pid=\$(pgrep -o -x xfce4-session) || { echo 'error: no desktop session running' >&2; exit 1; }; \
-      xa=\$(sudo cat /proc/\$pid/environ | tr '\\0' '\\n' | sed -n 's/^XAUTHORITY=//p'); \
-      sudo -u \$(ps -o user= -p \$pid) env DISPLAY=:0 XAUTHORITY=\$xa bash -c $(printf %q "$*")"
+    #!/usr/bin/env bash
+    {{ssh}} {{sudo_host}} bash -s -- "$(printf %q "$*")" <<'EOF'
+    pid=$(pgrep -o -x xfce4-session) || { echo "error: no desktop session running" >&2; exit 1; }
+    mapfile -t session_env < <(sudo cat /proc/$pid/environ | tr '\0' '\n' |
+      grep -E '^(DISPLAY|XAUTHORITY|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|HOME)=')
+    sudo -u "$(ps -o user= -p "$pid")" env "${session_env[@]}" bash -c "cd ~ && $1" </dev/null
+    EOF
 
 # Copy files with scp, prefixing guest paths with `vm:` (or `vm-admin:`)
 cp +args:
@@ -244,6 +248,10 @@ ansible *args:
 # Summarise per-task timings from the last `ansible` run (or the one before it with `prev=.prev`)
 timings top="25" prev="":
     @python3 {{source_directory()}}/timings.py "$VM_STATE/timing.jsonl$2" "$1"
+
+# Launch, screenshot and close each desktop tool, then hello-world each language (or just the named ones, incl. `languages`)
+smoke *tools:
+    @{{source_directory()}}/smoke.sh "$@"
 
 # Reboot the guest and wait for ssh to come back
 reboot timeout="600":
