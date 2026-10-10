@@ -33,6 +33,7 @@
 
 - name: Build devdocs if it does not exist
   when: devdocs_info.images | length == 0
+  tags: [devdocs, slow]
   block:
     - name: Fetch the devdocs repo
       ansible.builtin.git:

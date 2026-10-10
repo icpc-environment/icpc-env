@@ -28,13 +28,29 @@ ssh config, serial log, ansible log and screenshots. Changes persist across `dow
 until `just vm reset`, which deletes the overlay. The base image is never modified.
 
 `just vm checkpoint save|load|delete|list <name>` snapshots disk + RAM in a few seconds.
-The usual loop for iterating on a role is:
+
+### Iterating on ansible
+
+Each import in `main.yml` is tagged with its area (`gui`, `homedir`, `ca`, `reverseproxy`,
+`compilers`, `devel_tools`, `icpc`, `vmtouch`, `network`, `system_restrictions`, `system`,
+`ccs`, `management`). Two more tags cut across them:
+
+- `slow`: the devdocs container build, about half of a full run.
+- `lockdown`: `network` and `system_restrictions`. Once the firewall is up, rerunning
+  other areas can fail (e.g. the vscode extension sync can't resolve DNS from podman).
+
+Build a re-runnable base without those, checkpoint it, then iterate on top:
 
 ```sh
-just vm up && just vm checkpoint save fresh
-just vm ansible --tags whatever      # edit, rerun...
-just vm checkpoint load fresh        # ...and roll back to try again from scratch
+just vm reset && just vm up && just vm checkpoint save base-booted
+just vm ansible --skip-tags slow,lockdown   # ~7.5 min vs ~17 for a full run
+just vm checkpoint save fast
+just vm ansible --tags gui                  # edit, rerun...
+just vm checkpoint load fast                # ...or roll back and try again
+just vm ansible                             # full run from base-booted before calling it done
 ```
+
+`just vm timings` shows where the last run spent its time, per file and per task.
 
 ### Running several VMs
 

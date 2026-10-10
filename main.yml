@@ -122,10 +122,10 @@
 
     - name: Include network security (squid and nftables)
       ansible.builtin.import_tasks: 'playbooks/security/network.yml'
-      tags: network
+      tags: [network, lockdown]
     - name: Include system restrictions
       ansible.builtin.import_tasks: 'playbooks/security/system-restrictions.yml'
-      tags: system_restrictions
+      tags: [system_restrictions, lockdown]
     - name: Include system
       ansible.builtin.import_tasks: 'playbooks/system.yml'
       tags: system
