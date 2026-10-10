@@ -51,7 +51,7 @@
   block:
     - name: Fetch the signing key
       ansible.builtin.get_url:
-        url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x0ab215679c571d1c8325275b9bdb3d89ce49ec21
+        url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x738beb9321d1aaec13ea9391aebdf4819be21867
         dest: /etc/apt/keyrings/mozillateamppa.asc
 
     - name: Add the mozilla team ppa
