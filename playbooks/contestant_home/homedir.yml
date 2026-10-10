@@ -178,7 +178,12 @@
             <property name="custom-menu" type="bool" value="false"/>
           </property>
           <property name="plugin-5" type="string" value="pager"/>
-          <property name="plugin-8" type="string" value="genmon"/>
+          <property name="plugin-8" type="string" value="genmon">
+            <property name="command" type="string" value="cat /icpc/TEAM"/>
+            <property name="use-label" type="bool" value="false"/>
+            <property name="update-period" type="int" value="30000"/>
+            <property name="font" type="string" value="Sans 10"/>
+          </property>
           <property name="plugin-10" type="string" value="separator">
             <property name="style" type="uint" value="0"/>
           </property>
@@ -186,16 +191,6 @@
         </property>
         <property name="configver" type="int" value="2"/>
       </channel>
-
-- name: Configure genmon (plugin id 8 in the panel config below)
-  copy:
-    dest: /etc/xdg/xfce4/panel/genmon-8.rc
-    content: |
-      Command=cat /icpc/TEAM
-      UseLabel=0
-      Text=(genmon)
-      UpdatePeriod=30000
-      Font=Sans 10
 
 - name: Configure xfce power management
   copy:
