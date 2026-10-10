@@ -62,11 +62,11 @@
 
 - name: Install vscode
   when: "'vscode' in devtools"
-  ansible.builtin.include_tasks: 'devel_tools/vscode.yml'
+  ansible.builtin.import_tasks: 'devel_tools/vscode.yml'
 
 - name: Install codelite
   when: "'codelite' in devtools"
-  ansible.builtin.include_tasks: 'devel_tools/codelite.yml'
+  ansible.builtin.import_tasks: 'devel_tools/codelite.yml'
 
 - name: Install geany
   when: "'geany' in devtools"
@@ -82,12 +82,12 @@
 # TODO: kcachegrind? (use valgrind --tool=callgrind to generate data for it)
 
 - name: Include eclipse
-  ansible.builtin.include_tasks: 'devel_tools/eclipse.yml'
+  ansible.builtin.import_tasks: 'devel_tools/eclipse.yml'
   when: "'eclipse' in devtools"
 
 - name: Include intellij
   when: ('intellij-idea' in devtools) or ('intellij-clion' in devtools) or ('intellij-pycharm' in devtools)
-  ansible.builtin.include_tasks: 'devel_tools/intellij.yml'
+  ansible.builtin.import_tasks: 'devel_tools/intellij.yml'
 
 
 # - name: clone spacemacs

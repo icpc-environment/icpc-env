@@ -9,10 +9,10 @@
     - .config/autostart
     - .config/menus
 
-- include_tasks: autostart_firefox.yml
-- include_tasks: firstlogin.yml
-- include_tasks: hide_apps.yml
-- include_tasks: user-dirs.yml
+- import_tasks: autostart_firefox.yml
+- import_tasks: firstlogin.yml
+- import_tasks: hide_apps.yml
+- import_tasks: user-dirs.yml
 
 
 - name: Create a script to mark all desktop files as trusted

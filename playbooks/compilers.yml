@@ -5,7 +5,10 @@
     state: present
 
 - name: Include various languages
-  ansible.builtin.include_tasks: "languages/{{ language }}.yml"
+  ansible.builtin.include_tasks:
+    file: "languages/{{ language }}.yml"
+    apply:
+      tags: always
   loop: "{{ languages }}"
   loop_control:
     loop_var: language

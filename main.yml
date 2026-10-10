@@ -96,43 +96,58 @@
 
     - name: Include gui
       ansible.builtin.import_tasks: 'playbooks/gui.yml'
+      tags: gui
     - name: Include contestant home
       ansible.builtin.import_tasks: 'playbooks/contestant_home/homedir.yml'
+      tags: homedir
     - name: Include ca
       ansible.builtin.import_tasks: 'playbooks/ca.yml'
+      tags: ca
     - name: Include reverseproxy
       ansible.builtin.import_tasks: 'playbooks/reverseproxy.yml'
+      tags: reverseproxy
     - name: Include compilers
       ansible.builtin.import_tasks: 'playbooks/compilers.yml'
+      tags: compilers
     - name: Include devel_tools
       ansible.builtin.import_tasks: 'playbooks/devel_tools.yml'
+      tags: devel_tools
 
     - name: Include icpc
       ansible.builtin.import_tasks: 'playbooks/icpc.yml'
+      tags: icpc
     - name: Include vmtouch
       ansible.builtin.import_tasks: 'playbooks/vmtouch.yml'
+      tags: vmtouch
 
     - name: Include network security (squid and nftables)
       ansible.builtin.import_tasks: 'playbooks/security/network.yml'
+      tags: network
     - name: Include system restrictions
       ansible.builtin.import_tasks: 'playbooks/security/system-restrictions.yml'
+      tags: system_restrictions
     - name: Include system
       ansible.builtin.import_tasks: 'playbooks/system.yml'
+      tags: system
 
     - name: Include ccs related things
       ansible.builtin.import_tasks: 'playbooks/ccs/ccs.yml'
+      tags: ccs
 
     # Management related things
     - name: Configure lastminute ansible execution (if enabled)
-      ansible.builtin.include_tasks: 'playbooks/management/ansible-pull.yml'
+      ansible.builtin.import_tasks: 'playbooks/management/ansible-pull.yml'
+      tags: management
       when: remote_management_server and (remote_management_lastminute_enabled | bool)
 
     - name: Configure remote management vpn (if enabled)
-      ansible.builtin.include_tasks: 'playbooks/management/vpn.yml'
+      ansible.builtin.import_tasks: 'playbooks/management/vpn.yml'
+      tags: management
       when: remote_management_server and (remote_management_vpn_enabled | bool)
 
     - name: Configure monitoring
-      ansible.builtin.include_tasks: 'playbooks/management/monitoring.yml'
+      ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
+      tags: management
 
     - name: Autoremove/autoclean/clean apt
       block:

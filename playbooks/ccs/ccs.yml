@@ -1,4 +1,7 @@
 ---
 - name: Include ccs tools
-  ansible.builtin.include_tasks: "playbooks/ccs/{{ item }}.yml"
+  ansible.builtin.include_tasks:
+    file: "playbooks/ccs/{{ item }}.yml"
+    apply:
+      tags: always
   loop: "{{ ccs_tools | default(['kattis']) }}"
