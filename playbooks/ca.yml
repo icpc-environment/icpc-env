@@ -5,7 +5,7 @@
 # image's sources. Same pattern as wstunnel in playbooks/management/vpn.yml.
 - name: Install step-cli for ca management
   ansible.builtin.apt:
-    deb: https://github.com/smallstep/cli/releases/download/v{{ step_cli_version }}/step-cli_{{ step_cli_version }}_amd64.deb
+    deb: https://github.com/smallstep/cli/releases/download/v{{ step_cli_version }}/step-cli_{{ step_cli_version }}-1_amd64.deb
 
 - name: Create directory to hold or ca
   ansible.builtin.file:
