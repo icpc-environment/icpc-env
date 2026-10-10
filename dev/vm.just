@@ -35,6 +35,8 @@ up image="" timeout="600": && (wait-ssh timeout)
       echo "$VM_NAME is already running"
       exit 0
     fi
+    mkdir -p tmp/vm
+    chattr +C tmp/vm 2>/dev/null || true
     mkdir -p "$VM_STATE/screenshots"
     if [ ! -f "$VM_STATE/disk.qcow2" ]; then
       img=$(realpath "${1:-output/base-amd64.img}")
@@ -86,7 +88,7 @@ up image="" timeout="600": && (wait-ssh timeout)
       -global driver=cfi.pflash01,property=secure,value=on \
       -drive if=pflash,format=raw,unit=0,file="$VM_OVMF_CODE",readonly=on \
       -drive if=pflash,format=qcow2,unit=1,file="$VM_STATE/vars.qcow2" \
-      -drive file="$VM_STATE/disk.qcow2",index=0,media=disk,format=qcow2 \
+      -drive file="$VM_STATE/disk.qcow2",index=0,media=disk,format=qcow2,cache=unsafe \
       -net user,hostfwd=tcp:127.0.0.1:"$VM_SSHPORT"-:22 -net nic \
       -vnc 127.0.0.1:"$VM_VNC" -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet \
       -qmp unix:"$QMP_SOCK",server=on,wait=off \
@@ -220,7 +222,11 @@ ansible *args:
     [$variant]
     vm
     EOF
-    [ -f "$VM_STATE/ansible.log" ] && mv "$VM_STATE/ansible.log" "$VM_STATE/ansible.log.prev"
+    for f in ansible.log timing.jsonl; do
+      [ -f "$VM_STATE/$f" ] && mv "$VM_STATE/$f" "$VM_STATE/$f.prev"
+    done
+    ansible_playbook=ansible-playbook
+    [ -x .venv/bin/ansible-playbook ] && ansible_playbook=.venv/bin/ansible-playbook
     echo "Running ansible (variant $variant), log in $VM_STATE/ansible.log"
     # Only changed/failed tasks are shown by default, set ANSIBLE_DISPLAY_OK_HOSTS=true to see everything
     ANSIBLE_HOST_KEY_CHECKING=False \
@@ -228,9 +234,16 @@ ansible *args:
     ANSIBLE_DISPLAY_SKIPPED_HOSTS="${ANSIBLE_DISPLAY_SKIPPED_HOSTS:-false}" \
     ANSIBLE_CALLBACK_RESULT_FORMAT="${ANSIBLE_CALLBACK_RESULT_FORMAT:-yaml}" \
     ANSIBLE_LOG_PATH="$VM_STATE/ansible.log" \
-      ansible-playbook -i "$VM_STATE/inventory" --diff --become -u imageadmin --private-key configs/imageadmin-ssh_key \
+    ANSIBLE_CALLBACK_PLUGINS="{{source_directory()}}/callback_plugins" \
+    ANSIBLE_CALLBACKS_ENABLED=timing \
+    VM_TIMING_LOG="$VM_STATE/timing.jsonl" \
+      "$ansible_playbook" -i "$VM_STATE/inventory" --diff --become -u imageadmin --private-key configs/imageadmin-ssh_key \
       --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
       main.yml "$@"
+
+# Summarise per-task timings from the last `ansible` run (or the one before it with `prev=.prev`)
+timings top="25" prev="":
+    @python3 {{source_directory()}}/timings.py "$VM_STATE/timing.jsonl$2" "$1"
 
 # Reboot the guest and wait for ssh to come back
 reboot timeout="600":
