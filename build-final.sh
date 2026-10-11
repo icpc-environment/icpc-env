@@ -2,7 +2,7 @@
 set -xeuo pipefail
 
 # Default group for the VM in ansible. This lets you use group_vars/$VARIANT for site specific configuration
-VARIANT=${1:-all}
+VARIANT=${1:-generic}
 
 SSHPORT=2222
 SSH_BUILD_KEY="configs/imageadmin-ssh_key"
@@ -84,7 +84,7 @@ vm ansible_port=$SSHPORT ansible_host=127.0.0.1
 vm
 EOF
 
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
+ANSIBLE_HOST_KEY_CHECKING=False .venv/bin/ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
 rm -f $INVENTORY_FILE
 
 SSH_ICPCADMIN_KEY=$(secrets/admin-key.sh "$VARIANT")
