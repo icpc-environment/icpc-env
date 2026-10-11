@@ -1,7 +1,7 @@
 ---
 - name: Install eclipse(64bit)
   ansible.builtin.unarchive:
-    src: files/eclipse-java-2025-09-R-linux-gtk-x86_64.tar.gz
+    src: files/eclipse-java-{{ eclipse_version }}-R-linux-gtk-x86_64.tar.gz
     dest: /opt
     creates: /opt/eclipse
     owner: "root"
@@ -34,39 +34,33 @@
         -application org.eclipse.equinox.p2.director \
         -listInstalledRoots
   register: eclipse_installed_pkgs
-  changed_when: eclipse_installed_pkgs.rc != 0
+  changed_when: false
 
 # Eclipse plugins(for c/c++ and python)
 - name: Install cdt plugin
   when: '"org.eclipse.cdt.platform.feature.group" not in eclipse_installed_pkgs.stdout'
-  ansible.builtin.shell: |
-    args:
-      creates: /opt/eclipse/features/org.eclipse.cdt_*
-      cmd: |
-        set -o pipefail # prevent surprises in the pipeline
-        /opt/eclipse/eclipse -nosplash \
-           -application org.eclipse.equinox.p2.director \
-           -repository http://download.eclipse.org/tools/cdt/releases/latest/,http://download.eclipse.org/releases/2025-09/ \
-           -destination /opt/eclipse \
-           -installIU org.eclipse.cdt.feature.group \
-           -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
-  register: cdt_install
-  changed_when: cdt_install.rc != 0
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail # prevent surprises in the pipeline
+      /opt/eclipse/eclipse -nosplash \
+         -application org.eclipse.equinox.p2.director \
+         -repository http://download.eclipse.org/tools/cdt/releases/latest/,http://download.eclipse.org/releases/{{ eclipse_version }}/ \
+         -destination /opt/eclipse \
+         -installIU org.eclipse.cdt.feature.group \
+         -installIU org.eclipse.cdt.platform.feature.group | grep -v DEBUG
+    executable: /bin/bash
 
 - name: Install pydev plugin
   when: '"org.python.pydev.feature.feature.group" not in eclipse_installed_pkgs.stdout'
-  ansible.builtin.shell: |
-    args:
-      creates: /opt/eclipse/features/org.python.pydev.feature_*
-      cmd: |
-        set -o pipefail # prevent surprises in the pipeline
-        /opt/eclipse/eclipse -nosplash \
-            -application org.eclipse.equinox.p2.director \
-            -repository http://pydev.org/updates/ \
-            -destination /opt/eclipse \
-            -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
-  register: pydev_install
-  changed_when: pydev_install.rc != 0
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail # prevent surprises in the pipeline
+      /opt/eclipse/eclipse -nosplash \
+          -application org.eclipse.equinox.p2.director \
+          -repository http://pydev.org/updates/ \
+          -destination /opt/eclipse \
+          -installIU org.python.pydev.feature.feature.group | grep -v DEBUG
+    executable: /bin/bash
 
 # See this for how to set global eclipse configurations
 - name: Configure eclipse

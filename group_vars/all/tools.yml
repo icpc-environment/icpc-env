@@ -9,6 +9,10 @@ devtools:
   # - codeblocks
   - codelite
 
+# Only used when eclipse is in devtools. Download
+# eclipse-java-<version>-R-linux-gtk-x86_64.tar.gz into files/ before building.
+eclipse_version: 2026-09
+
 # These extensions will be installed out of the box
 vscode_extensions:
   - ms-vscode.cpptools # c/cpp (~280MB)
