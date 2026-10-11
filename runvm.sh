@@ -119,10 +119,13 @@ function setresolution() {
   runssh sudo -u contestant env DISPLAY=:0 xrandr --size 1440x900
 }
 
+OVMF=$(dev/ovmf.sh) || exit 1
+read -r OVMF_CODE OVMF_VARS <<<"$OVMF"
+
 qemu-system-x86_64 -machine q35,smm=on -cpu host -smp 4 -m 6144 --enable-kvm \
   -global driver=cfi.pflash01,property=secure,value=on \
-  -drive if=pflash,format=raw,unit=0,file="/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd",readonly=on \
-  -drive if=pflash,format=raw,unit=1,file="./OVMF_VARS_4M.ms.fd" \
+  -drive if=pflash,format=raw,unit=0,file="$OVMF_CODE",readonly=on \
+  -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
   -drive file="output/$BASEIMG",index=0,media=disk,format=qcow2 \
   -net user,hostfwd=tcp::$SSHPORT-:22 -net nic \
   --daemonize --pidfile $PIDFILE $SNAPSHOT \

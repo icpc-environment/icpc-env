@@ -15,7 +15,6 @@ export VM_SSHPORT := env("VM_SSHPORT", "2322")
 export VM_VNC := env("VM_VNC", "10")
 export VM_MEM := env("VM_MEM", "6144")
 export VM_CPUS := env("VM_CPUS", "4")
-export VM_OVMF_CODE := env("VM_OVMF_CODE", "/usr/share/edk2/x64/OVMF_CODE.secboot.4m.fd")
 
 export VM_STATE := root / "tmp/vm" / VM_NAME
 export QMP_SOCK := VM_STATE / "qmp.sock"
@@ -38,13 +37,15 @@ up image="" timeout="600": && (wait-ssh timeout)
     mkdir -p tmp/vm
     chattr +C tmp/vm 2>/dev/null || true
     mkdir -p "$VM_STATE/screenshots"
+    ovmf=$(dev/ovmf.sh)
+    read -r ovmf_code ovmf_vars <<<"$ovmf"
     if [ ! -f "$VM_STATE/disk.qcow2" ]; then
       img=$(realpath "${1:-output/base-amd64.img}")
       fmt=$(qemu-img info --output=json "$img" | jq -r .format)
       echo "Creating overlay on $img ($fmt)"
       qemu-img create -q -f qcow2 -b "$img" -F "$fmt" "$VM_STATE/disk.qcow2"
       # qcow2 rather than raw so `checkpoint save` can snapshot the EFI vars too
-      qemu-img convert -O qcow2 OVMF_VARS_4M.ms.fd "$VM_STATE/vars.qcow2"
+      qemu-img convert -O qcow2 "$ovmf_vars" "$VM_STATE/vars.qcow2"
       echo "$img" > "$VM_STATE/image"
     elif [ -n "$1" ] && [ "$(realpath "$1")" != "$(cat "$VM_STATE/image")" ]; then
       echo "error: $VM_NAME's overlay is based on $(cat "$VM_STATE/image"), run 'just vm reset' to switch images" >&2
@@ -87,7 +88,7 @@ up image="" timeout="600": && (wait-ssh timeout)
     rm -f "$VM_STATE/serial.log"
     qemu-system-x86_64 -name "icpc-$VM_NAME" -machine q35,smm=on "${ACCEL[@]}" -smp "$VM_CPUS" -m "$VM_MEM" \
       -global driver=cfi.pflash01,property=secure,value=on \
-      -drive if=pflash,format=raw,unit=0,file="$VM_OVMF_CODE",readonly=on \
+      -drive if=pflash,format=raw,unit=0,file="$ovmf_code",readonly=on \
       -drive if=pflash,format=qcow2,unit=1,file="$VM_STATE/vars.qcow2",cache=unsafe \
       -drive file="$VM_STATE/disk.qcow2",index=0,media=disk,format=qcow2,cache=unsafe \
       -net user,hostfwd=tcp:127.0.0.1:"$VM_SSHPORT"-:22 -net nic \

@@ -13,6 +13,5 @@ tmp_inventory
 # Build artifacts and local tooling state
 .ansible/
 __pycache__/
-OVMF_VARS*.fd
 tests/goss
 lastminute-ansible/

@@ -20,12 +20,15 @@ function cleanup() {
   rm -f $PIDFILE
 }
 
+OVMF=$(dev/ovmf.sh) || exit 1
+read -r OVMF_CODE OVMF_VARS <<<"$OVMF"
+
 set -x
-qemu-system-x86_64 -machine q35 -smp 2 -m 4096 --enable-kvm \
+qemu-system-x86_64 -machine q35,smm=on -smp 2 -m 4096 --enable-kvm \
   -hda $BASEIMG \
   -global driver=cfi.pflash01,property=secure,value=on \
-  -drive if=pflash,format=raw,unit=0,file=efi/OVMF_CODE.fd,readonly=on \
-  -drive if=pflash,format=raw,unit=1,file=efi/OVMF_VARS.fd \
+  -drive if=pflash,format=raw,unit=0,file="$OVMF_CODE",readonly=on \
+  -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
   -net user,hostfwd=tcp::$SSHPORT-:22 -net nic \
   --daemonize --pidfile $PIDFILE \
   $SNAPSHOT \
