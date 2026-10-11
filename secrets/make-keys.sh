@@ -37,12 +37,12 @@ ssh-keygen -q -t ed25519 -N "" -f ./contestmanager.icpcnet.internal_host_ed25519
 
 # Sign the host certificates
 for x in contestant contestmanager; do
+# '*' so it's valid for any hostname - OpenSSH rejects host certificates with no principals
+# TODO: contestmanager should have the externally visible hostname of the management server
 ssh-keygen -q -s ./server_ca -h \
     -I "$x.icpcnet.internal host key" \
-    -h ./$x.icpcnet.internal_host_ed25519_key
-    # don't specify a set of principals, so it's valid for any hostname
-    # -n "contestant,contestant.icpcnet.internal"
-    # -n "contestmanager,contestmanager.icpcnet.internal.icpc.cloudcontest.org" # TODO: this should have the externally visible hostname of the management server
+    -n '*' \
+    ./$x.icpcnet.internal_host_ed25519_key
 done
 
 # sign the icpcadmin user key (allowing to log into the icpc machine with root, icpcadmin, or contestant)
