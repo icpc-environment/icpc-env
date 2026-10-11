@@ -128,13 +128,18 @@ wait-desktop timeout="180":
     #!/usr/bin/env bash
     set -euo pipefail
     deadline=$((SECONDS + $1))
-    until {{ssh}} {{sudo_host}} pgrep -x xfce4-session >/dev/null 2>&1; do
+    until owner=$({{ssh}} {{sudo_host}} ps -o user= -C xfce4-session 2>/dev/null) && [ -n "$owner" ]; do
       if (( SECONDS >= deadline )); then
         echo "error: timed out waiting for the contestant desktop" >&2
         exit 1
       fi
       sleep 2
     done
+    if [ "$owner" = root ]; then
+      echo "error: the first-boot setup screen is up, not the contestant desktop. To skip it:" >&2
+      echo "  just vm admin sudo touch /icpc/setup-complete && just vm reboot && just vm wait-desktop" >&2
+      exit 1
+    fi
     # Give the panel and wallpaper a moment to draw before anyone screenshots it
     sleep 3
     echo "desktop is up"
