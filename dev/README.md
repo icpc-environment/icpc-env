@@ -20,6 +20,17 @@ just vm cp somefile vm:/tmp/
 just vm down                     # or `kill`, or `reset` to throw the disk away
 ```
 
+### Getting past first-boot setup
+
+After ansible and a reboot, the image shows its first-boot setup screen instead of the
+contestant desktop, and `wait-desktop` says so. `just vm fake-setup` stands in for it: it
+runs the setup wizard's own apply steps as team 999 "ICPC Sysops Team" (ICPC Sysops) at
+site "sysops", then reboots into the desktop, so the wallpaper, panel and hostname show
+real team info. The team is set at the top of `dev/fake-setup.py`.
+
+It also adds a printer that keeps every job instead of printing it. `just vm printouts`
+copies those to `tmp/vm/$VM_NAME/printouts/`, with a PNG per page.
+
 ### State and checkpoints
 
 Each VM lives in `tmp/vm/$VM_NAME/` (default `agent`). That directory holds a qcow2

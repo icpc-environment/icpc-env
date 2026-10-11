@@ -137,7 +137,7 @@ wait-desktop timeout="180":
     done
     if [ "$owner" = root ]; then
       echo "error: the first-boot setup screen is up, not the contestant desktop. To skip it:" >&2
-      echo "  just vm admin sudo touch /icpc/setup-complete && just vm reboot && just vm wait-desktop" >&2
+      echo "  just vm fake-setup" >&2
       exit 1
     fi
     # Give the panel and wallpaper a moment to draw before anyone screenshots it
@@ -256,6 +256,29 @@ ansible *args:
 # Summarise per-task timings from the last `ansible` run (or the one before it with `prev=.prev`)
 timings top="25" prev="":
     @python3 {{source_directory()}}/timings.py "$VM_STATE/timing.jsonl$2" "$1"
+
+# Get past the first-boot setup screen as a made up team (see dev/fake-setup.py), then reboot into the desktop
+fake-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    host=$(cat "$VM_STATE/sudo_host" 2>/dev/null || echo vm)
+    scp -F "$VM_STATE/ssh_config" -q {{source_directory()}}/fake-setup.py "$host":/tmp/fake-setup.py
+    {{ssh}} "$host" sudo /icpc/scripts/venv/bin/python /tmp/fake-setup.py
+    just vm reboot
+    just vm wait-desktop
+
+# Copy what's been printed to the fake printer into tmp/vm/<name>/printouts/, with a PNG per page
+printouts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="$VM_STATE/printouts"
+    mkdir -p "$out"
+    {{ssh}} {{sudo_host}} 'sudo tar -C /var/lib/fake-printer -cf - --exclude="*.png" .' | tar -C "$out" -xf -
+    for pdf in "$out"/*.pdf; do
+      [ -e "$pdf" ] || { echo "nothing printed yet"; exit 0; }
+      [ -e "${pdf%.pdf}-1.png" ] || pdftoppm -png -r 80 "$pdf" "${pdf%.pdf}"
+      ls "${pdf%.pdf}"*.png
+    done
 
 # Launch, screenshot and close each desktop tool, then hello-world each language (or just the named ones, incl. `languages`)
 smoke *tools:
