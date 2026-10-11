@@ -105,7 +105,7 @@
 
 - name: Copy the ssh CA
   ansible.builtin.copy:
-    src: files/secrets/server_ca.pub
+    src: "{{ playbook_dir }}/secrets/{{ contest_id }}/server_ca.pub"
     dest: /etc/ssh/ca.pub
     mode: "0644"
     owner: root
@@ -122,7 +122,7 @@
 
 - name: Install a set of host keys that are signed by the ssh CA
   ansible.builtin.copy:
-    src: files/secrets/contestant.icpcnet.internal_{{ item.name }}
+    src: "{{ playbook_dir }}/secrets/{{ contest_id }}/contestant.icpcnet.internal_{{ item.name }}"
     dest: /etc/ssh/ssh_{{ item.name }}
     mode: "{{ item.mode }}"
     owner: root

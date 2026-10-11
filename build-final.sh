@@ -6,7 +6,6 @@ VARIANT=${1:-all}
 
 SSHPORT=2222
 SSH_BUILD_KEY="configs/imageadmin-ssh_key"
-SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
 PIDFILE="tmp/qemu.pid"
 ALIVE=0
 
@@ -87,6 +86,8 @@ EOF
 
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
 rm -f $INVENTORY_FILE
+
+SSH_ICPCADMIN_KEY=$(secrets/admin-key.sh "$VARIANT")
 
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo reboot
 # Wait 5 seconds for reboot to happen so we don't ssh back in before it actually reboots

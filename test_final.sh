@@ -3,7 +3,7 @@
 VARIANT=${1:-""}
 
 SSHPORT=2222
-SSH_ICPCADMIN_KEY="files/secrets/icpcadmin@contestmanager"
+SSH_ICPCADMIN_KEY=$(secrets/admin-key.sh "${VARIANT:-all}")
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
