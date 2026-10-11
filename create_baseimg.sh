@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Settings
-ISO64="ubuntu-26.04.1-live-server-amd64.iso"
+UBUNTU_VERSION="26.04.1"
+ISO64="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
 OUT64="unattended-${ISO64}"
 IMG64="base-amd64.img"
 
@@ -10,7 +11,7 @@ USERDATA="configs/2604_autoinstall.yaml"
 METADATA="configs/2604_metadata"
 
 function usage() {
-  echo "Usage: create_baseimage.sh [-s size]"
+  echo "Usage: create_baseimg.sh [-s size] [--no-usb]"
   echo ""
   echo "-s|--size n   Size of the resulting image(default 28500M)"
   echo "--no-usb      Don't create a fat32 partition for easy usb mounting"
@@ -44,6 +45,29 @@ done
 # Default image size 28500M(fits on an 32G flash drive)
 IMGSIZE=${IMGSIZE:-28500M}
 
+
+# fetch <url> [file]: to stdout, or resuming into file
+function fetch() {
+  if hash curl 2>/dev/null; then
+    if [ -n "${2:-}" ]; then curl -fL -C - --progress-bar -o "$2" "$1"; else curl -fsSL "$1"; fi
+  else
+    if [ -n "${2:-}" ]; then wget -c -O "$2" "$1"; else wget -qO- "$1"; fi
+  fi
+}
+
+function download_iso() {
+  [ -f "$ISO" ] && return 0
+  # Unlike releases.ubuntu.com/26.04/, this keeps serving a point release after the next one is out
+  local url="https://releases.ubuntu.com/$UBUNTU_VERSION"
+  echo "Downloading $ISO from $url"
+  SUMS=$(fetch "$url/SHA256SUMS") && fetch "$url/$ISO" "$ISO.part" || exit 1
+  if ! grep " \*\?$ISO\$" <<<"$SUMS" | sed "s/ \*\?$ISO\$/  $ISO.part/" | sha256sum -c -; then
+    echo "Checksum mismatch for $ISO, deleting it" >&2
+    rm -f "$ISO.part"
+    exit 1
+  fi
+  mv "$ISO.part" "$ISO"
+}
 
 function create_unattended_iso() {
   CONTENTSDIR="$TMPDIR/contents"
@@ -121,6 +145,7 @@ EOF
   rm -rf "$CONTENTSDIR"
 }
 
+download_iso
 create_unattended_iso
 
 # Install that base image
