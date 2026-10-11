@@ -1,8 +1,9 @@
 ---
 - name: Install eclipse(64bit)
   ansible.builtin.unarchive:
-    src: files/eclipse-java-{{ eclipse_version }}-R-linux-gtk-x86_64.tar.gz
+    src: https://download.eclipse.org/technology/epp/downloads/release/{{ eclipse_version }}/R/eclipse-java-{{ eclipse_version }}-R-linux-gtk-x86_64.tar.gz
     dest: /opt
+    remote_src: true
     creates: /opt/eclipse
     owner: "root"
     group: "root"
