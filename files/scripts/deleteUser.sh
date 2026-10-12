@@ -28,7 +28,7 @@ userdel contestant
 rm -rf /home/contestant
 
 echo "Recreating contestant user"
-useradd -d /home/contestant -m contestant -G lpadmin -s /bin/bash
+useradd -d /home/contestant -m contestant -s /bin/bash
 passwd -d contestant
 
 # touch a file to indicate that the reset is complete (and give us the timestamp if we need it)

@@ -197,7 +197,7 @@
   ansible.builtin.user:
     name: contestant
     group: contestant
-    groups: lpadmin
+    groups: ''
     password: '$1$salty$lOyh/41oDtq.J4v0Lltp4.'
     update_password: on_create
     shell: /bin/bash
