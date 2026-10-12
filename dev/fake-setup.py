@@ -7,6 +7,7 @@ import importlib.machinery
 import importlib.util
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -62,6 +63,8 @@ def load_wizard():
 def main():
     start_fake_printer()
     wizard = load_wizard()
+    # The wizard reports errors in GUI popups, and there's no display to show them on
+    wizard.sg.popup = lambda *args, **kwargs: print(*args, file=sys.stderr)
     wizard.configuration.update({
         "contest": Path("/icpc/CONTEST").read_text().strip(),
         "site": SITE,
