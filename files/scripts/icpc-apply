@@ -77,6 +77,10 @@ def apply_files(config):
           + "\n".join(f"{k}={env_value(v)}" for k, v in env.items()))
 
 
+def apply_papersize(papersize):
+    Path("/etc/papersize").write_text(papersize + "\n")
+
+
 def apply_hostname(team):
     hostname = "icpc-team-" + team["id"]
     Path("/etc/hostname").write_text(hostname + "\n")
@@ -162,6 +166,8 @@ def main():
     team = config.get("team")
 
     apply_files(config)
+    if "papersize" in config:
+        apply_papersize(config["papersize"])
     if team:
         apply_hostname(team)
     if "autostart_firefox" in config:

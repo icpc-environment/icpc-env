@@ -54,5 +54,5 @@
     enabled: true
 
 - name: Configure and start icpc-printer
-  ansible.builtin.command: /icpc/scripts/icpc-printer-setup {{ icpc_papersize | default('letter') }}
+  ansible.builtin.shell: /icpc/scripts/icpc-printer-setup "$(/icpc/scripts/icpc-config get papersize)"
   changed_when: true

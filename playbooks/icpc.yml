@@ -44,12 +44,6 @@
     dest: /icpc/scripts/printfile
     state: link
 
-- name: Set default papersize to icpc_papersize (else letter)
-  ansible.builtin.copy:
-    dest: /etc/papersize
-    content: "{{ icpc_papersize | default('letter') }}\n"
-    mode: "0644"
-
 - name: Setup PATH variable
   ansible.builtin.copy:
     dest: /etc/profile.d/icpc_path.sh
