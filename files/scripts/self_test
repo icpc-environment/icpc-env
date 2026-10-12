@@ -73,20 +73,6 @@ NOSITE="${RED}Not Set${RESET}"
 SITENAME="${SITENAME:-$NOSITE}"
 echo $SITENAME
 
-# only check domjudge autologin if there are autologin urls defined
-if grep -q 'acl autologin url_regex' /etc/squid/squid.conf ; then
-  print_check "DOMjudge Autologin Configured"
-  cat /etc/squid/autologin.conf 2>/dev/null | grep "X-DOMjudge" > /dev/null
-  if [ $? -eq 0 ]; then
-    echo "${GREEN}Yes${RESET}"
-    print_check "    Team Login"
-    DJTEAM=$(cat /etc/squid/autologin.conf | awk '/X-DOMjudge-Login/{print $3}' | tr -d '"')
-    echo $DJTEAM
-  else
-    echo "${ORANGE}No${RESET}"
-  fi
-fi
-
 echo
 echo "${BLUE}Printing Configuration${RESET}"
 print_check "Making sure cups is running"

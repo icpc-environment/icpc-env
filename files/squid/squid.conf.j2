@@ -42,10 +42,3 @@ ssl_bump bump all
 # Ignore ssl errors, so we can still show our nice block page
 # And also because our block page has no good ssl certificate
 sslproxy_cert_error allow all
-
-{% if squid_autologin_urls|default([])|length > 0 %}
-{% for url in squid_autologin_urls %}
-acl autologin url_regex {{url}}
-{% endfor %}
-include /etc/squid/autologin.conf
-{% endif%}

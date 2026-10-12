@@ -26,10 +26,5 @@ fi
 rm -f /icpc/setup-complete
 rm -f /icpc/team-reset-complete
 
-# reset squid autologin
-echo "# Placeholder" > /etc/squid/autologin.conf
-chmod 640 /etc/squid/autologin.conf
-chown root:root /etc/squid/autologin.conf
-
 # clear self test report
 rm -f /icpc/self_test_report
