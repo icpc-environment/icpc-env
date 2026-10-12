@@ -6,18 +6,3 @@
     mode: '0755'
     owner: root
     group: root
-
-- name: Copy Profile Entries for pc2submit
-  ansible.builtin.template:
-    src: "files/pc2submit_profile.sh.j2"
-    dest: "/etc/profile.d/pc2submit_profile.sh"
-    mode: "0644"
-    owner: root
-    group: root
-
-- name: Link pc2submit to submit
-  when: submit_ccs == 'pc2'
-  ansible.builtin.file:
-    src: /usr/local/bin/pc2submit
-    dest: /usr/local/bin/submit
-    state: link

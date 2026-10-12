@@ -34,6 +34,9 @@
       papersize: "{{ icpc_papersize | default('letter') }}"
       timezone: "{{ icpc_timezone }}"
       language_scripts: "{{ language_scripts }}"
+      submit:
+        client: "{{ submit_ccs }}"
+        pc2_base_url: "{{ pc2_submit_base_url }}"
       autostart_firefox: true
 
 - name: Create printfile symlink(to match world finals image)

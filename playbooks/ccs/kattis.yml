@@ -18,10 +18,3 @@
     content: |
       #!/bin/sh
       python "/opt/kattis-cli/submit.py" "$@"
-
-- name: Symlink to kattis in /usr/local/bin
-  when: submit_ccs == 'kattis'
-  ansible.builtin.file:
-    src: /usr/local/bin/kattis
-    dest: /usr/local/bin/submit
-    state: link

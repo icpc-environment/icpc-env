@@ -110,6 +110,29 @@ def apply_language_scripts(scripts):
         path.chmod(0o755)
 
 
+# Clients a contest can pick for `submit`, if ccs_tools installed them
+SUBMIT_CLIENTS = {"kattis": Path("/usr/local/bin/kattis"), "pc2": Path("/usr/local/bin/pc2submit")}
+
+
+def apply_submit(submit):
+    client = submit.get("client")
+    if client:
+        target = SUBMIT_CLIENTS.get(client)
+        if target is None or not target.exists():
+            errors.append(f"submit client {client} isn't installed (see ccs_tools)")
+        else:
+            link = Path("/usr/local/bin/submit")
+            link.unlink(missing_ok=True)
+            link.symlink_to(target)
+
+    if SUBMIT_CLIENTS["pc2"].exists():
+        Path("/etc/profile.d/pc2submit_profile.sh").write_text(f"""{GENERATED}
+export SUBMITBASEURL={env_value(submit.get("pc2_base_url"))}
+export SUBMITCREDENTIALS=yes
+export SUBMITOMITEXTRAHELP=yes
+""")
+
+
 def apply_hostname(team):
     hostname = "icpc-team-" + team["id"]
     Path("/etc/hostname").write_text(hostname + "\n")
@@ -201,6 +224,8 @@ def main():
         apply_timezone(config["timezone"])
     if "language_scripts" in config:
         apply_language_scripts(config["language_scripts"])
+    if "submit" in config:
+        apply_submit(config["submit"])
     if team:
         apply_hostname(team)
     if "autostart_firefox" in config:
