@@ -69,6 +69,15 @@ lpr = ["/usr/bin/lpr"]
 if printer is not None:
     lpr += ["-P", printer]
 
+if os.path.exists("/usr/bin/icpc-printer") and output is None:
+    text = ["-o", "prettyprint", "-o", "cpi=14", "-o", "lpi=8"]
+    if "--landscape" in options:
+        text += ["-o", "landscape"]
+    text += ["-o", "columns=" + next(o for o in options if o.startswith("--columns=")).split("=", 1)[1]]
+    for path in files:
+        subprocess.run(lpr + text + ["-T", os.path.basename(path), path], check=True)
+    sys.exit(0)
+
 for path in files:
     # paps draws the title on every page, next to the page numbers
     title = "%s; team=%s; site=%s" % (os.path.basename(path), team, site)
