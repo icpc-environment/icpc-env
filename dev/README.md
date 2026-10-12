@@ -23,10 +23,12 @@ just vm down                     # or `kill`, or `reset` to throw the disk away
 ### Getting past first-boot setup
 
 After ansible and a reboot, the image shows its first-boot setup screen instead of the
-contestant desktop, and `wait-desktop` says so. `just vm fake-setup` stands in for it: it
-runs the setup wizard's own apply steps as team 999 "ICPC Sysops Team" (ICPC Sysops) at
-site "sysops", then reboots into the desktop, so the wallpaper, panel and hostname show
-real team info. The team is set at the top of `dev/fake-setup.py`.
+contestant desktop, and `wait-desktop` says so. `just vm fake-setup` stands in for it: like
+the wizard, it saves team 999 "ICPC Sysops Team" (ICPC Sysops) at site "sysops" in
+`/icpc/config.json` and runs `/icpc/scripts/icpc-apply`, then reboots into the desktop, so
+the wallpaper, panel and hostname show real team info. The team is set at the top of
+`dev/fake-setup.py`. Ansible's `icpc` tag rewrites `/icpc/config.json` from group_vars,
+which forgets the team again, so rerun `fake-setup` after it.
 
 It also adds a printer that keeps every job instead of printing it. `just vm printouts`
 copies those to `tmp/vm/$VM_NAME/printouts/`, with a PNG per page. With

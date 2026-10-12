@@ -129,13 +129,9 @@
     dest: /etc/systemd/system/icpc-static-node-exporter.path
     mode: "0644"
     content: |
-      # trigger metrics update whenever TEAM/SITE/version/update-version change so we can update the values in prometheus
+      # trigger metrics update whenever the config/version/update-version change so we can update the values in prometheus
       [Path]
-      PathModified=/icpc/TEAM
-      PathModified=/icpc/TEAMID
-      PathModified=/icpc/TEAMAFFILIATION
-      PathModified=/icpc/TEAMNAME
-      PathModified=/icpc/SITE
+      PathModified=/icpc/config.json
       PathModified=/icpc/version
       PathModified=/icpc/update-version
       PathModified=/icpc/team-reset-complete

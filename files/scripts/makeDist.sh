@@ -25,12 +25,10 @@ sleep 5
 # Reset the team(and any defaults)
 $UTILDIR/scripts/deleteUser.sh
 
-# reset the TEAM and SITE
-echo "default team" > $UTILDIR/TEAM
-echo "default site" > $UTILDIR/SITE
-
-# Remove the team wallpaper
-rm -f $UTILDIR/teamWallpaper.png
+# Forget the team, site and printers (the files generated from them go back to
+# their defaults, the printers are deleted below)
+$UTILDIR/scripts/icpc-config unset team site printers
+$UTILDIR/scripts/icpc-apply
 
 # Delete the printers/printer class
 for PRINTER in $(lpstat -v | cut -d ' ' -f 3 | tr -d ':')

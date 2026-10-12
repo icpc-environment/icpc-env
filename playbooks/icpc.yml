@@ -20,25 +20,23 @@
       {% endfor %}
     mode: "0644"
 
-- name: Write out the initial contest config file
+- name: Write the machine config
   ansible.builtin.copy:
-    dest: /icpc/CONFIG
-    content: |
-      REMOTE_MANAGEMENT_SERVER={{ remote_management_server }}
-      CONTEST={{ contest_id }}
-      ICPC_BROWSER_URL={{ firefox_policies.Homepage.URL | default('') }}
+    dest: /icpc/config.json
+    mode: "0644"
+    content: "{{ icpc_config | to_nice_json }}\n"
+  vars:
+    icpc_config:
+      contest: "{{ contest_id }}"
+      remote_management_server: "{{ remote_management_server }}"
+      config_url: "{{ config_url }}"
+      homepage: "{{ firefox_policies.Homepage.URL | default('') }}"
+      papersize: "{{ icpc_papersize | default('letter') }}"
+      autostart_firefox: true
 
-- name: Write the homepage to a file so we can make sure access works in the self_test
-  ansible.builtin.copy:
-    dest: /icpc/config_homepage
-    content: |
-      {{ firefox_policies.Homepage.URL }}
-
-- name: Write out the contest id (if specified)
-  ansible.builtin.copy:
-    dest: /icpc/CONTEST
-    content: "{{ contest_id }}"
-  when: contest_id|default('')|length > 0
+- name: Apply the machine config
+  ansible.builtin.command: /icpc/scripts/icpc-apply
+  changed_when: true
 
 - name: Create printfile symlink(to match world finals image)
   ansible.builtin.file:

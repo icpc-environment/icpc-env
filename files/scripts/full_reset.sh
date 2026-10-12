@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Remove the team wallpaper
-rm -f /icpc/teamWallpaper.png
+# Forget the team, site and printers (the files generated from them go back to
+# their defaults, the printers are deleted below)
+/icpc/scripts/icpc-config unset team site printers
+/icpc/scripts/icpc-apply
 
 # Delete the printers/printer class
 for PRINTER in $(lpstat -v | cut -d ' ' -f 3 | tr -d ':')
@@ -23,8 +25,6 @@ fi
 
 rm -f /icpc/setup-complete
 rm -f /icpc/team-reset-complete
-rm -f /icpc/TEAM*
-rm -f /icpc/SITE
 
 # reset squid autologin
 echo "# Placeholder" > /etc/squid/autologin.conf

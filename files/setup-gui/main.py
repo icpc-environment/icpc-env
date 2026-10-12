@@ -7,9 +7,10 @@ from subprocess import PIPE, Popen
 import sys
 import csv
 import os
-import re
-import stat
 from pprint import pprint
+
+sys.path.insert(0, "/icpc/scripts")
+import icpcconfig
 
 def make_safe_url(url: str) -> str:
     """
@@ -18,17 +19,6 @@ def make_safe_url(url: str) -> str:
     _url = urlparse(url)
     url = _url.scheme + "://" + _url.netloc + quote(_url.path) + "?" + quote(_url.query)
     return url
-
-def read_file(path, default):
-    try:
-        contents = Path(path).read_text().strip()
-        if len(contents) == 0:
-            return default
-        return contents
-    except Exception as e:
-        # TODO log/handle specific errors more properly here
-        pass
-    return default
 
 def fetch_url(url):
     try:
@@ -56,18 +46,6 @@ Err:
 
     return (p.returncode, out, err)
 
-def load_printers():
-    printers = []
-    (ret, out, err) = run_cmd(["lpstat", "-v"], ignore_errors=True)
-    lpstat_re = re.compile(r"^device for (?P<name>[^:]+): (?P<uri>.+)$")
-    for l in out.decode("UTF-8").splitlines():
-        m = lpstat_re.match(l)
-        # Only return printers named 'Printer' (because those are the ones we're managing)
-        if not m.group("name").startswith("Printer"):
-            continue
-        printers.append({"uri": m.group("uri"), "name": m.group("name")})
-    return printers
-
 class Team(dict):
    def __str__(self):
        return f"{self['id'] : <4} {self['name'] : <30} {self['affiliation'] : <40}{' '+self['extra'] if len(self['extra']) > 0 else ''}"
@@ -76,13 +54,12 @@ class Printer(dict):
     def __str__(self):
         return f"[{self['group']}]: {self['note'] if len(self['note']) > 0 else 'default'} - {self['uri']} ({self['driver']})"
 
-# With icpc-printer (playbooks/icpc-printer.yml), contestants print to its "icpc"
-# queue and only it may submit to the real printers configured here
-ICPC_PRINTER = Path("/usr/bin/icpc-printer").exists()
-RESTRICTED = ["-u", "allow:icpc-printer", "-o", "printer-op-policy=icpc-restricted"] if ICPC_PRINTER else []
+# What the machine is configured with so far: build-time settings, plus the
+# last setup's choices when re-running
+machine_config = icpcconfig.load()
 
 # Load list of contests from the internet
-config_url = read_file("/icpc/config_url_base", "http://configs.cloudcontest.org")
+config_url = machine_config["config_url"]
 configuration = {}
 
 
@@ -107,8 +84,8 @@ def mainwindow():
         [sg.Checkbox('Print Test Page?', key='print_test_page', default=True)],
       ]),
       sg.Frame('Paper Size:', [
-          [sg.Radio('Letter', 'PAPERSIZE', key='letter', default=True)],
-          [sg.Radio('A4', 'PAPERSIZE', key='a4')]
+          [sg.Radio('Letter', 'PAPERSIZE', key='letter', default=configuration["papersize"] != "a4")],
+          [sg.Radio('A4', 'PAPERSIZE', key='a4', default=configuration["papersize"] == "a4")]
       ], visible=False),
     ],
     [
@@ -159,7 +136,7 @@ def mainwindow():
 
     if event == "reload":
       window['site'].update(values=["default"])
-      configuration["contest"] = read_file("/icpc/CONTEST", None)
+      configuration["contest"] = machine_config.get("contest") or None
       contest_list = [configuration["contest"]]
       if configuration["contest"] is None:
         contest_list = fetch_url(f"{config_url}/contests").splitlines()
@@ -173,7 +150,7 @@ def mainwindow():
       if len(values['contest']) == 0:
         continue
       configuration["contest"] = values["contest"]
-      configuration["site"] = read_file("/icpc/SITE", None)
+      configuration["site"] = machine_config.get("site")
       configuration['url'] = config_url + '/' + configuration['contest']
 
 
@@ -196,7 +173,7 @@ def mainwindow():
 
       configuration["site"] = values["site"].split(":")[0]
 
-      teamid = read_file("/icpc/TEAMID", None)
+      teamid = machine_config.get("team", {}).get("id")
 
       # Update the list of teams when the site changes
       content = fetch_url(configuration['url'] + f"/teams/{configuration['site']}_teams.csv")
@@ -275,222 +252,6 @@ Is this correct?
   window.close()
 
 
-def apply_printers():
-    failed = False
-    existing_printers = load_printers()
-    if configuration["delete_printers"]:
-        for p in existing_printers:
-            (ret, out, err) = run_cmd(["lpadmin", "-x", p["name"]])
-            if ret != 0:
-              failed = True
-
-        (ret, out, err) = run_cmd(["lpstat", "-c", "ContestPrinter"], ignore_errors=True)  # this is a printer class
-        if ret == 0:
-          (ret, out, err) = run_cmd(["lpadmin", "-x", "ContestPrinter"])  # this is a printer class
-          if ret != 0:
-              failed = True
-        existing_printers = []
-
-    for i, p in enumerate(configuration["printers"]):
-        uri = p["uri"]
-        driver = p["driver"]
-
-        # A few driver overrides, but everything should us the everywhere driver these days
-        if driver == "ps":
-            driver = "drv:///sample.drv/generic.ppd"
-        if driver == "pcl":
-            driver = "drv:///sample.drv/generpcl.ppd"
-
-        name = f"Printer{len(existing_printers) + i}"
-
-        # TODO: acls on printing (default deny? then only allow the contestant to print to what we configure?)
-        (ret, out, err) = run_cmd(
-            [
-                "lpadmin",
-                "-p",
-                name,
-                "-v",
-                uri,
-                "-E",  # enable + set to accept jobs
-                "-m",
-                driver,
-                "-L",
-                p["note"],  # location field, but we put our "note" here
-                "-o",
-                f"media=#{configuration['papersize']}",  # Set paper size (a4 or letter)
-                "-o",
-                "printer-is-shared=false",  # don't set it as shared
-            ]
-        )
-        if ret != 0:
-            failed = True
-            continue
-
-        # Add the printer to the ContestPrinter class
-        (ret, out, err) = run_cmd(["lpadmin", "-p", name, "-c", "ContestPrinter"])
-        if ret != 0:
-            failed = True
-            continue
-
-        # really make sure the printer is enabled/accepting jobs
-        (ret, out, err) = run_cmd(["cupsenable", name])
-        if ret != 0:
-            failed = True
-            continue
-
-        (ret, out, err) = run_cmd(["cupsaccept", name])
-        if ret != 0:
-            failed = True
-            continue
-
-    # Check if we have any printers present, if so make sure we enable the class and set it as default
-    # also ask about printing a test page
-    existing_printers = load_printers()
-    if len(existing_printers) > 0:
-        # Set as default
-        (ret, out, err) = run_cmd(["lpadmin", "-d", "ContestPrinter"])
-        if ret != 0:
-            return (
-                False  # return here because setting failed and breaking out of the if statement we're in is difficult
-            )
-
-        # Set it as enabled
-        (ret, out, err) = run_cmd(["cupsenable", "ContestPrinter"])
-        if ret != 0:
-            return False
-
-        # Set it as accepting jobs
-        (ret, out, err) = run_cmd(["cupsaccept", "ContestPrinter"])
-        if ret != 0:
-            return False
-
-        # Last: once a queue has an allow list, cupsenable from root fails with not-authorized
-        if RESTRICTED:
-            for name in [p["name"] for p in existing_printers] + ["ContestPrinter"]:
-                (ret, out, err) = run_cmd(["lpadmin", "-p", name] + RESTRICTED)
-                if ret != 0:
-                    return False
-
-    # Also restarts icpc-printer, which only sees the hostname it started with
-    if ICPC_PRINTER:
-        (ret, out, err) = run_cmd(["/icpc/scripts/icpc-printer-setup", configuration["papersize"]])
-        if ret != 0:
-            return False
-
-    return not failed
-
-def chmod_if_exists(path, mode):
-    p = Path(path)
-    if p.exists():
-        p.chmod(mode)
-
-
-def apply_configuration():
-    # Write the configuration out to files
-    Path("/icpc/CONTEST").write_text(configuration["contest"] + "\n")
-    Path("/icpc/SITE").write_text(configuration["site"] + "\n")
-    Path("/icpc/TEAMID").write_text(configuration["team"]["id"] + "\n")
-    Path("/icpc/TEAMNAME").write_text(configuration["team"]["name"] + "\n")
-    Path("/icpc/TEAMAFFILIATION").write_text(configuration["team"]["affiliation"] + "\n")
-    Path("/icpc/TEAM").write_text(
-        f"{configuration['team']['id']} - {configuration['team']['name']} ({configuration['team']['affiliation']})\n"
-    )
-
-    Path("/icpc/CONFIG").write_text(f"""# Write a config file that can be sourced by various scripts
-REMOTE_MANAGEMENT_SERVER=mgmt.env.cloudcontest.org
-CONTEST={configuration["contest"]}
-SITE={configuration["site"]}
-TEAM_ID={configuration["team"]["id"]}
-TEAM_NAME={configuration["team"]["name"]}
-TEAM_AFFILIATION={configuration["team"]["affiliation"]}
-""")
-
-    # Update the hostname to the team's id
-    new_hostname = "icpc-team-" + configuration["team"]["id"]
-    Path("/etc/hostname").write_text(new_hostname + "\n")
-    Path("/proc/sys/kernel/hostname").write_text(new_hostname + "\n")
-    Path("/run/wg_setup-vpn-hostname-updated").unlink(missing_ok=True) # This will cause the vpn to update it's hostname
-
-    # Change the executable flag on the firefox autostart file (for the contestant and in /etc/skel)
-    if configuration["autostart_firefox"]:
-        # TODO: this is insufficient... seems like we need to add/remove Hidden=true from the file
-        chmod_if_exists("/etc/skel/.config/autostart/firefox.desktop", 0o755)
-        chmod_if_exists("/home/contestant/.config/autostart/firefox.desktop", 0o755)
-    else:
-        chmod_if_exists("/etc/skel/.config/autostart/firefox.desktop", 0o000)
-        chmod_if_exists("/home/contestant/.config/autostart/firefox.desktop", 0o000)
-
-    # Fix xauthority file
-    # xauthority = Path("/root/setup/.Xauthority")
-    # run_cmd('xauth add "$(hostname)/unix:0" MIT-MAGIC-COOKIE-1 "$(xauth list | grep "/unix:0" | awk '{print $3}')" '.split())
-
-    # Update the hosts file
-    host_lines = Path("/etc/hosts").read_text().splitlines()
-    for i, line in enumerate(host_lines):
-        if line.startswith("127.0.1.1 "):
-            host_lines[i] = f"127.0.1.1 {new_hostname}.icpcnet.internal {new_hostname}"
-    Path("/etc/hosts").write_text("\n".join(host_lines) + "\n")
-
-
-
-def apply_wallpaper():
-    cmd = [
-        "convert",
-        "/icpc/wallpaper.png",
-        "-gravity",
-        "center",
-        "-pointsize",
-        "50",
-        "-family", "Ubuntu",
-        "-stroke",
-        "#000C",
-        "-strokewidth",
-        "2",
-        "-annotate",
-        "0",
-        configuration["team"]["name"],
-        "-stroke",
-        "none",
-        "-fill",
-        "white",
-        "-annotate",
-        "0",
-        configuration["team"]["name"],
-        "-pointsize",
-        "30",
-        "-stroke",
-        "#000C",
-        "-strokewidth",
-        "2",
-        "-annotate",
-        "+0+60",
-        configuration["team"]["affiliation"],
-        "-stroke",
-        "none",
-        "-fill",
-        "white",
-        "-annotate",
-        "+0+60",
-        configuration["team"]["affiliation"],
-        "/icpc/teamWallpaper.png",
-    ]
-    (code, out, err) = run_cmd(cmd)
-    if code != 0:
-        sg.popup(
-            f"Error applying wallpaper:\ncommand:{' '.join(cmd)}\n\nReturn Code: {code}\n\nout: {out}\n\nerr: {err}", title="Wallpaper Error"
-        )
-    # convert /icpc/wallpaper.png \
-    # -gravity center -pointsize 50 \
-    # -stroke '#000C' -strokewidth 2 -annotate 0 "$(cat /icpc/TEAMNAME)" \
-    # -stroke none -fill white -annotate 0 "$(cat /icpc/TEAMNAME)" \
-    # -pointsize 30 \
-    # -stroke '#000C' -strokewidth 2 -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
-    # -stroke none -fill white -annotate +0+60 "$(cat /icpc/TEAMAFFILIATION)" \
-    # /icpc/teamWallpaper.png
-
-
-
-
 def main():
   # This script must be run as root
   # if os.geteuid() != 0:
@@ -519,11 +280,9 @@ def main():
     run_cmd(["xset", "s", "noblank"])
 
   # Figure out what contest this is, because it informs some other choices
-  configuration["contest"] = read_file("/icpc/CONTEST", None)
-  if Path("/etc/skel/.config/autostart/firefox.desktop").exists():
-    configuration["autostart_firefox"] = stat.filemode(Path("/etc/skel/.config/autostart/firefox.desktop").stat().st_mode) != "----------"
-  else:
-    configuration["autostart_firefox"] = True
+  configuration["contest"] = machine_config.get("contest") or None
+  configuration["autostart_firefox"] = machine_config.get("autostart_firefox", True)
+  configuration["papersize"] = machine_config.get("papersize", "letter")
 
   values = None
   while True:
@@ -536,25 +295,25 @@ def main():
 
     break
 
-  configuration['contest'] = values['contest']
-  configuration['site'] = values['site']
-  configuration['papersize'] = "Letter" if values['letter'] else "A4"
   configuration['print_test_page'] = values['print_test_page']
-  configuration['autostart_firefox'] = values['autostart_firefox']
-  configuration['delete_printers'] = True
-  configuration['printers'] = values['configured_printers']
-  configuration['team'] = {
-      "id": values['team_id'],
-      "name": values['team_name'],
-      "affiliation": values['team_affiliation'],
-      "extra": values['team_extra'],
-  }
+  machine_config.update({
+      "contest": values['contest'],
+      "site": values['site'].split(":")[0],
+      "papersize": "letter" if values['letter'] else "a4",
+      "autostart_firefox": values['autostart_firefox'],
+      "printers": [dict(p) for p in values['configured_printers']],
+      "team": {
+          "id": values['team_id'],
+          "name": values['team_name'],
+          "affiliation": values['team_affiliation'],
+          "extra": values['team_extra'],
+      },
+  })
+  icpcconfig.save(machine_config)
 
-  apply_configuration()
-  apply_wallpaper()
-  printers_applied = apply_printers()
-  if not printers_applied:
-      sg.popup("Error applying printers", title="Printer Error")
+  (ret, out, err) = run_cmd(["/icpc/scripts/icpc-apply"], ignore_errors=True)
+  if ret != 0:
+      sg.popup(f"Some of the configuration couldn't be applied:\n\n{err.decode()}", title="Configuration Error")
 
   # Clear the screen
   print(chr(27) + "[H" + chr(27) + "[J")

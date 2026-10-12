@@ -1,0 +1,178 @@
+#!/usr/bin/python3
+"""Make this machine match /icpc/config.json. Run as root.
+
+Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
+sets the hostname, team wallpaper, Firefox autostart and printers. A section
+whose settings aren't in the config is left alone, so this is safe before setup,
+when there's no team or printers yet. Prints what failed and exits 1 if anything
+did, after trying the rest.
+"""
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import icpcconfig  # noqa: E402
+
+ICPC = Path("/icpc")
+TEAM_FILES = ["TEAMID", "TEAMNAME", "TEAMAFFILIATION"]
+
+# With icpc-printer (playbooks/icpc-printer.yml), contestants print to its "icpc"
+# queue and only it may submit to the real printers configured here
+ICPC_PRINTER = Path("/usr/bin/icpc-printer").exists()
+RESTRICTED = ["-u", "allow:icpc-printer", "-o", "printer-op-policy=icpc-restricted"] if ICPC_PRINTER else []
+
+errors = []
+
+
+def run(cmd):
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode != 0:
+        errors.append(f"{' '.join(cmd)} exited {p.returncode}: {(p.stderr or p.stdout).strip()}")
+    return p.returncode == 0
+
+
+def write(name, text):
+    path = ICPC / name
+    if text is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(text + "\n")
+
+
+def env_value(value):
+    # Both `source` in bash and systemd's EnvironmentFile= understand this quoting
+    value = "" if value is None else str(value)
+    for c in '\\"$`':
+        value = value.replace(c, "\\" + c)
+    return f'"{value}"'
+
+
+def apply_files(config):
+    team = config.get("team")
+    write("CONTEST", config.get("contest") or None)
+    write("SITE", config.get("site", "default site"))
+    if team:
+        write("TEAMID", team["id"])
+        write("TEAMNAME", team["name"])
+        write("TEAMAFFILIATION", team["affiliation"])
+        write("TEAM", f"{team['id']} - {team['name']} ({team['affiliation']})")
+    else:
+        for name in TEAM_FILES:
+            write(name, None)
+        write("TEAM", "default team")
+
+    # Sourced by self_test and wg_setup, and the EnvironmentFile of the VPN and ansible-pull units
+    env = {
+        "REMOTE_MANAGEMENT_SERVER": config.get("remote_management_server"),
+        "CONTEST": config.get("contest"),
+        "ICPC_BROWSER_URL": config.get("homepage"),
+    }
+    if "site" in config:
+        env["SITE"] = config["site"]
+    if team:
+        env.update(TEAM_ID=team["id"], TEAM_NAME=team["name"], TEAM_AFFILIATION=team["affiliation"])
+    write("CONFIG", "# Generated from /icpc/config.json by /icpc/scripts/icpc-apply\n"
+          + "\n".join(f"{k}={env_value(v)}" for k, v in env.items()))
+
+
+def apply_hostname(team):
+    hostname = "icpc-team-" + team["id"]
+    Path("/etc/hostname").write_text(hostname + "\n")
+    Path("/proc/sys/kernel/hostname").write_text(hostname + "\n")
+    # Makes wg_setup tell the VPN about the new hostname
+    Path("/run/wg_setup-vpn-hostname-updated").unlink(missing_ok=True)
+
+    hosts = Path("/etc/hosts").read_text().splitlines()
+    for i, line in enumerate(hosts):
+        if line.startswith("127.0.1.1 "):
+            hosts[i] = f"127.0.1.1 {hostname}.icpcnet.internal {hostname}"
+    Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
+
+
+def apply_firefox_autostart(enabled):
+    # TODO: this is insufficient... seems like we need to add/remove Hidden=true from the file
+    for path in ["/etc/skel/.config/autostart/firefox.desktop", "/home/contestant/.config/autostart/firefox.desktop"]:
+        if Path(path).exists():
+            Path(path).chmod(0o755 if enabled else 0o000)
+
+
+def apply_wallpaper(team):
+    wallpaper = ICPC / "teamWallpaper.png"
+    if not team:
+        wallpaper.unlink(missing_ok=True)
+        return
+    run([
+        "convert", str(ICPC / "wallpaper.png"),
+        "-gravity", "center", "-pointsize", "50", "-family", "Ubuntu",
+        "-stroke", "#000C", "-strokewidth", "2", "-annotate", "0", team["name"],
+        "-stroke", "none", "-fill", "white", "-annotate", "0", team["name"],
+        "-pointsize", "30",
+        "-stroke", "#000C", "-strokewidth", "2", "-annotate", "+0+60", team["affiliation"],
+        "-stroke", "none", "-fill", "white", "-annotate", "+0+60", team["affiliation"],
+        str(wallpaper),
+    ])
+
+
+def managed_printers():
+    """The PrinterN queues; other queues (like icpc) aren't ours to replace"""
+    out = subprocess.run(["lpstat", "-v"], capture_output=True, text=True).stdout
+    names = [line.split()[2].rstrip(":") for line in out.splitlines() if line.startswith("device for ")]
+    return [n for n in names if n.startswith("Printer")]
+
+
+def apply_printers(printers, papersize):
+    for name in managed_printers():
+        run(["lpadmin", "-x", name])
+    if subprocess.run(["lpstat", "-c", "ContestPrinter"], capture_output=True).returncode == 0:
+        run(["lpadmin", "-x", "ContestPrinter"])
+
+    # CUPS wants the media name capitalized, e.g. media=#Letter
+    media = {"letter": "Letter", "a4": "A4"}.get(papersize, papersize)
+    names = []
+    for i, p in enumerate(printers):
+        # A few driver overrides, but everything should use the everywhere driver these days
+        driver = {"ps": "drv:///sample.drv/generic.ppd", "pcl": "drv:///sample.drv/generpcl.ppd"}.get(p["driver"], p["driver"])
+        name = f"Printer{i}"
+        # TODO: acls on printing (default deny? then only allow the contestant to print to what we configure?)
+        if not run(["lpadmin", "-p", name, "-v", p["uri"], "-E", "-m", driver, "-L", p.get("note", ""),
+                    "-o", f"media=#{media}", "-o", "printer-is-shared=false"]):
+            continue
+        # Make sure it's enabled and accepting jobs, in the ContestPrinter class
+        if run(["lpadmin", "-p", name, "-c", "ContestPrinter"]) and run(["cupsenable", name]) and run(["cupsaccept", name]):
+            names.append(name)
+
+    if names:
+        run(["lpadmin", "-d", "ContestPrinter"])
+        run(["cupsenable", "ContestPrinter"])
+        run(["cupsaccept", "ContestPrinter"])
+        # Last: once a queue has an allow list, cupsenable from root fails with not-authorized
+        if RESTRICTED:
+            for name in names + ["ContestPrinter"]:
+                run(["lpadmin", "-p", name] + RESTRICTED)
+
+    # Also restarts icpc-printer, which only sees the hostname it started with
+    if ICPC_PRINTER:
+        run(["/icpc/scripts/icpc-printer-setup", papersize])
+
+
+def main():
+    config = icpcconfig.load()
+    team = config.get("team")
+
+    apply_files(config)
+    if team:
+        apply_hostname(team)
+    if "autostart_firefox" in config:
+        apply_firefox_autostart(config["autostart_firefox"])
+    apply_wallpaper(team)
+    if "printers" in config:
+        apply_printers(config["printers"], config.get("papersize", "letter"))
+
+    if errors:
+        print("\n".join(errors), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

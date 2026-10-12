@@ -263,7 +263,7 @@ fake-setup:
     set -euo pipefail
     host=$(cat "$VM_STATE/sudo_host" 2>/dev/null || echo vm)
     scp -F "$VM_STATE/ssh_config" -q {{source_directory()}}/fake-setup.py "$host":/tmp/fake-setup.py
-    {{ssh}} "$host" sudo /icpc/scripts/venv/bin/python /tmp/fake-setup.py
+    {{ssh}} "$host" sudo python3 /tmp/fake-setup.py
     just vm reboot
     just vm wait-desktop
 

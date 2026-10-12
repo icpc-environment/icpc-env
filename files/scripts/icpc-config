@@ -1,0 +1,79 @@
+#!/usr/bin/python3
+"""Read or change /icpc/config.json.
+
+usage: icpc-config get <key> [default]    print a value, e.g. `get team.name`
+       icpc-config set <key> <value>      set a string value
+       icpc-config set-json <key> <json>  set any JSON value
+       icpc-config unset <key>...         remove values
+       icpc-config dump                   print the whole file
+
+Keys are dotted paths into the JSON. `get` prints strings as they are, null as
+an empty line and anything else as JSON, and fails if the key is missing and
+there's no default. Changes only edit the file: run /icpc/scripts/icpc-apply
+(as root) to apply them.
+"""
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import icpcconfig  # noqa: E402
+
+
+def usage():
+    sys.exit(__doc__.strip())
+
+
+def show(value):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def parent_of(config, key):
+    *parents, last = key.split(".")
+    for part in parents:
+        config = config.setdefault(part, {})
+        if not isinstance(config, dict):
+            sys.exit(f"icpc-config: {key}: {part} is not an object")
+    return config, last
+
+
+def main(args):
+    if not args:
+        usage()
+    command, args = args[0], args[1:]
+    config = icpcconfig.load()
+
+    if command == "get" and len(args) in (1, 2):
+        try:
+            print(show(icpcconfig.lookup(config, args[0])))
+        except KeyError:
+            if len(args) == 1:
+                sys.exit(f"icpc-config: {args[0]} is not set")
+            print(args[1])
+    elif command in ("set", "set-json") and len(args) == 2:
+        value = args[1] if command == "set" else json.loads(args[1])
+        parent, last = parent_of(config, args[0])
+        parent[last] = value
+        icpcconfig.save(config)
+    elif command == "unset" and args:
+        for key in args:
+            *parents, last = key.split(".")
+            try:
+                parent = icpcconfig.lookup(config, ".".join(parents)) if parents else config
+            except KeyError:
+                continue
+            if isinstance(parent, dict):
+                parent.pop(last, None)
+        icpcconfig.save(config)
+    elif command == "dump" and not args:
+        print(json.dumps(config, indent=2, ensure_ascii=False))
+    else:
+        usage()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

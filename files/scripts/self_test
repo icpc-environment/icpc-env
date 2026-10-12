@@ -56,7 +56,7 @@ function check_service() {
 
 echo "${BLUE}System Configuration${RESET}"
 print_check "Contest ID"
-CONTESTID="$(cat /icpc/CONTEST 2>/dev/null)"
+CONTESTID="$(/icpc/scripts/icpc-config get contest "")"
 NOTEAM="${RED}Not Set${RESET}"
 CONTESTID="${CONTESTID:-$NOTEAM}"
 echo $CONTESTID
@@ -68,7 +68,7 @@ TEAMNAME="${TEAMNAME:-$NOTEAM}"
 echo $TEAMNAME
 
 print_check "Site ID"
-SITENAME="$(cat /icpc/SITE 2>/dev/null)"
+SITENAME="$(/icpc/scripts/icpc-config get site "")"
 NOSITE="${RED}Not Set${RESET}"
 SITENAME="${SITENAME:-$NOSITE}"
 echo $SITENAME
@@ -128,7 +128,7 @@ while IFS="" read -r url ; do
   # wget -e use_proxy=yes -T 5 -t 1 -e http_proxy=127.0.0.1:3128 -e https_proxy=127.0.0.1:3128 -O- --no-check-certificate $url 2>/dev/null | grep -i "html" > /dev/null
   curl --proxy http://127.0.0.1:3128 --connect-timeout 5 --max-time 10 --silent -o /dev/null --fail $url
   check_return $?
-done < /icpc/config_homepage
+done < <(/icpc/scripts/icpc-config get homepage "")
 
 print_check "Testing direct internet access is disabled"
 su - contestant -c 'curl --noproxy "*" --connect-timeout 5 --max-time 10 --silent --fail -o /dev/null http://google.com' 2>/dev/null
