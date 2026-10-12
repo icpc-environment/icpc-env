@@ -32,6 +32,7 @@
       config_url: "{{ config_url }}"
       homepage: "{{ firefox_policies.Homepage.URL | default('') }}"
       papersize: "{{ icpc_papersize | default('letter') }}"
+      timezone: "{{ icpc_timezone }}"
       autostart_firefox: true
 
 - name: Apply the machine config
@@ -55,9 +56,6 @@
     dest: /icpc/wallpaper.png
     src: files/wallpaper.png
 
-- name: Set timezone
-  community.general.timezone:
-    name: "{{ icpc_timezone }}"
 - name: Install ICPC tools we need
   ansible.builtin.apt:
     state: present

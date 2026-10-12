@@ -81,6 +81,17 @@ def apply_papersize(papersize):
     Path("/etc/papersize").write_text(papersize + "\n")
 
 
+def apply_timezone(timezone):
+    zoneinfo = Path("/usr/share/zoneinfo") / timezone
+    if not zoneinfo.is_file():
+        errors.append(f"unknown timezone {timezone}")
+        return
+    localtime = Path("/etc/localtime")
+    localtime.unlink(missing_ok=True)
+    localtime.symlink_to(zoneinfo)
+    Path("/etc/timezone").write_text(timezone + "\n")
+
+
 def apply_hostname(team):
     hostname = "icpc-team-" + team["id"]
     Path("/etc/hostname").write_text(hostname + "\n")
@@ -168,6 +179,8 @@ def main():
     apply_files(config)
     if "papersize" in config:
         apply_papersize(config["papersize"])
+    if "timezone" in config:
+        apply_timezone(config["timezone"])
     if team:
         apply_hostname(team)
     if "autostart_firefox" in config:
