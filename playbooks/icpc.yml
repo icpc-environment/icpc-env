@@ -255,6 +255,7 @@
   when: icpc_partition.rc == 0
   block:
     - name: Create the usb drive mountpoint
+      when: "'/mnt/usbdrive' not in ansible_mounts | map(attribute='mount')"
       ansible.builtin.file:
         path: /mnt/usbdrive
         state: directory
@@ -273,6 +274,7 @@
         src: /mnt/usbdrive
         dest: "/etc/skel/USB Drive"
         state: link
+        follow: false
         owner: root
         group: root
         mode: '0755'
