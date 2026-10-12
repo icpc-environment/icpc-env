@@ -93,10 +93,11 @@
       - python3-xlib  # maybe we'll write our own xorg fullscreen thing to replace the above 3 things...
 
 - name: Stop/disable cups-browsed from autodiscovering printers
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: cups-browsed
     state: stopped
     enabled: false
+    masked: true
 
 
 
