@@ -2,7 +2,7 @@
 """Make this machine match /icpc/config.json. Run as root.
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
-sets the hostname, team wallpaper, Firefox autostart and printers. A section
+sets the allowed sites, hostname, team wallpaper, Firefox autostart and printers. A section
 whose settings aren't in the config is left alone, so this is safe before setup,
 when there's no team or printers yet. Prints what failed and exits 1 if anything
 did, after trying the rest.
@@ -155,6 +155,75 @@ def apply_management(config, start):
             run(["systemctl", "disable", "--quiet"] + (["--now"] if running else []) + [unit])
 
 
+NGINX_SITES = Path("/etc/nginx/icpc-sites.conf")
+HOSTS_BEGIN = "# BEGIN reverseproxy_sites, " + GENERATED[2:]
+HOSTS_END = "# END reverseproxy_sites"
+# Everything here ends up in nginx's config, so nothing may contain ; { } quotes or spaces
+HOST_RE = r"[A-Za-z0-9.-]+"
+PATH_RE = r"/[^\s;{}\"'\\$]*"
+
+
+def nginx_site(name, site):
+    scheme = site.get("scheme", "https")
+    backend = site.get("backend_host", name)
+    port = str(site.get("port", ""))
+    if not re.fullmatch(HOST_RE, name) or not re.fullmatch(HOST_RE, backend):
+        raise ValueError(f"bad host in {name}")
+    if scheme not in ("http", "https") or not re.fullmatch(r"\d*", port):
+        raise ValueError(f"bad scheme or port for {name}")
+
+    locations = []
+    for item in site["paths"]:
+        path, exact = item["path"], item.get("exact", False)
+        if not re.fullmatch(PATH_RE, path):
+            raise ValueError(f"bad path {path!r} for {name}")
+        if not exact and path != "/":
+            target = "$request_uri"
+        else:
+            target = (path if path != "/" else "") + ("$is_args$args" if item.get("with_args") else "")
+        locations.append(f"""
+        location {"=" if exact else ""} {path} {{
+                proxy_pass $server_host{target};
+        }}""")
+
+    # $server_host being a variable makes nginx look the backend up again when
+    # its DNS ttl expires, instead of only once when it starts
+    return f"""
+server {{
+        server_name {name};
+        include /etc/nginx/snippets/icpc-proxy.conf;
+        set $server_host "{scheme}://{backend}{':' + port if port else ''}";
+{"".join(locations)}
+}}
+"""
+
+
+def apply_reverseproxy(sites):
+    """The contest's allowlist: squid only lets contestants reach 127.0.0.0/8, so
+    a site is reachable when /etc/hosts points it at nginx, which proxies it"""
+    try:
+        conf = GENERATED + "\n" + "".join(nginx_site(name, site) for name, site in sites.items())
+    except (AttributeError, KeyError, TypeError, ValueError) as e:
+        errors.append(f"reverseproxy_sites isn't valid: {e!r}")
+        return
+    old = NGINX_SITES.read_text() if NGINX_SITES.exists() else ""
+    NGINX_SITES.write_text(conf)
+    if not run(["nginx", "-t", "-q"]):
+        NGINX_SITES.write_text(old)
+        return
+
+    hosts = Path("/etc/hosts").read_text().splitlines()
+    if HOSTS_BEGIN in hosts:
+        start = hosts.index(HOSTS_BEGIN)
+        del hosts[start:hosts.index(HOSTS_END, start) + 1]
+    hosts += [HOSTS_BEGIN] + [f"127.0.0.1\t{name}" for name in sites] + [HOSTS_END]
+    Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
+
+    # squid reads /etc/hosts when it starts or reloads
+    if Path("/run/systemd/system").exists():
+        run(["systemctl", "try-reload-or-restart", "nginx", "squid"])
+
+
 def apply_hostname(team):
     hostname = "icpc-team-" + team["id"]
     Path("/etc/hostname").write_text(hostname + "\n")
@@ -251,6 +320,8 @@ def main(args):
     if "submit" in config:
         apply_submit(config["submit"])
     apply_management(config, start=not args)
+    if "reverseproxy_sites" in config:
+        apply_reverseproxy(config["reverseproxy_sites"])
     if team:
         apply_hostname(team)
     if "autostart_firefox" in config:

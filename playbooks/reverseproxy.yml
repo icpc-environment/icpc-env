@@ -61,15 +61,26 @@
     mode: "0755"
 
 - name: Install our reverse proxy config
-  ansible.builtin.template:
-    src: files/nginx.conf.j2
-    dest: /etc/nginx/sites-available/reverseproxy.conf
+  ansible.builtin.copy:
+    src: files/nginx/{{ item.src }}
+    dest: /etc/nginx/{{ item.dest }}
     mode: "0644"
     owner: root
     group: root
-    lstrip_blocks: true
-    trim_blocks: true
+  loop:
+    - { src: reverseproxy.conf, dest: sites-available/reverseproxy.conf }
+    - { src: icpc-proxy.conf, dest: snippets/icpc-proxy.conf }
   notify: Reload nginx
+
+# icpc-apply fills it in from reverseproxy_sites in /icpc/config.json
+- name: Create the allowed sites config
+  ansible.builtin.copy:
+    dest: /etc/nginx/icpc-sites.conf
+    content: ""
+    force: false
+    mode: "0644"
+    owner: root
+    group: root
 
 - name: Enable the reverseproxy nginx config
   ansible.builtin.file:
@@ -77,16 +88,6 @@
     dest: /etc/nginx/sites-enabled/reverseproxy
     state: link
   notify: Reload nginx
-
-- name: Update hosts file so we talk to the proxyserver instead of the real server
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    line: "127.0.0.1	{{ item }}"
-    owner: root
-    group: root
-    mode: '0644'
-  loop: "{{ reverseproxy_sites.keys() }}"
-  when: reverseproxy_sites is defined
 
 - name: Update hosts file so devdocs is available properly
   ansible.builtin.lineinfile:
