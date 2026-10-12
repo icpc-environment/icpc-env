@@ -67,16 +67,16 @@ config_url: http://configs.cloudcontest.org
 
 # # Firefox policies. Documented here:
 # https://mozilla.github.io/policy-templates/
-firefox_default_policies:
+# Firefox gets firefox_default_policies, then the contest's firefox_policies
+# (from /icpc/config.json) on top, then firefox_fixed_policies on top of both.
+# Policies that are dictionaries are merged key by key.
+
+# What the image needs to work, whatever the contest's config says
+firefox_fixed_policies:
   # Disable internet checking (it'll fail when the proxy is on so we want to avoid the notification banner)
   CaptivePortal: false
   # Prevent updating (shouldn't happen on linux, but we want to avoid it anyway)
   DisableAppUpdate: true
-  # Prevent first run page/post update pages from showing up
-  OverrideFirstRunPage: ""
-  OverridePostUpdatePage: ""
-  # What it says on the tin. This is to prevent a banner on first start about what it's sharing
-  DisableTelemetry: true
   # Disable DNS over HTTPS (this might get around filters/things)
   DNSOverHTTPS:
     Enabled: false
@@ -85,6 +85,13 @@ firefox_default_policies:
     ImportEnterpriseRoots: true,
     Install: ["/etc/squid/squidCA.crt"]
   }
+
+firefox_default_policies:
+  # Prevent first run page/post update pages from showing up
+  OverrideFirstRunPage: ""
+  OverridePostUpdatePage: ""
+  # What it says on the tin. This is to prevent a banner on first start about what it's sharing
+  DisableTelemetry: true
 
   # Other Preferences that don't have specific policies
   Preferences:

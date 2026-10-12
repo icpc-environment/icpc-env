@@ -41,6 +41,7 @@
         pc2_base_url: "{{ pc2_submit_base_url }}"
       autostart_firefox: true
       reverseproxy_sites: "{{ reverseproxy_sites | default({}) }}"
+      firefox_policies: "{{ firefox_policies | default({}) }}"
 
 - name: Create printfile symlink(to match world finals image)
   ansible.builtin.file:

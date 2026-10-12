@@ -2,15 +2,16 @@
 """Make this machine match /icpc/config.json. Run as root.
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
-sets the allowed sites, hostname, team wallpaper, Firefox autostart and printers. A section
-whose settings aren't in the config is left alone, so this is safe before setup,
-when there's no team or printers yet. Prints what failed and exits 1 if anything
-did, after trying the rest.
+sets the allowed sites, hostname, team wallpaper, Firefox policies and autostart,
+and printers. A section whose settings aren't in the config is left alone, so
+this is safe before setup, when there's no team or printers yet. Prints what
+failed and exits 1 if anything did, after trying the rest.
 
 usage: icpc-apply [--no-start]
 
 --no-start  enable services without starting them, for image builds
 """
+import json
 import re
 import subprocess
 import sys
@@ -238,6 +239,32 @@ def apply_hostname(team):
     Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
 
 
+FIREFOX_POLICIES = Path("/etc/icpc/firefox")
+
+
+def merge(base, override):
+    """base with override's values on top, merging dictionaries key by key"""
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            value = merge(merged[key], value)
+        merged[key] = value
+    return merged
+
+
+def apply_firefox_policies(policies):
+    """The image's defaults, then the contest's policies, then what the image needs to work"""
+    if not isinstance(policies, dict):
+        errors.append("firefox_policies isn't a dictionary")
+        return
+    defaults = json.loads((FIREFOX_POLICIES / "default-policies.json").read_text())
+    fixed = json.loads((FIREFOX_POLICIES / "fixed-policies.json").read_text())
+    merged = merge(merge(defaults, policies), fixed)
+    path = Path("/usr/lib/firefox/distribution/policies.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"policies": merged}, indent=2, ensure_ascii=False) + "\n")
+
+
 def apply_firefox_autostart(enabled):
     # TODO: this is insufficient... seems like we need to add/remove Hidden=true from the file
     for path in ["/etc/skel/.config/autostart/firefox.desktop", "/home/contestant/.config/autostart/firefox.desktop"]:
@@ -324,6 +351,8 @@ def main(args):
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:
         apply_hostname(team)
+    if FIREFOX_POLICIES.exists():
+        apply_firefox_policies(config.get("firefox_policies", {}))
     if "autostart_firefox" in config:
         apply_firefox_autostart(config["autostart_firefox"])
     apply_wallpaper(team)

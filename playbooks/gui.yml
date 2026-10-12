@@ -209,14 +209,20 @@
     dest: /usr/local/bin/mirror-displays
     mode: 0755
 
-- name: Configure firefox policies
+- name: Create the firefox policies directory
+  ansible.builtin.file:
+    path: /etc/icpc/firefox
+    state: directory
+    mode: "0755"
+
+# icpc-apply combines them with firefox_policies from /icpc/config.json
+- name: Install the image's firefox policies
   ansible.builtin.copy:
-    dest: /usr/lib/firefox/distribution/policies.json
-    content: |
-      {
-        "policies":
-        {{ firefox_default_policies | combine(firefox_policies) | to_nice_json }}
-      }
+    dest: /etc/icpc/firefox/{{ item.name }}-policies.json
+    content: "{{ item.policies | to_nice_json }}\n"
     mode: "0644"
     owner: root
     group: root
+  loop:
+    - { name: default, policies: "{{ firefox_default_policies }}" }
+    - { name: fixed, policies: "{{ firefox_fixed_policies }}" }
