@@ -74,7 +74,6 @@ def apply_files(config):
     env = {
         "REMOTE_MANAGEMENT_SERVER": config.get("remote_management_server"),
         "CONTEST": config.get("contest"),
-        "ICPC_BROWSER_URL": config.get("homepage"),
     }
     if "site" in config:
         env["SITE"] = config["site"]
