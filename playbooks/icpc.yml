@@ -36,10 +36,6 @@
       language_scripts: "{{ language_scripts }}"
       autostart_firefox: true
 
-- name: Apply the machine config
-  ansible.builtin.command: /icpc/scripts/icpc-apply
-  changed_when: true
-
 - name: Create printfile symlink(to match world finals image)
   ansible.builtin.file:
     src: /icpc/scripts/pcpr

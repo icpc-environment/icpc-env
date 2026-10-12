@@ -163,6 +163,12 @@
       ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
       tags: management
 
+    # Last, so whatever it points at (submit clients, services) is installed
+    - name: Apply the machine config
+      ansible.builtin.command: /icpc/scripts/icpc-apply
+      changed_when: true
+      tags: always
+
     - name: Autoremove/autoclean/clean apt
       block:
         - name: Run apt autoremove
