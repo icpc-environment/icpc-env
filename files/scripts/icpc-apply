@@ -21,6 +21,7 @@ TEAM_FILES = ["TEAMID", "TEAMNAME", "TEAMAFFILIATION"]
 # queue and only it may submit to the real printers configured here
 ICPC_PRINTER = Path("/usr/bin/icpc-printer").exists()
 RESTRICTED = ["-u", "allow:icpc-printer", "-o", "printer-op-policy=icpc-restricted"] if ICPC_PRINTER else []
+ERROR_POLICY = ["-o", "printer-error-policy=abort-job"] if ICPC_PRINTER else []
 
 errors = []
 
@@ -136,7 +137,7 @@ def apply_printers(printers, papersize):
         name = f"Printer{i}"
         # TODO: acls on printing (default deny? then only allow the contestant to print to what we configure?)
         if not run(["lpadmin", "-p", name, "-v", p["uri"], "-E", "-m", driver, "-L", p.get("note", ""),
-                    "-o", f"media=#{media}", "-o", "printer-is-shared=false"]):
+                    "-o", f"media=#{media}", "-o", "printer-is-shared=false"] + ERROR_POLICY):
             continue
         # Make sure it's enabled and accepting jobs, in the ContestPrinter class
         if run(["lpadmin", "-p", name, "-c", "ContestPrinter"]) and run(["cupsenable", name]) and run(["cupsaccept", name]):

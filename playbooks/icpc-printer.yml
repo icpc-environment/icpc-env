@@ -28,6 +28,13 @@
     block: "{{ lookup('ansible.builtin.file', 'files/icpc-printer/cupsd-policy.conf') }}"
   notify: Restart cups
 
+- name: Cancel CUPS jobs that take more than 5 minutes
+  ansible.builtin.lineinfile:
+    path: /etc/cups/cupsd.conf
+    regexp: '^MaxJobTime '
+    line: MaxJobTime 300
+  notify: Restart cups
+
 - name: Create /etc/icpc/printer
   ansible.builtin.file:
     path: /etc/icpc/printer
