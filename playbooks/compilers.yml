@@ -114,15 +114,3 @@
             name: devdocs
             daemon_reload: true
             state: started
-
-
-- name: Install language scripts
-  ansible.builtin.copy:
-    dest: /usr/local/bin/{{ item.key }}
-    content: |
-      #!/bin/bash
-      {{ item.value }}
-    mode: "0755"
-    owner: "root"
-    group: "root"
-  loop: "{{ language_scripts | dict2items }}"

@@ -33,6 +33,7 @@
       homepage: "{{ firefox_policies.Homepage.URL | default('') }}"
       papersize: "{{ icpc_papersize | default('letter') }}"
       timezone: "{{ icpc_timezone }}"
+      language_scripts: "{{ language_scripts }}"
       autostart_firefox: true
 
 - name: Apply the machine config

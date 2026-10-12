@@ -7,6 +7,7 @@ whose settings aren't in the config is left alone, so this is safe before setup,
 when there's no team or printers yet. Prints what failed and exits 1 if anything
 did, after trying the rest.
 """
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import icpcconfig  # noqa: E402
 
 ICPC = Path("/icpc")
+GENERATED = "# Generated from /icpc/config.json by /icpc/scripts/icpc-apply"
 TEAM_FILES = ["TEAMID", "TEAMNAME", "TEAMAFFILIATION"]
 
 # With icpc-printer (playbooks/icpc-printer.yml), contestants print to its "icpc"
@@ -73,8 +75,7 @@ def apply_files(config):
         env["SITE"] = config["site"]
     if team:
         env.update(TEAM_ID=team["id"], TEAM_NAME=team["name"], TEAM_AFFILIATION=team["affiliation"])
-    write("CONFIG", "# Generated from /icpc/config.json by /icpc/scripts/icpc-apply\n"
-          + "\n".join(f"{k}={env_value(v)}" for k, v in env.items()))
+    write("CONFIG", GENERATED + "\n" + "\n".join(f"{k}={env_value(v)}" for k, v in env.items()))
 
 
 def apply_papersize(papersize):
@@ -90,6 +91,23 @@ def apply_timezone(timezone):
     localtime.unlink(missing_ok=True)
     localtime.symlink_to(zoneinfo)
     Path("/etc/timezone").write_text(timezone + "\n")
+
+
+def apply_language_scripts(scripts):
+    """compilec, runjava etc. in /usr/local/bin, so they match how the judge compiles and runs"""
+    bin_dir = Path("/usr/local/bin")
+    for path in bin_dir.iterdir():
+        if path.name not in scripts and path.is_file() and not path.is_symlink():
+            with open(path, "rb") as f:
+                if GENERATED.encode() in f.read(200):
+                    path.unlink()
+    for name, command in scripts.items():
+        if not re.fullmatch(r"[A-Za-z0-9_.+-]+", name):
+            errors.append(f"bad language script name {name!r}")
+            continue
+        path = bin_dir / name
+        path.write_text(f"#!/bin/bash\n{GENERATED}\n{command}\n")
+        path.chmod(0o755)
 
 
 def apply_hostname(team):
@@ -181,6 +199,8 @@ def main():
         apply_papersize(config["papersize"])
     if "timezone" in config:
         apply_timezone(config["timezone"])
+    if "language_scripts" in config:
+        apply_language_scripts(config["language_scripts"])
     if team:
         apply_hostname(team)
     if "autostart_firefox" in config:
