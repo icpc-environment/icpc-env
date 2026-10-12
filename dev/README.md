@@ -29,7 +29,9 @@ site "sysops", then reboots into the desktop, so the wallpaper, panel and hostna
 real team info. The team is set at the top of `dev/fake-setup.py`.
 
 It also adds a printer that keeps every job instead of printing it. `just vm printouts`
-copies those to `tmp/vm/$VM_NAME/printouts/`, with a PNG per page.
+copies those to `tmp/vm/$VM_NAME/printouts/`, with a PNG per page. With
+`icpc_printer_enabled`, that printer is the real one behind icpc-printer, so the printouts
+show its stamp (and cover page).
 
 ### State and checkpoints
 

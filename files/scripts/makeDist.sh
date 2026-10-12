@@ -39,6 +39,11 @@ do
 done
 lpadmin -x ContestPrinter
 
+# Empty icpc-printer's archive of printed jobs
+if [ -d /var/lib/icpc-printer ]; then
+  find /var/lib/icpc-printer -mindepth 1 -delete
+fi
+
 # Cleanup apt cache/unnecessary package
 apt-get autoremove --purge -y
 apt-get clean

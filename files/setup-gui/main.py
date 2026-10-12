@@ -76,6 +76,11 @@ class Printer(dict):
     def __str__(self):
         return f"[{self['group']}]: {self['note'] if len(self['note']) > 0 else 'default'} - {self['uri']} ({self['driver']})"
 
+# With icpc-printer (playbooks/icpc-printer.yml), contestants print to its "icpc"
+# queue and only it may submit to the real printers configured here
+ICPC_PRINTER = Path("/usr/bin/icpc-printer").exists()
+RESTRICTED = ["-u", "allow:icpc-printer", "-o", "printer-op-policy=icpc-restricted"] if ICPC_PRINTER else []
+
 # Load list of contests from the internet
 config_url = read_file("/icpc/config_url_base", "http://configs.cloudcontest.org")
 configuration = {}
@@ -356,6 +361,19 @@ def apply_printers():
 
         # Set it as accepting jobs
         (ret, out, err) = run_cmd(["cupsaccept", "ContestPrinter"])
+        if ret != 0:
+            return False
+
+        # Last: once a queue has an allow list, cupsenable from root fails with not-authorized
+        if RESTRICTED:
+            for name in [p["name"] for p in existing_printers] + ["ContestPrinter"]:
+                (ret, out, err) = run_cmd(["lpadmin", "-p", name] + RESTRICTED)
+                if ret != 0:
+                    return False
+
+    # Also restarts icpc-printer, which only sees the hostname it started with
+    if ICPC_PRINTER:
+        (ret, out, err) = run_cmd(["/icpc/scripts/icpc-printer-setup", configuration["papersize"]])
         if ret != 0:
             return False
 

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Configure icpc-printer for a paper size (with the matching cover page, if the
+# image has one), restart it, and recreate the "icpc" queue contestants print to.
+# The setup wizard runs this after setting the hostname and the real printers.
+set -euo pipefail
+
+usage() {
+  echo "usage: $0 letter|a4" >&2
+  exit 2
+}
+[ $# -eq 1 ] || usage
+PAPER=${1,,}
+case "$PAPER" in letter|a4) ;; *) usage ;; esac
+
+ARGS="--listen-host localhost --paper-size $PAPER --cups-printer ContestPrinter"
+COVERPAGE=/etc/icpc/printer/localhost-$PAPER.pdf
+[ -f "$COVERPAGE" ] && ARGS="$ARGS --coverpage $COVERPAGE"
+cat > /etc/default/icpc-printer <<EOF
+# Written by /icpc/scripts/icpc-printer-setup, see /usr/share/doc/icpc-printer/deployment.md
+ICPC_PRINTER_ARGS="$ARGS"
+EOF
+
+# Building in a chroot: nothing is running, the wizard does the rest at first boot
+[ -d /run/systemd/system ] || exit 0
+
+# icpc-printer only sees the hostname it was started with (ProtectHostname=yes)
+systemctl restart icpc-printer
+for _ in $(seq 30); do
+  (exec 3<>/dev/tcp/127.0.0.1/8000) 2>/dev/null && break
+  sleep 1
+done
+
+lpadmin -x icpc 2>/dev/null || true
+# Without real printers there's nothing for icpc-printer to forward to
+if lpstat -c ContestPrinter >/dev/null 2>&1; then
+  # -m everywhere asks icpc-printer for its capabilities, hence waiting for it above
+  lpadmin -p icpc -E -v ipp://localhost:8000/ipp/print/ICPC-Printer -m everywhere -o printer-is-shared=false
+  lpadmin -d icpc
+fi

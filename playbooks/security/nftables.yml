@@ -43,6 +43,9 @@
 
           # Reject all traffic from contestant user (except what was already accepted above)
           meta skuid "contestant" reject comment "Block contestant user from network"
+          {% if icpc_printer_enabled | bool %}
+          meta skuid "icpc-printer" reject comment "icpc-printer only serves contestants on loopback"
+          {% endif %}
         }
       }
   notify: Restart nftables

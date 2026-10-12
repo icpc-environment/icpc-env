@@ -17,6 +17,22 @@ submit_ccs: 'kattis'
 # Only used when 'pc2' is in ccs_tools - where the pc2 submit client posts to
 pc2_submit_base_url: https://pc2server.icpc-vcss.org:50443
 
+# Send contestant printing through icpc-printer, a local IPP server that stamps
+# "<hostname> · job <id> · n/N" on every page, can add a cover page, archives
+# each job in /var/lib/icpc-printer and forwards it to the printers the setup
+# wizard configures. Contestants print to the "icpc" queue; only icpc-printer
+# can submit to the real ones. Needs files/icpc-printer_*_amd64.deb, built by
+# `just package` in the icpc-printer repo.
+icpc_printer_enabled: false
+
+# Only used when icpc_printer_enabled is set. An optional cover page for every
+# job, as one PDF per paper size the setup wizard may pick, each that size:
+#
+#   icpc_printer_coverpages:
+#     letter: files/coverpage-letter.pdf
+#     a4: files/coverpage-a4.pdf
+icpc_printer_coverpages: {}
+
 # How the image filters traffic.
 #
 #   nftables        - the ruleset in playbooks/security/nftables.yml, which

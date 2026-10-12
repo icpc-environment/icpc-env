@@ -1,0 +1,51 @@
+---
+# Only included when icpc_printer_enabled is set, see group_vars/all/all.yml
+- name: Find the icpc-printer package in files/
+  ansible.builtin.set_fact:
+    icpc_printer_deb: "{{ query('ansible.builtin.fileglob', playbook_dir ~ '/files/icpc-printer_*_amd64.deb') | sort | last | default('') }}"
+
+- name: Make sure there is an icpc-printer package to install
+  ansible.builtin.assert:
+    that: icpc_printer_deb | length > 0
+    fail_msg: >-
+      icpc_printer_enabled is set, but there is no files/icpc-printer_*_amd64.deb.
+      Build it with `just package` in the icpc-printer repo and copy it from dist/.
+
+- name: Copy the icpc-printer package
+  ansible.builtin.copy:
+    src: "{{ icpc_printer_deb }}"
+    dest: /tmp/icpc-printer.deb
+    mode: "0644"
+
+- name: Install icpc-printer
+  ansible.builtin.apt:
+    deb: /tmp/icpc-printer.deb
+
+- name: Add the CUPS policy that only lets icpc-printer submit to the real printers
+  ansible.builtin.blockinfile:
+    path: /etc/cups/cupsd.conf
+    marker: "# {mark} icpc-restricted policy (playbooks/icpc-printer.yml)"
+    block: "{{ lookup('ansible.builtin.file', 'files/icpc-printer/cupsd-policy.conf') }}"
+  notify: Restart cups
+
+- name: Create /etc/icpc/printer
+  ansible.builtin.file:
+    path: /etc/icpc/printer
+    state: directory
+    mode: "0755"
+
+- name: Install the cover pages
+  ansible.builtin.copy:
+    src: "{{ item.value }}"
+    dest: /etc/icpc/printer/localhost-{{ item.key }}.pdf
+    mode: "0644"
+  loop: "{{ icpc_printer_coverpages | dict2items }}"
+
+- name: Enable icpc-printer
+  ansible.builtin.systemd:
+    name: icpc-printer
+    enabled: true
+
+- name: Configure and start icpc-printer
+  ansible.builtin.command: /icpc/scripts/icpc-printer-setup {{ icpc_papersize | default('letter') }}
+  changed_when: true

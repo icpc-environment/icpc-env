@@ -125,6 +125,11 @@
     - name: Include icpc
       ansible.builtin.import_tasks: 'playbooks/icpc.yml'
       tags: icpc
+    # Before network: the firewall has a rule for the icpc-printer user
+    - name: Include icpc-printer (if enabled)
+      ansible.builtin.import_tasks: 'playbooks/icpc-printer.yml'
+      tags: printing
+      when: icpc_printer_enabled | bool
     - name: Include vmtouch
       ansible.builtin.import_tasks: 'playbooks/vmtouch.yml'
       tags: vmtouch
@@ -211,6 +216,11 @@
         name: ssh
         state: restarted
         enabled: true
+
+    - name: Restart cups
+      ansible.builtin.service:
+        name: cups
+        state: restarted
 
     - name: Restart nftables
       ansible.builtin.service:
