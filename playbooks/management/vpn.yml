@@ -16,11 +16,6 @@
     dest: /etc/systemd/system/wg-setup.service
     mode: "0644"
 
-- name: Enable wg-setup service
-  ansible.builtin.service:
-    enabled: true
-    name: wg-setup
-
 - name: Install wstunnel (for wireguard websocket tunnel fallback)
   ansible.builtin.unarchive:
     src: https://github.com/erebe/wstunnel/releases/download/v10.5.0/wstunnel_10.5.0_linux_amd64.tar.gz

@@ -31,11 +31,6 @@
     dest: /etc/systemd/system/ansible-pull.service
     mode: "0644"
 
-- name: Enable ansible-pull.service (runs on boot)
-  ansible.builtin.service:
-    name: ansible-pull.service
-    enabled: true
-
 - name: Add ansible-pull.path (triggers on /icpc/trigger-ansible existing)
   ansible.builtin.copy:
     content: |
@@ -48,9 +43,3 @@
       WantedBy=multi-user.target
     dest: /etc/systemd/system/ansible-pull.path
     mode: "0644"
-
-- name: Enable ansible-pull.path (triggers on /icpc/trigger-ansible existing)
-  ansible.builtin.service:
-    name: ansible-pull.path
-    enabled: true
-    state: started

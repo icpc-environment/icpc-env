@@ -29,6 +29,8 @@
     icpc_config:
       contest: "{{ contest_id }}"
       remote_management_server: "{{ remote_management_server }}"
+      remote_management_vpn_enabled: "{{ remote_management_vpn_enabled | bool }}"
+      remote_management_lastminute_enabled: "{{ remote_management_lastminute_enabled | bool }}"
       config_url: "{{ config_url }}"
       homepage: "{{ firefox_policies.Homepage.URL | default('') }}"
       papersize: "{{ icpc_papersize | default('letter') }}"

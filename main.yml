@@ -149,15 +149,13 @@
       tags: ccs
 
     # Management related things
-    - name: Configure lastminute ansible execution (if enabled)
+    - name: Install lastminute ansible execution
       ansible.builtin.import_tasks: 'playbooks/management/ansible-pull.yml'
       tags: management
-      when: remote_management_server and (remote_management_lastminute_enabled | bool)
 
-    - name: Configure remote management vpn (if enabled)
+    - name: Install the remote management vpn
       ansible.builtin.import_tasks: 'playbooks/management/vpn.yml'
       tags: management
-      when: remote_management_server and (remote_management_vpn_enabled | bool)
 
     - name: Configure monitoring
       ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
@@ -165,7 +163,7 @@
 
     # Last, so whatever it points at (submit clients, services) is installed
     - name: Apply the machine config
-      ansible.builtin.command: /icpc/scripts/icpc-apply
+      ansible.builtin.command: /icpc/scripts/icpc-apply --no-start
       changed_when: true
       tags: always
 
