@@ -1,4 +1,5 @@
 mod vm 'dev/vm.just'
+mod mgmt 'management/mgmt.just'
 
 test:
     ./runvm.sh

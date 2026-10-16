@@ -1,0 +1,68 @@
+---
+- name: copy default nginx config
+  template: src=templates/nginx.conf.j2 dest=/etc/nginx/nginx.conf
+  notify: restart nginx
+- name: disable default nginx site
+  file: state=absent path=/etc/nginx/sites-enabled/default
+  notify: restart nginx
+- name: htpasswd for nginx
+  htpasswd:
+    path: /etc/nginx/contestadmin_users.htpasswd
+    name: admin
+    password: "{{mgmt_admin_password}}"
+    owner: root
+    group: www-data
+    mode: 0640
+
+# Certbot configuration for Let's Encrypt SSL
+- name: create webroot directory for certbot challenges
+  file:
+    path: /var/lib/letsencrypt
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: 0755
+
+- name: Check if letsencrypt cert exists
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ external_hostname }}/fullchain.pem
+  register: letsencrypt_cert
+- name: Create symlink for ssl-cert.conf if we don't have our cert yet
+  ansible.builtin.file:
+    src: /etc/nginx/snippets/snakeoil.conf
+    dest: /etc/nginx/snippets/ssl-config.conf
+    state: link
+  when: not letsencrypt_cert.stat.exists
+  notify: restart nginx
+
+# Make sure nginx is running at this point
+- meta: flush_handlers
+
+# Use certbot to get an ssl cert
+- name: obtain SSL certificate with certbot
+  when: letsencrypt_enabled | bool
+  command: >
+    certbot certonly --webroot --webroot-path=/var/lib/letsencrypt
+    --non-interactive --agree-tos --email {{ letsencrypt_email }}
+    --deploy-hook "systemctl reload nginx"
+    -d {{ external_hostname }}
+  args:
+    creates: "/etc/letsencrypt/live/{{ external_hostname }}/fullchain.pem"
+
+- name: configure nginx ssl cert
+  when: letsencrypt_enabled | bool
+  copy:
+    dest: /etc/nginx/snippets/ssl-config.conf
+    content: |
+      ssl_certificate /etc/letsencrypt/live/{{ external_hostname }}/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/{{ external_hostname }}/privkey.pem;
+      ssl_trusted_certificate /etc/letsencrypt/live/{{ external_hostname }}/chain.pem;
+  notify: restart nginx
+
+- name: create web directory
+  file:
+    state: directory
+    dest: /srv/contestweb
+    owner: "{{ ansible_user }}"
+    group: www-data
+    mode: 0755

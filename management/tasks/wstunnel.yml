@@ -1,0 +1,51 @@
+---
+- name: Create the wstunnel {{ wstunnel_version }} directory
+  file:
+    path: /opt/wstunnel/{{ wstunnel_version }}
+    state: directory
+    mode: '0755'
+- name: install wstunnel (for wireguard websocket tunnel)
+  unarchive:
+    src: https://github.com/erebe/wstunnel/releases/download/v{{ wstunnel_version }}/wstunnel_{{ wstunnel_version }}_linux_amd64.tar.gz
+    dest: /opt/wstunnel/{{ wstunnel_version }}
+    remote_src: true
+    include: ['wstunnel']
+    creates: /opt/wstunnel/{{ wstunnel_version }}/wstunnel
+- name: Make wstunnel root-owned and executable
+  file:
+    path: /opt/wstunnel/{{ wstunnel_version }}/wstunnel
+    owner: root
+    group: root
+    mode: '0755'
+- name: Point /usr/local/bin/wstunnel at this version
+  file:
+    src: /opt/wstunnel/{{ wstunnel_version }}/wstunnel
+    dest: /usr/local/bin/wstunnel
+    state: link
+    force: true
+  register: wstunnel_link
+- name: set up wstunnel service template configuration
+  register: wstunnel_unit
+  copy:
+    dest: /etc/systemd/system/wstunnel@.service
+    content: |
+      [Unit]
+      Description=Tunnel WG UDP over websocket on port %i
+      After=network.target
+
+      [Service]
+      Type=simple
+      DynamicUser=yes
+      ExecStart=/usr/local/bin/wstunnel server wss://127.0.0.1:%i --restrict-to 127.0.0.1:%i
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+- name: enable wstunnel wireguard service for port
+  systemd:
+    name: wstunnel@{{ item.value.port }}
+    enabled: true
+    daemon_reload: "{{ wstunnel_unit is changed }}"
+    state: "{{ 'restarted' if wstunnel_link is changed or wstunnel_unit is changed else 'started' }}"
+  loop: "{{ fleets|dict2items }}"

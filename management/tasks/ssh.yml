@@ -1,0 +1,109 @@
+---
+- name: create a regular interactive user for each "fleet"
+  user:
+    name: "{{ item }}"
+    shell: /bin/bash
+    createhome: true
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Make sure .ssh directory exists
+  file:
+    path: "~{{ item }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ item }}"
+    group: "{{ item }}"
+  loop: "{{ admin_users }}"
+
+- name: add ssh public key for fleet users
+  copy:
+    content: "{{ fleet_authorized_keys[item] | default('') }}"
+    dest: "~{{ item }}/.ssh/authorized_keys"
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0600'
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Give every admin the icpcadmin key for the team machines
+  copy:
+    src: "{{ mgmt_secrets_dir }}/{{ item[1] }}"
+    dest: "~{{ item[0] }}/.ssh/{{ item[1] }}"
+    mode: '0400'
+    owner: "{{ item[0] }}"
+    group: "{{ item[0] }}"
+  loop: "{{ admin_users | product(['icpcadmin@contestmanager', 'icpcadmin@contestmanager-cert.pub', 'icpcadmin@contestmanager.pub']) | list }}"
+
+- name: update ssh config to use private key by default
+  copy:
+    content: |
+      Host *
+          IdentityFile ~/.ssh/icpcadmin@contestmanager
+          User icpcadmin
+    dest: "~{{ item }}/.ssh/config"
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: '0644'
+  loop: "{{ admin_users }}"
+
+- name: use different set of host keys
+  copy:
+    src: "{{ mgmt_secrets_dir }}/contestmanager.icpcnet.internal_{{ item.name }}"
+    dest: /etc/ssh/ssh_{{ item.name }}
+    mode: "{{ item.mode }}"
+  loop:
+    # sshd refuses a host key that anything but root can read
+    - {name: host_ed25519_key, mode: "0600"}
+    - {name: host_ed25519_key.pub, mode: "0644"}
+    - {name: host_ed25519_key-cert.pub, mode: "0644"}
+  notify: Restart ssh
+
+- name: sshd host certificate
+  copy:
+    content: |
+      HostKey /etc/ssh/ssh_host_ed25519_key
+      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
+    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
+    mode: 0644
+  notify: Restart ssh
+
+- name: configure ssh ca.pub (so we can verify other hosts easily)
+  copy:
+    src: "{{ mgmt_secrets_dir }}/server_ca.pub"
+    dest: /etc/ssh/ca.pub
+    mode: 0644
+- name: configure ssh ca to be trusted for host verification
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/ssh_known_hosts
+    create: true
+    mode: '0644'
+    line: "@cert-authority * {{ lookup('file', mgmt_secrets_dir + '/server_ca.pub') }}"
+    state: present
+    insertafter: EOF
+
+# make sure password logins are disabled
+- name: ensure password authentication is disabled in sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-icpc-settings.conf
+    content: |
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      PubkeyAuthentication yes
+  notify: Restart ssh
+
+- name: Create /etc/ansible
+  file:
+    path: /etc/ansible
+    state: directory
+    mode: '0755'
+- name: Point ad-hoc ansible at wg-fleet's inventory of team machines
+  copy:
+    dest: /etc/ansible/ansible.cfg
+    mode: '0644'
+    content: |
+      [defaults]
+      inventory = /run/ansible_inventory.yml
+      interpreter_python = auto_silent
+      forks = 50
+
+      [ssh_connection]
+      pipelining = True

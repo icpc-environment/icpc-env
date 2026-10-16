@@ -1,0 +1,93 @@
+---
+- name: Ensure destination directories exist on remote
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/wireguard
+    - /var/lib/wg-fleet
+
+- name: Copy configuration file to remote host
+  ansible.builtin.copy:
+    content: |
+      ---
+      domain: icpcnet.internal
+      prune_timeout: {{ fleet_timeout }}
+      fleets:
+        {% for k,v in fleets.items() -%}
+        {{ k }}:
+          ip6: {{ v.ip }}
+          subnet: {{ v.subnet }}
+          external_ip: {{ external_ip }}
+          port: {{ v.port }}
+        {% endfor %}
+    dest: /etc/wg-fleet.yaml
+    mode: '0644'
+    owner: root
+    group: root
+  notify: Restart wg-fleet
+
+- name: Ensure Quadlet directory exists
+  ansible.builtin.file:
+    path: /etc/containers/systemd
+    state: directory
+    mode: '0755'
+
+- name: Create Quadlet container file
+  ansible.builtin.copy:
+    dest: /etc/containers/systemd/wg-fleet.container
+    content: |
+      [Unit]
+      Description=WireGuard Fleet Manager
+      After=network-online.target
+      Wants=network-online.target
+
+      [Container]
+      Image={{ wg_fleet_image }}
+      ContainerName=wg-fleet
+      Network=host
+
+      # Security
+      SecurityLabelDisable=true
+
+      # Capabilities for WireGuard
+      AddCapability=NET_ADMIN
+      AddCapability=SYS_MODULE
+
+      # Volumes
+      Volume=/etc/wg-fleet.yaml:/etc/wg-fleet.yaml:ro
+      Volume=/etc/wireguard:/etc/wireguard
+      Volume=/var/lib/wg-fleet:/var/lib/wg-fleet
+      Volume=/run:/run
+
+      [Service]
+      # Ensure clean restart
+      Restart=always
+      RestartSec=10s
+      TimeoutStartSec=30
+
+      [Install]
+      WantedBy=multi-user.target default.target
+    mode: '0644'
+  notify: Restart wg-fleet
+
+- name: Check which wg-fleet image is present
+  command: podman images -q --no-trunc {{ wg_fleet_image }}
+  register: wg_fleet_image_before
+  changed_when: false
+- name: Pull the latest wg-fleet image
+  command: podman pull -q {{ wg_fleet_image }}
+  register: wg_fleet_image_pull
+  changed_when: wg_fleet_image_pull.stdout | trim not in wg_fleet_image_before.stdout
+  notify: Restart wg-fleet
+
+- name: Reload systemd daemon to pick up Quadlet changes
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start wg-fleet service
+  ansible.builtin.systemd:
+    name: wg-fleet
+    enabled: true
+    state: started

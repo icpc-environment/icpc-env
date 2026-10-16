@@ -1,0 +1,46 @@
+---
+- name: make sure /srv/git exists
+  file:
+    path: /srv/git
+    state: directory
+    mode: '0755'
+    owner: www-data
+    group: www-data
+
+- name: create git repo for lastminute script
+  command: git init -q --bare -b master /srv/git/{{ item }}.git
+  args:
+    creates: /srv/git/{{ item }}.git
+  become: true
+  become_user: www-data
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Check which lastminute repos are still empty
+  command: git -C /srv/git/{{ item }}.git rev-parse -q --verify HEAD
+  register: lastminute_head
+  changed_when: false
+  failed_when: false
+  become: true
+  become_user: www-data
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Seed empty lastminute repos with a starter local.yml
+  shell: |
+    set -e
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    git clone -q /srv/git/{{ item.item }}.git "$tmp"
+    cat > "$tmp/local.yml"
+    cd "$tmp"
+    git add local.yml
+    git -c user.name='ICPC Admin' -c user.email='icpcadmin@{{ external_hostname }}' \
+      commit -q -m 'Initial last minute ansible script'
+    git push -q origin HEAD:master
+  args:
+    stdin: "{{ lookup('template', 'templates/lastminute-local.yml.j2', template_vars={'fleet': item.item}) }}"
+  become: true
+  become_user: www-data
+  when: item.rc != 0
+  loop: "{{ lastminute_head.results }}"
+  loop_control:
+    label: "{{ item.item }}"

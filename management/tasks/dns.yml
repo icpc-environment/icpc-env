@@ -1,0 +1,92 @@
+---
+# coredns to do dns serving magic
+- name: Create the coredns group
+  group:
+    name: coredns
+    state: present
+    system: true
+- name: Create the coredns user
+  user:
+    name: coredns
+    groups: coredns
+    append: true
+    shell: /usr/sbin/nologin
+    system: true
+    createhome: false
+    home: /
+- name: create coredns configuration directories
+  file:
+    path: /etc/coredns
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+- name: install coredns config file
+  copy:
+    dest: /etc/coredns/Corefile
+    content: |
+      # We handle this by probing our wireguard network for peers
+      icpcnet.internal. {
+        hosts /run/wg_fleet_hosts
+        log
+      }
+      . {
+          forward . 8.8.8.8 # Forward everything else upstream
+          log
+          errors
+          cache
+      }
+  notify: restart coredns
+- name: Create the coredns {{ coredns_version }} directory
+  file:
+    path: /opt/coredns/{{ coredns_version }}
+    state: directory
+    mode: '0755'
+- name: install coredns
+  unarchive:
+    src: https://github.com/coredns/coredns/releases/download/v{{ coredns_version }}/coredns_{{ coredns_version }}_linux_amd64.tgz
+    dest: /opt/coredns/{{ coredns_version }}
+    remote_src: true
+    creates: /opt/coredns/{{ coredns_version }}/coredns
+- name: Make coredns root-owned and executable
+  file:
+    path: /opt/coredns/{{ coredns_version }}/coredns
+    owner: root
+    group: root
+    mode: '0755'
+- name: Point /usr/local/bin/coredns at this version
+  file:
+    src: /opt/coredns/{{ coredns_version }}/coredns
+    dest: /usr/local/bin/coredns
+    state: link
+    force: true
+  notify: restart coredns
+- name: install coredns service
+  template:
+    src: templates/coredns.service.j2
+    dest: /etc/systemd/system/coredns.service
+    mode: 0644
+    owner: root
+    group: root
+  notify: restart coredns
+- name: disable systemd-resolved
+  systemd:
+    name: systemd-resolved
+    enabled: false
+    state: stopped
+- name: replace resolv.conf so we use coredns instead
+  copy:
+    dest: /etc/resolv.conf
+    follow: false
+    content: |
+      nameserver ::1
+      nameserver 127.0.0.1
+      options trust-ad
+      search icpcnet.internal
+  notify: restart coredns
+- name: enable coredns
+  systemd:
+    daemon_reload: true
+    name: coredns
+    enabled: true
+    state: started

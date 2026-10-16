@@ -1,0 +1,14 @@
+---
+- name: Find which commit is being deployed
+  command: git -C {{ playbook_dir }} describe --always --dirty
+  become: false
+  changed_when: false
+  register: git_revision
+  delegate_to: localhost
+- name: copy version info
+  ansible.builtin.copy:
+    content: |
+      Deployed on {{ now(fmt='%Y-%m-%d %H:%M') }}
+      Revision: {{ git_revision.stdout }}
+    dest: /applied-version
+    mode: '0644'

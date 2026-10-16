@@ -1,0 +1,52 @@
+---
+# The inventory hostname is the server's public DNS name. It's used for the
+# letsencrypt certificate, and is what images set remote_management_server to.
+external_hostname: "{{ inventory_hostname }}"
+# WireGuard endpoint handed to clients
+external_ip: "{{ ansible_default_ipv4.address }}"
+
+# Keys from secrets/gen-secrets.sh. Every fleet shares one set, so images for
+# all of them must be built after `./fetch-secrets.sh` with this same id.
+mgmt_secrets_id: generic
+mgmt_secrets_dir: "{{ playbook_dir }}/../secrets/{{ mgmt_secrets_id }}"
+
+wg_fleet_image: ghcr.io/ubergeek42/wg-fleet:main
+
+coredns_version: 1.14.7
+wstunnel_version: 11.0.0
+
+# Set to false where the hostname isn't publicly reachable (a test VM); nginx
+# then keeps the self-signed snakeoil certificate.
+letsencrypt_enabled: true
+letsencrypt_email: kj@ubergeek42.com
+
+# Clients that stop pinging wg-fleet for this long are removed
+fleet_timeout: 5m
+
+# Accounts that get the icpcadmin key and can reach every fleet's machines
+admin_users: "{{ [ansible_user] + (fleets.keys() | list) }}"
+
+# One entry per contest_id. Each gets its own wireguard interface, a login
+# user for that contest's admins (keys in secret.yml), and a last-minute git
+# repo at /git/<name>.git.
+#
+# Generate a new subnet with:
+#   echo "fd`openssl rand -hex 5 | fold -w2 | paste -sd: | sed 's/^/:/'`::/64"
+# Ports must be in 51820-51920; nginx only proxies wstunnel to that range.
+fleets:
+  generic:
+    subnet: fd00:a0a8:34d:9900::/64
+    ip: fd00:a0a8:34d:9900::1
+    port: 51920
+  southeast:
+    subnet: fd00:a0a8:34d:4201::/64
+    ip: fd00:a0a8:34d:4201::1
+    port: 51820
+  midatlantic:
+    subnet: fd00:a0a8:34d:4202::/64
+    ip: fd00:a0a8:34d:4202::1
+    port: 51821
+  southcentral:
+    subnet: fd00:a0a8:34d:4203::/64
+    ip: fd00:a0a8:34d:4203::1
+    port: 51822

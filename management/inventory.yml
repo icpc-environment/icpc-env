@@ -1,0 +1,6 @@
+---
+all:
+  hosts:
+    mgmt.env.cloudcontest.org:
+      ansible_user: root
+      ansible_ssh_private_key_file: ~/.ssh/icpc-mgmt

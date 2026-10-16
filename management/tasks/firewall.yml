@@ -1,0 +1,48 @@
+---
+- name: Configure nftables for web interface firewall
+  ansible.builtin.copy:
+    dest: /etc/nftables.conf
+    content: |
+      #!/usr/sbin/nft -f
+
+      flush ruleset
+
+      table inet filter {
+        chain input {
+          type filter hook input priority 0; policy drop;
+
+          ct state established,related accept comment "Allow established/related connections"
+
+          iifname lo accept comment "Allow loopback"
+
+          ip protocol icmp accept comment "Allow ICMP"
+          meta l4proto ipv6-icmp accept comment "Allow ICMPv6"
+
+          tcp dport 22 accept comment "Allow SSH"
+          tcp dport 80 accept comment "Allow HTTP"
+          tcp dport 443 accept comment "Allow HTTPS"
+          {% for k,v in fleets.items() -%}
+          udp dport {{ v.port }} accept comment "Allow WireGuard port for {{ k }}"
+          {% endfor %}
+
+          log prefix "nftables-drop: " drop comment "Log and drop everything else"
+        }
+
+        chain forward {
+          type filter hook forward priority 0; policy accept;
+        }
+
+        chain output {
+          type filter hook output priority 0; policy accept;
+        }
+      }
+    mode: '0755'
+    owner: root
+    group: root
+  notify: Restart nftables
+
+- name: Enable and start nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started

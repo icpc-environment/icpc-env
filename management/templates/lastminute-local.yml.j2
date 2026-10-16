@@ -1,0 +1,18 @@
+---
+# Team machines run this with ansible-pull on boot, and whenever
+# /icpc/trigger-ansible is created. Push changes here to apply them to every
+# {{ fleet }} machine.
+- name: Last minute setup for {{ fleet }}
+  hosts: all
+  become: true
+  tasks:
+    - name: Record which revision was applied
+      ansible.builtin.shell: >
+        printf '%s - ansible-pull on %s\nRevision: %s\n'
+        {{ fleet }} "$(date '+%Y-%m-%d %H:%M:%S')" "$(git rev-parse --short HEAD)"
+        > /icpc/update-version
+
+    - name: Remove the trigger file
+      ansible.builtin.file:
+        path: /icpc/trigger-ansible
+        state: absent

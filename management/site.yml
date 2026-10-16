@@ -1,0 +1,42 @@
+---
+- name: Management Server
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - vars.yml
+    - secret.yml
+  tasks:
+    - import_tasks: tasks/base.yml
+    - import_tasks: tasks/firewall.yml
+    - import_tasks: tasks/ssh.yml
+    - import_tasks: tasks/wg-fleet.yml
+    - import_tasks: tasks/wstunnel.yml
+    - import_tasks: tasks/dns.yml
+    - import_tasks: tasks/monitoring.yml
+    - import_tasks: tasks/nginx.yml
+    - import_tasks: tasks/lastminute.yml
+    - import_tasks: tasks/screenshots.yml
+    - import_tasks: tasks/version.yml
+
+  handlers:
+    - name: Restart ssh
+      service: name=ssh state=restarted enabled=true
+    - name: Restart wg-fleet
+      service: name=wg-fleet state=restarted enabled=true
+    - name: restart coredns
+      service: name=coredns state=restarted enabled=true
+    - name: restart nginx
+      service: name=nginx state=restarted enabled=true
+    - name: restart grafana
+      service: name=grafana-server state=restarted enabled=true
+    - name: restart prometheus
+      service: name=prometheus state=restarted enabled=true
+    - name: Restart nftables
+      ansible.builtin.systemd:
+        name: nftables
+        state: restarted
+        enabled: true
+    - name: systemctl daemon-reload
+      ansible.builtin.systemd:
+        daemon_reload: true

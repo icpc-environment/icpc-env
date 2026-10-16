@@ -52,7 +52,7 @@ firewall_backend: nftables
 #     COMMIT
 iptables_rules: null
 
-# Set to the hostname of a remote management server. See RemoteManagement.md for more details
+# Set to the hostname of a remote management server. See management/README.md for more details
 # This is the host that has your lastminute git repositories, as well as a wg-fleet install that is aware of your contest-id
 # Set to null to disable the remote vpn and lastminute ansible
 remote_management_server: null

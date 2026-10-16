@@ -1,0 +1,8 @@
+---
+- name: screenshot wizardry
+  copy:
+    src: files/do-screenshots
+    dest: /usr/local/bin/do-screenshots
+    mode: 0755
+- name: make sure screens dir exists in web folder
+  file: dest=/srv/contestweb/screens state=directory owner={{ ansible_user }} group=www-data mode=0755

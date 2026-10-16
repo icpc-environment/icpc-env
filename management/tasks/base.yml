@@ -1,0 +1,52 @@
+---
+- name: be sure apt cache is updated
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: give the host a good name
+  hostname:
+    name: contestmanager.icpcnet.internal
+
+- name: put the hostname in /etc/hosts
+  lineinfile:
+    insertafter: '^127.0.0.1'
+    line: 127.0.1.1 contestmanager.icpcnet.internal {{ external_hostname }} contestmanager
+    path: /etc/hosts
+
+- name: install misc tools
+  apt:
+    state: present
+    pkg:
+      - wireguard
+      - wireguard-tools
+      - iptables
+      - nftables
+      - iproute2
+      # for wg-fleet
+      - podman
+      # misc
+      - vim
+      # performance tools
+      - htop
+      - iotop
+      - iftop
+      - sysstat
+      # misc admin tools
+      - curl
+      - ncdu
+      - jq
+      - git
+      - pssh
+      # needed for provisioning (to let ansible become unprivleged users)
+      - acl
+      # Monitoring related things
+      - python3-prometheus-client
+      - python3-passlib # So we can use htpasswd in ansible
+      - imagemagick # for do-screenshots
+      - ansible # to let people run ad-hoc commands via ansible
+      # nginx and friends
+      - nginx
+      - libnginx-mod-stream
+      - certbot
+      - ssl-cert # so we have a snakeoil certificate for nginx
+      # for git hosting
+      - fcgiwrap

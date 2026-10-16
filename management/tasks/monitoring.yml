@@ -1,0 +1,97 @@
+---
+- name: Add the grafana apt key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /etc/apt/keyrings/grafana.asc
+    mode: '0644'
+- name: Add the grafana apt repo
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/grafana.sources
+    mode: '0644'
+    content: |
+      Types: deb
+      URIs: https://apt.grafana.com
+      Suites: stable
+      Components: main
+      Signed-By: /etc/apt/keyrings/grafana.asc
+  register: grafana_repo
+- name: install grafana and prometheus
+  apt:
+    state: present
+    update_cache: "{{ grafana_repo is changed }}"
+    pkg:
+      - grafana
+      - prometheus
+      - prometheus-node-exporter
+- name: configure grafana
+  copy:
+    content: |
+      GRAFANA_USER=grafana
+      GRAFANA_GROUP=grafana
+      GRAFANA_HOME=/usr/share/grafana
+      LOG_DIR=/var/log/grafana
+      DATA_DIR=/var/lib/grafana
+      MAX_OPEN_FILES=10000
+      CONF_DIR=/etc/grafana
+      CONF_FILE=/etc/grafana/grafana.ini
+      RESTART_ON_UPGRADE=true
+      PLUGINS_DIR=/var/lib/grafana/plugins
+      PROVISIONING_CFG_DIR=/etc/grafana/provisioning
+      # Only used on systemd systems
+      PID_FILE_DIR=/var/run/grafana
+      GF_SECURITY_ADMIN_PASSWORD={{mgmt_admin_password}}
+      # Run grafana from /grafana
+      GF_SERVER_DOMAIN={{external_hostname}}
+      GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
+      # GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH=true
+    dest: /etc/default/grafana-server
+  notify: restart grafana
+- name: set up grafana datasources
+  copy:
+    dest: /etc/grafana/provisioning/datasources/default.yml
+    content: |
+      apiVersion: 1
+      deleteDatasources:
+        - name: Prometheus
+          orgId: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://localhost:9090/prometheus
+        isDefault: true
+        version: 1
+        editable: false
+  notify: restart grafana
+
+- name: configure prometheus scrape config
+  notify: restart prometheus
+  copy:
+    dest: /etc/prometheus/prometheus.yml
+    content: |
+      ---
+      global:
+        scrape_interval:     15s # By default, scrape targets every 15 seconds.
+        evaluation_interval: 15s # By default, scrape targets every 15 seconds.
+      scrape_configs:
+        - job_name: 'self'
+          static_configs:
+            - targets: ['localhost:9100']
+        - job_name: 'contestants'
+          file_sd_configs:
+          - files:
+            - '/run/prometheus_targets.json'
+
+- name: Configure prometheus external web url
+  ansible.builtin.lineinfile:
+    path: /etc/default/prometheus
+    regexp: '^ARGS='
+    line: ARGS="--web.external-url=https://{{ external_hostname }}/prometheus/"
+  notify: restart prometheus
+
+- name: Start/enable our services
+  service: name={{ item }} state=started enabled=yes
+  with_items:
+    - grafana-server.service
+    - prometheus.service
