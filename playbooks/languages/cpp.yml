@@ -4,5 +4,5 @@
     state: present
     pkg:
       - g++
-      - g++-14 # TODO: how to make this default
+      - g++-15 # TODO: how to make this default
 

@@ -4,4 +4,4 @@
     state: present
     pkg:
       - gcc
-      - gcc-14
+      - gcc-15
