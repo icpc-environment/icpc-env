@@ -18,7 +18,7 @@
 
 - name: Install wstunnel (for wireguard websocket tunnel fallback)
   ansible.builtin.unarchive:
-    src: https://github.com/erebe/wstunnel/releases/download/v10.5.0/wstunnel_10.5.0_linux_amd64.tar.gz
+    src: https://github.com/erebe/wstunnel/releases/download/v11.0.0/wstunnel_11.0.0_linux_amd64.tar.gz
     dest: /usr/local/bin
     remote_src: true
     include: ['wstunnel']
