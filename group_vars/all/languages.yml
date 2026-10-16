@@ -19,7 +19,7 @@ language_scripts:
 # distribution happens to ship.
 
 # https://downloads.python.org/pypy/ - match a version from here
-pypy3_version: pypy3.11-v7.3.18
+pypy3_version: pypy3.11-v7.3.23
 
 # openjdk-<version>-jdk must exist in the release being built against. 25 is in
 # 26.04; building against 24.04 needs 21.
