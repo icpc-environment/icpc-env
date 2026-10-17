@@ -25,7 +25,6 @@ stream {
 
     map $ssl_preread_protocol $upstream {
         "" ssh_proxy_protocol;
-        "TLSv1.2" web;
         default web;
     }
 
