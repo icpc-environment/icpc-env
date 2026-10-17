@@ -32,10 +32,13 @@ ssh-keygen -q -t ed25519 -N "" -f ./server_ca
 # generate a host certificate for the contest image
 ssh-keygen -q -t ed25519 -N "" -f ./contestant.icpcnet.internal_host_ed25519_key
 
-# Sign it. '*' so it's valid for any hostname - OpenSSH rejects host certificates with no principals
+# Sign it for one name per contest rather than the machine's hostname, which
+# isn't known yet. The contest manager looks every machine of the contest up
+# under that name with HostKeyAlias. OpenSSH 10.5 rejects a host certificate
+# with no principals, and 10.2 doesn't treat '*' in one as a wildcard.
 ssh-keygen -q -s ./server_ca -h \
-    -I "contestant.icpcnet.internal host key" \
-    -n '*' \
+    -I "contestant.$1.icpcnet.internal host key" \
+    -n "contestant.$1.icpcnet.internal" \
     ./contestant.icpcnet.internal_host_ed25519_key
 
 # sign the icpcadmin user key (allowing to log into the icpc machine with root, icpcadmin, or contestant)
