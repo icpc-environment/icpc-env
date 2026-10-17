@@ -9,9 +9,6 @@ external_ip: "{{ ansible_default_ipv4.address }}"
 # images with that contest_id are built with (`just keys <fleet>` creates them).
 fleet_secrets_dir: "{{ playbook_dir }}/../secrets"
 
-# Which fleet's CA signs the server's own ssh host key
-mgmt_host_key_fleet: generic
-
 wg_fleet_image: ghcr.io/ubergeek42/wg-fleet:main
 
 coredns_version: 1.14.7

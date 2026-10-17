@@ -51,27 +51,6 @@
     mode: '0644'
   loop: "{{ admin_users }}"
 
-- name: use different set of host keys
-  copy:
-    src: "{{ fleet_secrets_dir }}/{{ mgmt_host_key_fleet }}/contestmanager.icpcnet.internal_{{ item.name }}"
-    dest: /etc/ssh/ssh_{{ item.name }}
-    mode: "{{ item.mode }}"
-  loop:
-    # sshd refuses a host key that anything but root can read
-    - {name: host_ed25519_key, mode: "0600"}
-    - {name: host_ed25519_key.pub, mode: "0644"}
-    - {name: host_ed25519_key-cert.pub, mode: "0644"}
-  notify: Restart ssh
-
-- name: sshd host certificate
-  copy:
-    content: |
-      HostKey /etc/ssh/ssh_host_ed25519_key
-      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
-    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
-    mode: 0644
-  notify: Restart ssh
-
 # A fleet's CA only vouches for that fleet's machines
 - name: Trust each fleet's ssh CA for its own machines' host keys
   copy:
