@@ -25,7 +25,7 @@
           udp dport {{ v.port }} accept comment "Allow WireGuard port for {{ k }}"
           {% endfor %}
 
-          log prefix "nftables-drop: " drop comment "Log and drop everything else"
+          limit rate 10/minute burst 20 packets log prefix "nftables-drop: " comment "Log some of what gets dropped"
         }
 
         chain forward {
