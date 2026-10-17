@@ -32,18 +32,11 @@ ssh-keygen -q -t ed25519 -N "" -f ./server_ca
 # generate a host certificate for the contest image
 ssh-keygen -q -t ed25519 -N "" -f ./contestant.icpcnet.internal_host_ed25519_key
 
-# and for the contestmanager machine (not used by the image, it's for setting up the contest manager)
-ssh-keygen -q -t ed25519 -N "" -f ./contestmanager.icpcnet.internal_host_ed25519_key
-
-# Sign the host certificates
-for x in contestant contestmanager; do
-# '*' so it's valid for any hostname - OpenSSH rejects host certificates with no principals
-# TODO: contestmanager should have the externally visible hostname of the management server
+# Sign it. '*' so it's valid for any hostname - OpenSSH rejects host certificates with no principals
 ssh-keygen -q -s ./server_ca -h \
-    -I "$x.icpcnet.internal host key" \
+    -I "contestant.icpcnet.internal host key" \
     -n '*' \
-    ./$x.icpcnet.internal_host_ed25519_key
-done
+    ./contestant.icpcnet.internal_host_ed25519_key
 
 # sign the icpcadmin user key (allowing to log into the icpc machine with root, icpcadmin, or contestant)
 ssh-keygen -q -s ./server_ca \
