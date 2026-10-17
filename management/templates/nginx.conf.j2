@@ -2,6 +2,7 @@ load_module /usr/lib/nginx/modules/ngx_stream_module.so;
 user www-data;
 worker_processes auto; # number of cores
 pid /run/nginx.pid;
+worker_rlimit_nofile 65535;
 
 events {
   worker_connections 8096;
