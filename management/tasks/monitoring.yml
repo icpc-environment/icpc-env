@@ -46,6 +46,9 @@
       # GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH=true
     dest: /etc/default/grafana-server
+    owner: root
+    group: grafana
+    mode: '0640'
   notify: restart grafana
 - name: set up grafana datasources
   copy:
