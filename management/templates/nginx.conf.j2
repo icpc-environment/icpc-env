@@ -111,7 +111,7 @@ http {
     # Don't include the 8443 port in the redirect
     port_in_redirect off;
 
-    location ~ /git(/.*) {
+    location ~ ^/git(/.*) {
       if ($arg_service = git-receive-pack) {
               rewrite /git(/.*) /git_write$1 last;
       }
@@ -125,11 +125,12 @@ http {
               rewrite /git(/.*) /git_read$1 last;
       }
     }
-    location ~ /git_(read|write) {
+    location ~ ^/git_(read|write) {
       root /srv/git;
       gzip off;
 
-      location ~ /git_read(?<repo>/.*)$ {
+      location ~ ^/git_read(?<repo>/.*)$ {
+        internal;
         fastcgi_param PATH_INFO $repo;
         fastcgi_param SCRIPT_FILENAME /usr/lib/git-core/git-http-backend;
         fastcgi_param GIT_HTTP_EXPORT_ALL "";
@@ -138,7 +139,8 @@ http {
         fastcgi_pass unix:/var/run/fcgiwrap.socket;
       }
 
-      location ~ /git_write(?<repo>/.*)$ {
+      location ~ ^/git_write(?<repo>/.*)$ {
+        internal;
         auth_basic "Pushing to Git repositories is restricted";
         auth_basic_user_file /etc/nginx/contestadmin_users.htpasswd;
         fastcgi_param PATH_INFO $repo;
