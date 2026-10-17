@@ -80,14 +80,19 @@
     state: present
     insertafter: EOF
 
-# make sure password logins are disabled
+# sshd keeps the first value it reads, so this has to sort before cloud-init's 50-cloud-init.conf
 - name: ensure password authentication is disabled in sshd
   ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/99-icpc-settings.conf
+    dest: /etc/ssh/sshd_config.d/10-icpc-settings.conf
     content: |
       PasswordAuthentication no
       ChallengeResponseAuthentication no
       PubkeyAuthentication yes
+  notify: Restart ssh
+- name: Remove the old name of the sshd settings
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-icpc-settings.conf
+    state: absent
   notify: Restart ssh
 
 - name: Create /etc/ansible
