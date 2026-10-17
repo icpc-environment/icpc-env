@@ -37,7 +37,7 @@
           errors
           cache
       }
-  notify: restart coredns
+  notify: Restart coredns
 - name: Create the coredns {{ coredns_version }} directory
   file:
     path: /opt/coredns/{{ coredns_version }}
@@ -61,7 +61,7 @@
     dest: /usr/local/bin/coredns
     state: link
     force: true
-  notify: restart coredns
+  notify: Restart coredns
 - name: install coredns service
   template:
     src: templates/coredns.service.j2
@@ -69,7 +69,7 @@
     mode: 0644
     owner: root
     group: root
-  notify: restart coredns
+  notify: Restart coredns
 - name: disable systemd-resolved
   systemd:
     name: systemd-resolved
@@ -84,7 +84,7 @@
       nameserver 127.0.0.1
       options trust-ad
       search icpcnet.internal
-  notify: restart coredns
+  notify: Restart coredns
 - name: enable coredns
   systemd:
     daemon_reload: true

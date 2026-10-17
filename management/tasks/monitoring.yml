@@ -49,7 +49,7 @@
     owner: root
     group: grafana
     mode: '0640'
-  notify: restart grafana
+  notify: Restart grafana
 - name: set up grafana datasources
   copy:
     dest: /etc/grafana/provisioning/datasources/default.yml
@@ -66,10 +66,10 @@
         isDefault: true
         version: 1
         editable: false
-  notify: restart grafana
+  notify: Restart grafana
 
 - name: configure prometheus scrape config
-  notify: restart prometheus
+  notify: Restart prometheus
   copy:
     dest: /etc/prometheus/prometheus.yml
     content: |
@@ -91,14 +91,14 @@
     path: /etc/default/prometheus
     regexp: '^ARGS='
     line: ARGS="--web.listen-address=127.0.0.1:9090 --web.external-url=https://{{ external_hostname }}/prometheus/"
-  notify: restart prometheus
+  notify: Restart prometheus
 
 - name: Only serve node_exporter to prometheus
   ansible.builtin.lineinfile:
     path: /etc/default/prometheus-node-exporter
     regexp: '^ARGS='
     line: ARGS="--web.listen-address=127.0.0.1:9100"
-  notify: restart prometheus-node-exporter
+  notify: Restart prometheus-node-exporter
 
 - name: Start/enable our services
   service: name={{ item }} state=started enabled=yes

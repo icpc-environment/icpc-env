@@ -1,10 +1,10 @@
 ---
 - name: copy default nginx config
   template: src=templates/nginx.conf.j2 dest=/etc/nginx/nginx.conf
-  notify: restart nginx
+  notify: Restart nginx
 - name: disable default nginx site
   file: state=absent path=/etc/nginx/sites-enabled/default
-  notify: restart nginx
+  notify: Restart nginx
 - name: htpasswd for nginx
   htpasswd:
     path: /etc/nginx/contestadmin_users.htpasswd
@@ -33,7 +33,7 @@
     dest: /etc/nginx/snippets/ssl-config.conf
     state: link
   when: not letsencrypt_cert.stat.exists
-  notify: restart nginx
+  notify: Restart nginx
 
 # Make sure nginx is running at this point
 - meta: flush_handlers
@@ -57,7 +57,7 @@
       ssl_certificate /etc/letsencrypt/live/{{ external_hostname }}/fullchain.pem;
       ssl_certificate_key /etc/letsencrypt/live/{{ external_hostname }}/privkey.pem;
       ssl_trusted_certificate /etc/letsencrypt/live/{{ external_hostname }}/chain.pem;
-  notify: restart nginx
+  notify: Restart nginx
 
 - name: create web directory
   file:
