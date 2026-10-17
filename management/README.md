@@ -18,9 +18,10 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
 2. Put that name in `inventory.yml` (with the path to your key).
 3. `cp secret.yml.example secret.yml` and set the admin password and each
    fleet's admin ssh keys.
-4. Make sure `secrets/<mgmt_secrets_id>/` exists (`secrets/gen-secrets.sh generic`).
-   Every fleet shares this set of keys, so build all images with
-   `./fetch-secrets.sh` for the same id.
+4. Make sure every fleet has keys in `secrets/<fleet>/` (`just keys <fleet>`).
+   Images built for that `contest_id` use the same directory, so a fleet's
+   keys only open its own machines. Back these up: images built with a lost
+   set can't be reached.
 5. `just mgmt deploy`
 
 Rerun `just mgmt deploy` after changing anything. It also pulls the latest
@@ -31,7 +32,8 @@ with debugging.
 ### Adding a contest
 
 Add an entry under `fleets` in `vars.yml` with a new subnet and port, and
-deploy. The key must match the images' `contest_id`. This creates the
+deploy, after `just keys <name>` for its ssh keys. The key must match the
+images' `contest_id`. This creates the
 wireguard interface, a login user with the same name, and an empty
 last-minute repo.
 
@@ -45,7 +47,9 @@ from the inventory.
 ## Using it
 
 Log in as root or as your fleet's user (`ssh <fleet>@<server>`, or port 443).
-Every admin account has the icpcadmin key and an ssh config that uses it.
+A fleet's account has that fleet's icpcadmin key and can only reach its
+machines; root has every fleet's key. Their ssh configs pick the key by name
+(`*.<fleet>`) or address (the fleet's subnet).
 
 Machines appear once they register a hostname, named
 `<hostname>.<fleet>.icpcnet.internal`. On the server `t107.southeast` is enough:

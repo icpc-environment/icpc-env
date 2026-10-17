@@ -36,8 +36,3 @@ preflight:
       echo "error: management/secret.yml is missing; copy secret.yml.example and fill it in" >&2
       exit 1
     fi
-    id=$(sed -n 's/^mgmt_secrets_id: *//p' vars.yml)
-    if [ ! -f "../secrets/$id/server_ca.pub" ]; then
-      echo "error: secrets/$id is missing; run secrets/gen-secrets.sh $id" >&2
-      exit 1
-    fi

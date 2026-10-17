@@ -40,3 +40,27 @@
       (home {{ getent_passwd[item][4] | default('') }}); pick another name.
     quiet: true
   loop: "{{ fleets.keys() | list }}"
+
+- name: Check each fleet's subnet is written as four groups and ::/64
+  ansible.builtin.assert:
+    that:
+      - item.value.subnet is match('^([0-9a-f]{1,4}:){4}:/64$')
+    fail_msg: >-
+      Fleet "{{ item.key }}" subnet {{ item.value.subnet }} must look like
+      fd00:a0a8:34d:4201::/64, as the generator in vars.yml writes them. The
+      ssh configs match a fleet's machines by that prefix.
+    quiet: true
+  loop: "{{ fleets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Check each fleet has its ssh keys
+  ansible.builtin.assert:
+    that:
+      - (fleet_secrets_dir + '/' + item + '/server_ca.pub') is file
+      - (fleet_secrets_dir + '/' + item + '/icpcadmin@contestmanager-cert.pub') is file
+    fail_msg: >-
+      secrets/{{ item }} is missing; run `just keys {{ item }}`, and build that
+      contest's images with the same keys.
+    quiet: true
+  loop: "{{ fleets.keys() | list }}"

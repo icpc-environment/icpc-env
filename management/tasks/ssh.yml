@@ -24,20 +24,26 @@
     mode: '0600'
   loop: "{{ fleets.keys() | list }}"
 
-- name: Give every admin the icpcadmin key for the team machines
+- name: Give each fleet's user that fleet's icpcadmin key, and root every fleet's
   copy:
-    src: "{{ mgmt_secrets_dir }}/{{ item[1] }}"
-    dest: "~{{ item[0] }}/.ssh/{{ item[1] }}"
+    src: "{{ fleet_secrets_dir }}/{{ item[0][1] }}/icpcadmin@contestmanager{{ item[1] }}"
+    dest: "~{{ item[0][0] }}/.ssh/icpcadmin@{{ item[0][1] }}{{ item[1] }}"
     mode: '0400'
-    owner: "{{ item[0] }}"
-    group: "{{ item[0] }}"
-  loop: "{{ admin_users | product(['icpcadmin@contestmanager', 'icpcadmin@contestmanager-cert.pub', 'icpcadmin@contestmanager.pub']) | list }}"
+    owner: "{{ item[0][0] }}"
+    group: "{{ item[0][0] }}"
+  loop: "{{ fleet_key_holders | product(['', '-cert.pub', '.pub']) | list }}"
+  loop_control:
+    label: "{{ item[0][0] }}: icpcadmin@{{ item[0][1] }}{{ item[1] }}"
 
-- name: update ssh config to use private key by default
+- name: Point ssh at the right fleet's key for each team machine
   copy:
     content: |
+      {% for fleet in fleet_key_holders | selectattr(0, 'equalto', item) | map(attribute=1) %}
+      Host *.{{ fleet }} *.{{ fleet }}.icpcnet.internal {{ fleets[fleet].subnet | regex_replace('::/64$', ':*') }}
+          IdentityFile ~/.ssh/icpcadmin@{{ fleet }}
+          IdentitiesOnly yes
+      {% endfor %}
       Host *
-          IdentityFile ~/.ssh/icpcadmin@contestmanager
           User icpcadmin
     dest: "~{{ item }}/.ssh/config"
     owner: "{{ item }}"
@@ -47,7 +53,7 @@
 
 - name: use different set of host keys
   copy:
-    src: "{{ mgmt_secrets_dir }}/contestmanager.icpcnet.internal_{{ item.name }}"
+    src: "{{ fleet_secrets_dir }}/{{ mgmt_host_key_fleet }}/contestmanager.icpcnet.internal_{{ item.name }}"
     dest: /etc/ssh/ssh_{{ item.name }}
     mode: "{{ item.mode }}"
   loop:
@@ -66,19 +72,15 @@
     mode: 0644
   notify: Restart ssh
 
-- name: configure ssh ca.pub (so we can verify other hosts easily)
+# A fleet's CA only vouches for that fleet's machines
+- name: Trust each fleet's ssh CA for its own machines' host keys
   copy:
-    src: "{{ mgmt_secrets_dir }}/server_ca.pub"
-    dest: /etc/ssh/ca.pub
-    mode: 0644
-- name: configure ssh ca to be trusted for host verification
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/ssh_known_hosts
-    create: true
+    content: |
+      {% for fleet in fleets %}
+      @cert-authority *.{{ fleet }},*.{{ fleet }}.icpcnet.internal,{{ fleets[fleet].subnet | regex_replace('::/64$', ':*') }} {{ lookup('file', fleet_secrets_dir + '/' + fleet + '/server_ca.pub') }}
+      {% endfor %}
+    dest: /etc/ssh/ssh_known_hosts
     mode: '0644'
-    line: "@cert-authority * {{ lookup('file', mgmt_secrets_dir + '/server_ca.pub') }}"
-    state: present
-    insertafter: EOF
 
 # sshd keeps the first value it reads, so this has to sort before cloud-init's 50-cloud-init.conf
 - name: ensure password authentication is disabled in sshd
