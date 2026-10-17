@@ -35,17 +35,17 @@ firefox_policies:
       URL: "https://devdocs/"
       Placement: "toolbar"
 
-# These scripts match open.kattis.com as of 2025-10-26
+# These scripts match open.kattis.com as of 2026-10-16
 # The memory limits for runjava/runkotlin will need to be adjusted for your specific contest problem memory limit
 language_scripts:
-  compilec:       gcc-14 -g -O2 -std=gnu23 -static "$@" -lm
-  compilecpp:     g++-14 -g -O2 -std=gnu++23 -static -lrt -Wl,--whole-archive -lpthread -Wl,--no-whole-archive "$@"
+  compilec:       gcc-15 -g -O2 -std=gnu23 -static "$@" -lm
+  compilecpp:     g++-15 -g -O2 -std=gnu++23 -static -lrt -Wl,--whole-archive -lpthread -Wl,--no-whole-archive "$@"
   compilejava:    javac -encoding UTF-8 -sourcepath . -d . "$@"
   compilekotlin:  /usr/local/bin/kotlinc -d . "$@"
   compilepython3: pypy3 -m py_compile "$@"
 
   runc:       ulimit -s 2097152 && ./a.out "$@"
   runcpp:     ulimit -s 2097152 && ./a.out "$@"
-  runjava:    java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms1920m -Xmx1920m "$@"
+  runjava:    java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=2 -Xms1920m -Xmx1920m "$@"
   runkotlin:  kotlin -J-XX:+UseSerialGC -J-Xss64m -J-Xms1920m -J-Xmx1920m "$@"
   runpython3: pypy3 "$@"
