@@ -1,0 +1,42 @@
+---
+- name: Check fleet names
+  ansible.builtin.assert:
+    that:
+      - item is match('^[a-z][a-z0-9_-]{0,11}$')
+    fail_msg: >-
+      Fleet "{{ item }}" must be 1-12 characters of a-z, 0-9, _ and -, starting
+      with a letter. It's a login name, and wg-fleet names its interface
+      wg_<fleet>, which Linux limits to 15 characters.
+    quiet: true
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Check fleet ports and subnets
+  ansible.builtin.assert:
+    that:
+      - item.value.port | int >= 51820
+      - item.value.port | int <= 51920
+      - fleets.values() | map(attribute='port') | select('equalto', item.value.port) | list | length == 1
+      - item.value.subnet | ansible.utils.ipv6('net') is string
+      - fleets.values() | map(attribute='subnet') | select('equalto', item.value.subnet) | list | length == 1
+      - item.value.ip | ansible.utils.ipaddr(item.value.subnet) is string
+    fail_msg: >-
+      Fleet "{{ item.key }}" needs its own port in 51820-51920 (nginx only
+      proxies wstunnel to those), its own IPv6 subnet, and an ip inside it.
+    quiet: true
+  loop: "{{ fleets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Look up existing users
+  ansible.builtin.getent:
+    database: passwd
+
+- name: Check fleet names aren't taken by other users
+  ansible.builtin.assert:
+    that:
+      - item not in getent_passwd or getent_passwd[item][4] == '/home/' + item
+    fail_msg: >-
+      Fleet "{{ item }}" would reuse the existing user {{ item }}
+      (home {{ getent_passwd[item][4] | default('') }}); pick another name.
+    quiet: true
+  loop: "{{ fleets.keys() | list }}"
