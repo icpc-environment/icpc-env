@@ -8,7 +8,6 @@
 - name: copy version info
   ansible.builtin.copy:
     content: |
-      Deployed on {{ now(fmt='%Y-%m-%d %H:%M') }}
       Revision: {{ git_revision.stdout }}
     dest: /applied-version
     mode: '0644'
