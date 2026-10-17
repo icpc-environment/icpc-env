@@ -42,6 +42,7 @@
       Host *.{{ fleet }} *.{{ fleet }}.icpcnet.internal {{ fleets[fleet].subnet | regex_replace('::/64$', ':*') }}
           IdentityFile ~/.ssh/icpcadmin@{{ fleet }}
           IdentitiesOnly yes
+          HostKeyAlias contestant.{{ fleet }}.icpcnet.internal
       {% endfor %}
       Host *
           User icpcadmin
@@ -56,7 +57,7 @@
   copy:
     content: |
       {% for fleet in fleets %}
-      @cert-authority *.{{ fleet }},*.{{ fleet }}.icpcnet.internal,{{ fleets[fleet].subnet | regex_replace('::/64$', ':*') }} {{ lookup('file', fleet_secrets_dir + '/' + fleet + '/server_ca.pub') }}
+      @cert-authority contestant.{{ fleet }}.icpcnet.internal {{ lookup('file', fleet_secrets_dir + '/' + fleet + '/server_ca.pub') }}
       {% endfor %}
     dest: /etc/ssh/ssh_known_hosts
     mode: '0644'
