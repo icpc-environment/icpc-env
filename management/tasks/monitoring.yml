@@ -98,3 +98,30 @@
   with_items:
     - grafana-server.service
     - prometheus.service
+
+# GF_SECURITY_ADMIN_PASSWORD only applies when grafana creates its database
+- name: Check grafana accepts the admin password
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000/api/user
+    url_username: admin
+    url_password: "{{ mgmt_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 401]
+  register: grafana_login
+  until: grafana_login.status in [200, 401]
+  retries: 30
+  delay: 2
+  check_mode: false
+  no_log: true
+- name: Set grafana's admin password
+  ansible.builtin.command:
+    cmd: >-
+      grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini
+      --configOverrides cfg:default.paths.data=/var/lib/grafana
+      admin reset-admin-password --password-from-stdin
+    chdir: /usr/share/grafana
+    stdin: "{{ mgmt_admin_password }}"
+  become: true
+  become_user: grafana
+  when: grafana_login.status == 401
+  no_log: true
