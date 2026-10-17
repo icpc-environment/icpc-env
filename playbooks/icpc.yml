@@ -34,6 +34,7 @@
       config_url: "{{ config_url }}"
       papersize: "{{ icpc_papersize | default('letter') }}"
       timezone: "{{ icpc_timezone }}"
+      wallpaper_url: file:///usr/share/backgrounds/icpc/wallpaper.png
       language_scripts: "{{ language_scripts }}"
       submit:
         client: "{{ submit_ccs }}"
@@ -54,10 +55,27 @@
     content: |
       export PATH="/icpc/scripts:$PATH"
 
-- name: Copy icpc default wallpaper
+- name: Create the directory for the image's own wallpaper
+  ansible.builtin.file:
+    path: /usr/share/backgrounds/icpc
+    state: directory
+    mode: "0755"
+
+# wallpaper_url in config.json points here; icpc-apply copies it to /icpc/wallpaper.png
+- name: Install the contest's wallpaper
   ansible.builtin.copy:
-    dest: /icpc/wallpaper.png
-    src: files/wallpaper.png
+    dest: /usr/share/backgrounds/icpc/wallpaper.png
+    src: "{{ icpc_wallpaper }}"
+    mode: "0644"
+  when: icpc_wallpaper is not match('https?://')
+
+- name: Download the contest's wallpaper
+  ansible.builtin.get_url:
+    dest: /usr/share/backgrounds/icpc/wallpaper.png
+    url: "{{ icpc_wallpaper }}"
+    mode: "0644"
+    force: true
+  when: icpc_wallpaper is match('https?://')
 
 - name: Install ICPC tools we need
   ansible.builtin.apt:

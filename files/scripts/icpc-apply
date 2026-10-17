@@ -2,8 +2,8 @@
 """Make this machine match /icpc/config.json. Run as root.
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
-sets the allowed sites, hostname, team wallpaper, Firefox policies and autostart,
-and printers. A section whose settings aren't in the config is left alone, so
+sets the allowed sites, hostname, wallpaper, Firefox policies and autostart, and
+printers. A section whose settings aren't in the config is left alone, so
 this is safe before setup, when there's no team or printers yet. Prints what
 failed and exits 1 if anything did, after trying the rest.
 
@@ -15,6 +15,7 @@ import json
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -271,21 +272,73 @@ def apply_firefox_autostart(enabled):
             Path(path).chmod(0o755 if enabled else 0o000)
 
 
-def apply_wallpaper(team):
+WALLPAPER = ICPC / "wallpaper.png"
+
+
+def fetch_wallpaper(url):
+    """Download wallpaper_url to /icpc/wallpaper.png, keeping the last one if that fails"""
+    new = ICPC / "wallpaper.png.new"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as response:
+            new.write_bytes(response.read())
+    except (OSError, ValueError) as e:
+        if WALLPAPER.exists():
+            print(f"Couldn't fetch wallpaper_url {url}, keeping the last one: {e}", file=sys.stderr)
+        else:
+            errors.append(f"Couldn't fetch wallpaper_url {url}: {e}")
+        return
+    # A captive portal or error page would otherwise become the wallpaper
+    if subprocess.run(["identify", str(new)], capture_output=True).returncode != 0:
+        new.unlink()
+        errors.append(f"wallpaper_url {url} isn't an image")
+        return
+    new.chmod(0o644)
+    new.replace(WALLPAPER)
+
+
+# xfdesktop caches an image by path, even through `xfdesktop --reload`; only
+# changing the property makes it load the file again
+RELOAD_BACKDROPS = """
+for p in $(xfconf-query -c xfce4-desktop -l | grep '/last-image$'); do
+  v=$(xfconf-query -c xfce4-desktop -p "$p")
+  xfconf-query -c xfce4-desktop -p "$p" -s ""
+  xfconf-query -c xfce4-desktop -p "$p" -s "$v"
+done
+"""
+
+
+def reload_desktops():
+    """Make every running xfdesktop reread the wallpaper files"""
+    out = subprocess.run(["pgrep", "-x", "xfdesktop"], capture_output=True, text=True).stdout
+    for pid in out.split():
+        proc = Path("/proc", pid)
+        try:
+            user = proc.owner()
+            env = [v for v in (proc / "environ").read_text().split("\0")
+                   if v.split("=")[0] in ("DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR")]
+        except OSError:
+            continue  # exited
+        run(["runuser", "-u", user, "--", "env"] + env + ["sh", "-c", RELOAD_BACKDROPS])
+
+
+def apply_wallpaper(url, team):
+    if url:
+        fetch_wallpaper(url)
     wallpaper = ICPC / "teamWallpaper.png"
     if not team:
         wallpaper.unlink(missing_ok=True)
-        return
-    run([
-        "convert", str(ICPC / "wallpaper.png"),
-        "-gravity", "center", "-pointsize", "50", "-family", "Ubuntu",
-        "-stroke", "#000C", "-strokewidth", "2", "-annotate", "0", team["name"],
-        "-stroke", "none", "-fill", "white", "-annotate", "0", team["name"],
-        "-pointsize", "30",
-        "-stroke", "#000C", "-strokewidth", "2", "-annotate", "+0+60", team["affiliation"],
-        "-stroke", "none", "-fill", "white", "-annotate", "+0+60", team["affiliation"],
-        str(wallpaper),
-    ])
+    else:
+        run([
+            "convert", str(WALLPAPER),
+            "-gravity", "center", "-pointsize", "50", "-family", "Ubuntu",
+            "-stroke", "#000C", "-strokewidth", "2", "-annotate", "0", team["name"],
+            "-stroke", "none", "-fill", "white", "-annotate", "0", team["name"],
+            "-pointsize", "30",
+            "-stroke", "#000C", "-strokewidth", "2", "-annotate", "+0+60", team["affiliation"],
+            "-stroke", "none", "-fill", "white", "-annotate", "+0+60", team["affiliation"],
+            str(wallpaper),
+        ])
+    reload_desktops()
 
 
 def managed_printers():
@@ -354,7 +407,7 @@ def main(args):
         apply_firefox_policies(config.get("firefox_policies", {}))
     if "autostart_firefox" in config:
         apply_firefox_autostart(config["autostart_firefox"])
-    apply_wallpaper(team)
+    apply_wallpaper(config.get("wallpaper_url"), team)
     if "printers" in config:
         apply_printers(config["printers"], config.get("papersize", "letter"))
 

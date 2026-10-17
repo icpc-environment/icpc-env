@@ -2,6 +2,10 @@
 icpc_timezone: 'America/New_York'
 icpcadmin_pass: icpcadmin
 
+# The desktop wallpaper, which the team name and affiliation are drawn on: a
+# file relative to the repo root, or an http(s) URL the build downloads.
+icpc_wallpaper: files/wallpaper.png
+
 # On the config server, what contest id is this for. Files will be fetched from {{ config_url }}/{{ contest_id }}
 contest_id: generic
 
