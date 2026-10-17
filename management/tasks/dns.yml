@@ -27,10 +27,12 @@
     content: |
       # We handle this by probing our wireguard network for peers
       icpcnet.internal. {
+        bind 127.0.0.1 ::1
         hosts /run/wg_fleet_hosts
         log
       }
       . {
+          bind 127.0.0.1 ::1
           forward . 8.8.8.8 # Forward everything else upstream
           errors
           cache

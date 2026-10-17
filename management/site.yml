@@ -33,6 +33,8 @@
       service: name=grafana-server state=restarted enabled=true
     - name: restart prometheus
       service: name=prometheus state=restarted enabled=true
+    - name: restart prometheus-node-exporter
+      service: name=prometheus-node-exporter state=restarted enabled=true
     - name: Restart nftables
       ansible.builtin.systemd:
         name: nftables

@@ -30,7 +30,7 @@ stream {
     }
 
     server {
-      listen 2222 proxy_protocol;
+      listen 127.0.0.1:2222 proxy_protocol;
       proxy_pass ssh;
     }
 
@@ -97,8 +97,7 @@ http {
   }
 
   server {
-    listen 8443 ssl proxy_protocol;
-    listen [::]:8443 ssl proxy_protocol;
+    listen 127.0.0.1:8443 ssl proxy_protocol;
 
     include snippets/ssl-config.conf;
 
