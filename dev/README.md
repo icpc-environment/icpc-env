@@ -39,7 +39,10 @@ To try the real wizard instead, `just vm sample-configs` serves `dev/sample-conf
 files contestforge publishes) inside the guest and points `config_url` at it. Then
 `rm /icpc/setup-complete` and reboot. Contest `generic` has a plain site, an encrypted
 one (passphrase `sample-passphrase`; it also sets the admin password hash, to `icpcadmin`
-with a new salt) and a sysops site. The encrypted file was made with
+with a new salt, a management server and fleet, an enrollment token, and
+`dev/sample-user-ca` as the user CA with the site's principals) and a sysops site.
+Sign a key with `ssh-keygen -s dev/sample-user-ca -I me -n 'node:*' key.pub` to log in to
+a VM set up as that site with a certificate. The encrypted file was made with
 `AGE_PASSPHRASE=sample-passphrase age -e -a -j batchpass`, as contestforge does.
 The sites under "Broken" are ones the wizard must refuse: a file whose signature is
 for another file, another site's config, and an expired one.
