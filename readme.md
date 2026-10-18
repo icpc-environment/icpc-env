@@ -48,6 +48,10 @@ cd icpcenv
     just dependencies
     ```
 1. Edit `group_vars/generic.yml` to your liking. Specifically set the icpcadmin password, timezone, and reverseproxy_sites to configure the firewall.
+Also set `config_signers` to the allowed_signers line of the contestforge that publishes
+`config_url` (`flask signing-key init` prints it): the setup wizard only uses files signed
+with it, and the build refuses to run without one. To reach machines before setup, set
+`ssh_user_ca_keys` and `ssh_principals` (or `ssh_keys`), see `group_vars/all/all.yml`.
 1. Run `just baseimage` to create an unattended installation disk for ubuntu,
 perform the installation, and leave the base image ready for processing. This step takes around 5-10 minutes depending on system and internet speed.
 ```bash
