@@ -23,8 +23,8 @@ ssh_principals: []
 # file relative to the repo root, or an http(s) URL the build downloads.
 icpc_wallpaper: files/wallpaper.png
 
-# This contest's id: names its keys in secrets/, its WireGuard fleet and its
-# ansible-pull repo on the management server
+# This image's contest: the static WireGuard fleet machines join before setup,
+# and its last-minute ansible-pull repo on the management server
 contest_id: generic
 
 # The contest's node id in contestforge (e.g. BigSouth2026/SouthEast). The setup
