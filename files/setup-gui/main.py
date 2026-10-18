@@ -213,7 +213,7 @@ def mainwindow():
 
     if event == "reload":
       window['site'].update(values=["default"])
-      pinned = machine_config.get("contest") or None
+      pinned = machine_config.get("config_contest") or None
       if pinned is not None:
         contests = {pinned: pinned}
       else:
@@ -355,7 +355,7 @@ def main():
     run_cmd(["xset", "s", "noblank"])
 
   # Figure out what contest this is, because it informs some other choices
-  configuration["contest"] = machine_config.get("contest") or None
+  configuration["contest"] = machine_config.get("config_contest") or None
   configuration["autostart_firefox"] = machine_config.get("autostart_firefox", True)
   configuration["papersize"] = machine_config.get("papersize", "letter")
 
@@ -375,7 +375,7 @@ def main():
   data = configuration.get("data", {})
   machine_config.update({k: data[k] for k in SITE_SETTINGS if k in data})
   machine_config.update({
-      "contest": configuration['contest'],
+      "config_contest": configuration['contest'],
       "site": configuration['site'],
       "papersize": "letter" if values['letter'] else "a4",
       "autostart_firefox": values['autostart_firefox'],
