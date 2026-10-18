@@ -7,6 +7,18 @@ icpcadmin_pass: icpcadmin
 # they never reach a finished image. build-final.sh sets its own.
 build_ssh_keys: []
 
+# How admins get in before setup; a site's config replaces each of these that it
+# sets. ssh_keys are icpcadmin's authorized_keys lines. Certificates signed by
+# one of ssh_user_ca_keys log in as icpcadmin if they carry one of ssh_principals.
+# With contestforge's user CA (`flask ssh-ca show`), node:* lets in global
+# admins and server:<management server> that server's own key:
+#
+#   ssh_user_ca_keys: ["ssh-ed25519 AAAA... contestforge user CA"]
+#   ssh_principals: ["node:*", "server:mgmt.env.cloudcontest.org"]
+ssh_keys: []
+ssh_user_ca_keys: []
+ssh_principals: []
+
 # The desktop wallpaper, which the team name and affiliation are drawn on: a
 # file relative to the repo root, or an http(s) URL the build downloads.
 icpc_wallpaper: files/wallpaper.png

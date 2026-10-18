@@ -163,7 +163,7 @@ Err:
 # What a site's config may set in /icpc/config.json; everything else the image decides
 SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", "submit",
                  "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys", "ansible_pull_url",
-                 "management"]
+                 "management", "ssh_user_ca_keys", "ssh_principals", "ssh_host_ca_keys"]
 ADMIN_ACCOUNTS = ["icpcadmin", "teamreset"]
 # What wg_setup registers in the site's fleet with. Not in config.json, which contestants can read
 ENROLLMENT_TOKEN = Path("/etc/icpc/enrollment-token")

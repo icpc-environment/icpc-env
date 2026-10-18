@@ -71,6 +71,9 @@
         base_url: "{{ submit_base_url }}"
       autostart_firefox: true
       reverseproxy_sites: "{{ reverseproxy_sites | default({}) }}"
+      ssh_keys: "{{ ssh_keys }}"
+      ssh_user_ca_keys: "{{ ssh_user_ca_keys }}"
+      ssh_principals: "{{ ssh_principals }}"
       firefox_policies: "{{ firefox_policies | default({}) }}"
 
 - name: Create printfile symlink(to match world finals image)
@@ -145,22 +148,17 @@
 
 
 
-- name: Copy the ssh CA
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/secrets/{{ contest_id }}/server_ca.pub"
-    dest: /etc/ssh/ca.pub
-    mode: "0644"
-    owner: root
-    group: root
-
-- name: Configure the ssh CA to be enabled for allowing users to log in
+# icpc-apply writes both from ssh_user_ca_keys and ssh_principals in /icpc/config.json
+- name: Let admins log in with certificates
   ansible.builtin.copy:
     content: |
       TrustedUserCAKeys /etc/ssh/ca.pub
+      AuthorizedPrincipalsFile /etc/ssh/principals/%u
     dest: /etc/ssh/sshd_config.d/trusted-user-ca.conf
     mode: "0644"
     owner: root
     group: root
+  notify: Restart ssh
 
 - name: Create missing ssh host keys at boot
   ansible.builtin.copy:

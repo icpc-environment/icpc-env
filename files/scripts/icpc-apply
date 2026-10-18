@@ -308,6 +308,44 @@ def apply_ssh_keys(keys):
     shutil.chown(path, ADMIN, ADMIN)
 
 
+# An authorized_keys/known_hosts key, without options
+KEY_RE = r"(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+=*( [^\n]*)?"
+# One line of an AuthorizedPrincipalsFile, where # starts a comment and , separates options
+PRINCIPAL_RE = r"[^\s,#][^\s,]*"
+USER_CAS = Path("/etc/ssh/ca.pub")
+PRINCIPALS = Path("/etc/ssh/principals")
+
+
+def string_list(value, pattern):
+    return isinstance(value, list) and all(isinstance(v, str) and re.fullmatch(pattern, v) for v in value)
+
+
+def apply_ssh_certificates(cas, principals):
+    """Let certificates from the user CAs log in as the admin if they carry one of its principals"""
+    if not string_list(cas, KEY_RE) or not string_list(principals, PRINCIPAL_RE):
+        errors.append("ssh_user_ca_keys or ssh_principals isn't a list of keys or principals, no certificate can log in")
+        cas, principals = [], []
+    # sshd's TrustedUserCAKeys and AuthorizedPrincipalsFile (playbooks/icpc.yml)
+    USER_CAS.write_text("".join(f"{k}\n" for k in cas))
+    PRINCIPALS.mkdir(mode=0o755, exist_ok=True)
+    (PRINCIPALS / ADMIN).write_text("".join(f"{p}\n" for p in principals))
+
+
+KNOWN_HOSTS = Path("/etc/ssh/ssh_known_hosts")
+KNOWN_HOSTS_BEGIN = "# BEGIN ssh_host_ca_keys, " + GENERATED[2:]
+KNOWN_HOSTS_END = "# END ssh_host_ca_keys"
+
+
+def apply_ssh_host_cas(cas):
+    """Trust the management server's host CA for machines in its fleets"""
+    if not string_list(cas, KEY_RE):
+        errors.append("ssh_host_ca_keys isn't a list of keys")
+        cas = []
+    lines = KNOWN_HOSTS.read_text().splitlines() if KNOWN_HOSTS.exists() else []
+    KNOWN_HOSTS.write_text("\n".join(replace_block(lines, KNOWN_HOSTS_BEGIN, KNOWN_HOSTS_END,
+                                                   [f"@cert-authority *.icpcnet.internal {k}" for k in cas])) + "\n")
+
+
 FIREFOX_POLICIES = Path("/etc/icpc/firefox")
 
 
@@ -476,6 +514,8 @@ def main(args):
         apply_hostname(team)
     if "ssh_keys" in config:
         apply_ssh_keys(config["ssh_keys"])
+    apply_ssh_certificates(config.get("ssh_user_ca_keys", []), config.get("ssh_principals", []))
+    apply_ssh_host_cas(config.get("ssh_host_ca_keys", []))
     if FIREFOX_POLICIES.exists():
         apply_firefox_policies(config.get("firefox_policies", {}))
     if "autostart_firefox" in config:
