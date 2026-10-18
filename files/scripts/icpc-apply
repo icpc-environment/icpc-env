@@ -2,9 +2,9 @@
 """Make this machine match /icpc/config.json. Run as root.
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
-sets the allowed sites, hostname, wallpaper, Firefox policies and autostart, and
-printers. A section whose settings aren't in the config is left alone, so
-this is safe before setup, when there's no team or printers yet. Prints what
+sets the allowed sites, hostname, admin ssh keys, wallpaper, Firefox policies
+and autostart, and printers. A section whose settings aren't in the config is
+left alone, so this is safe before setup, when there's no team or printers yet. Prints what
 failed and exits 1 if anything did, after trying the rest.
 
 usage: icpc-apply [--no-start]
@@ -13,6 +13,7 @@ usage: icpc-apply [--no-start]
 """
 import json
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -39,6 +40,14 @@ def run(cmd):
     if p.returncode != 0:
         errors.append(f"{' '.join(cmd)} exited {p.returncode}: {(p.stderr or p.stdout).strip()}")
     return p.returncode == 0
+
+
+def replace_block(lines, begin, end, block):
+    """lines with the begin...end block replaced by block (dropped if empty)"""
+    if begin in lines:
+        start = lines.index(begin)
+        lines = lines[:start] + lines[lines.index(end, start) + 1:]
+    return lines + ([begin] + block + [end] if block else [])
 
 
 def write(name, text):
@@ -220,10 +229,7 @@ def apply_reverseproxy(sites):
         return
 
     hosts = Path("/etc/hosts").read_text().splitlines()
-    if HOSTS_BEGIN in hosts:
-        start = hosts.index(HOSTS_BEGIN)
-        del hosts[start:hosts.index(HOSTS_END, start) + 1]
-    hosts += [HOSTS_BEGIN] + [f"127.0.0.1\t{name}" for name in sites] + [HOSTS_END]
+    hosts = replace_block(hosts, HOSTS_BEGIN, HOSTS_END, [f"127.0.0.1\t{name}" for name in sites])
     Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
 
     # squid reads /etc/hosts when it starts or reloads
@@ -243,6 +249,26 @@ def apply_hostname(team):
         if line.startswith("127.0.1.1 "):
             hosts[i] = f"127.0.1.1 {hostname}.icpcnet.internal {hostname}"
     Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
+
+
+ADMIN = "icpcadmin"
+SSH_BEGIN = "# BEGIN ssh_keys, " + GENERATED[2:]
+SSH_END = "# END ssh_keys"
+
+
+def apply_ssh_keys(keys):
+    """The config's keys in the admin's authorized_keys, between markers so keys added by hand stay"""
+    if not isinstance(keys, list) or not all(isinstance(k, str) and k.strip() and "\n" not in k for k in keys):
+        errors.append("ssh_keys isn't a list of authorized_keys lines")
+        return
+    ssh = Path("/home", ADMIN, ".ssh")
+    path = ssh / "authorized_keys"
+    ssh.mkdir(mode=0o700, exist_ok=True)
+    shutil.chown(ssh, ADMIN, ADMIN)
+    lines = path.read_text().splitlines() if path.exists() else []
+    path.write_text("\n".join(replace_block(lines, SSH_BEGIN, SSH_END, keys)) + "\n")
+    path.chmod(0o600)
+    shutil.chown(path, ADMIN, ADMIN)
 
 
 FIREFOX_POLICIES = Path("/etc/icpc/firefox")
@@ -409,6 +435,8 @@ def main(args):
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:
         apply_hostname(team)
+    if "ssh_keys" in config:
+        apply_ssh_keys(config["ssh_keys"])
     if FIREFOX_POLICIES.exists():
         apply_firefox_policies(config.get("firefox_policies", {}))
     if "autostart_firefox" in config:
