@@ -37,7 +37,7 @@ class Host:
   def take_screenshot(self):
     pathlib.Path(self.screenshot_dir).mkdir(parents=True, exist_ok=True)
 
-    cmd = f'timeout 10 ssh {self.host}.{self.site} sudo -u contestant env DISPLAY=:0 import -window root png:- > {self.screenshot_dir}/{self.filename}'
+    cmd = f'timeout 10 ssh {self.host}.{self.site}.icpcnet.internal sudo -u contestant env DISPLAY=:0 import -window root png:- > {self.screenshot_dir}/{self.filename}'
     try:
       out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
       print(f'Screenshot taken of {self.host}')

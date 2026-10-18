@@ -62,14 +62,3 @@
   loop: "{{ fleets | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
-
-- name: Check each fleet has its ssh keys
-  ansible.builtin.assert:
-    that:
-      - (fleet_secrets_dir + '/' + item + '/server_ca.pub') is file
-      - (fleet_secrets_dir + '/' + item + '/icpcadmin@contestmanager-cert.pub') is file
-    fail_msg: >-
-      secrets/{{ item }} is missing; run `just keys {{ item }}`, and build that
-      contest's images with the same keys.
-    quiet: true
-  loop: "{{ fleets.keys() | list }}"

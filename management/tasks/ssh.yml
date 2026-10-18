@@ -1,12 +1,12 @@
 ---
-- name: Make sure .ssh directory exists
+- name: Make sure the static fleets' users have a .ssh directory
   file:
     path: "~{{ item }}/.ssh"
     state: directory
     mode: '0700'
     owner: "{{ item }}"
     group: "{{ item }}"
-  loop: "{{ admin_users }}"
+  loop: "{{ fleets.keys() | list }}"
 
 - name: add ssh public key for fleet users
   copy:
@@ -17,42 +17,60 @@
     mode: '0600'
   loop: "{{ fleets.keys() | list }}"
 
-- name: Give each fleet's user that fleet's icpcadmin key, and root every fleet's
+# Team machines let it in through the server:<hostname> principal contestforge
+# adds to every site in a fleet here, once it has a certificate
+- name: Create the server's own ssh key, which root uses for ansible and screenshots
+  command: ssh-keygen -q -t ed25519 -N "" -C "root@{{ external_hostname }}" -f /root/.ssh/id_ed25519
+  args:
+    creates: /root/.ssh/id_ed25519
+- name: Copy the server's public key to {{ server_secrets_dir }}, for signing
+  fetch:
+    src: /root/.ssh/id_ed25519.pub
+    dest: "{{ server_secrets_dir }}/id_ed25519.pub"
+    flat: true
+- name: Install the server key's certificate
   copy:
-    src: "{{ fleet_secrets_dir }}/{{ item[0][1] }}/icpcadmin@contestmanager{{ item[1] }}"
-    dest: "~{{ item[0][0] }}/.ssh/icpcadmin@{{ item[0][1] }}{{ item[1] }}"
-    mode: '0400'
-    owner: "{{ item[0][0] }}"
-    group: "{{ item[0][0] }}"
-  loop: "{{ fleet_key_holders | product(['', '-cert.pub', '.pub']) | list }}"
-  loop_control:
-    label: "{{ item[0][0] }}: icpcadmin@{{ item[0][1] }}{{ item[1] }}"
-
-- name: Point ssh at the right fleet's key for each team machine
-  copy:
-    content: |
-      {% for fleet in fleet_key_holders | selectattr(0, 'equalto', item) | map(attribute=1) %}
-      Host *.{{ fleet }} *.{{ fleet }}.icpcnet.internal {{ fleets[fleet].subnet | regex_replace('::/64$', ':*') }}
-          IdentityFile ~/.ssh/icpcadmin@{{ fleet }}
-          IdentitiesOnly yes
-          HostKeyAlias contestant.{{ fleet }}.icpcnet.internal
-      {% endfor %}
-      Host *
-          User icpcadmin
-    dest: "~{{ item }}/.ssh/config"
-    owner: "{{ item }}"
-    group: "{{ item }}"
+    src: "{{ server_secrets_dir }}/id_ed25519-cert.pub"
+    dest: /root/.ssh/id_ed25519-cert.pub
     mode: '0644'
-  loop: "{{ admin_users }}"
+  when: (server_secrets_dir + '/id_ed25519-cert.pub') is file
+- name: Say how to get the server key a certificate
+  debug:
+    msg: >-
+      root can't log in to team machines until its key has a certificate. In
+      contestforge run `flask ssh-cert sign --server {{ external_hostname }}
+      --pubkey {{ server_secrets_dir }}/id_ed25519.pub`, save the certificate as
+      {{ server_secrets_dir }}/id_ed25519-cert.pub and deploy again.
+  when: (server_secrets_dir + '/id_ed25519-cert.pub') is not file
 
-# A fleet's CA only vouches for that fleet's machines
-- name: Trust each fleet's ssh CA for its own machines' host keys
-  copy:
-    content: |
-      {% for fleet in fleets %}
-      @cert-authority contestant.{{ fleet }}.icpcnet.internal {{ lookup('file', fleet_secrets_dir + '/' + fleet + '/server_ca.pub') }}
-      {% endfor %}
-    dest: /etc/ssh/ssh_known_hosts
+- name: Find ssh configs that point at the per-contest icpcadmin keys
+  command: grep -lsx '    HostKeyAlias contestant\..*' /root/.ssh/config {{ fleets.keys() | map('regex_replace', '^', '/home/') | map('regex_replace', '$', '/.ssh/config') | join(' ') }}
+  register: old_ssh_configs
+  changed_when: false
+  failed_when: false
+- name: Remove them, so ssh uses the server's key and wg-fleet's host CA
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ old_ssh_configs.stdout_lines }}"
+- name: Find the per-contest icpcadmin keys
+  find:
+    paths: "{{ ['/root/.ssh'] + fleets.keys() | map('regex_replace', '^', '/home/') | map('regex_replace', '$', '/.ssh') | list }}"
+    patterns: 'icpcadmin@*'
+  register: old_icpcadmin_keys
+- name: Remove the per-contest icpcadmin keys
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ old_icpcadmin_keys.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+- name: Stop trusting the per-contest CAs for machines' host keys
+  lineinfile:
+    path: /etc/ssh/ssh_known_hosts
+    regexp: '^@cert-authority contestant\.'
+    state: absent
+    create: true
     mode: '0644'
 
 # fleet-sync writes both from /run/wg_fleets.json. A Match block in an

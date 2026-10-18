@@ -5,9 +5,9 @@ external_hostname: "{{ inventory_hostname }}"
 # WireGuard endpoint handed to clients
 external_ip: "{{ ansible_default_ipv4.address }}"
 
-# Each fleet's ssh CA and icpcadmin key are in secrets/<fleet>/, the same keys
-# images with that contest_id are built with (`just keys <fleet>` creates them).
-fleet_secrets_dir: "{{ playbook_dir }}/../secrets"
+# The server's own key's public half and certificate, and a backup of
+# wg-fleet's host CA
+server_secrets_dir: "{{ playbook_dir }}/../secrets/mgmt/{{ inventory_hostname }}"
 
 wg_fleet_image: ghcr.io/ubergeek42/wg-fleet:main
 
@@ -21,13 +21,6 @@ letsencrypt_email: kj@ubergeek42.com
 
 # Clients that stop pinging wg-fleet for this long are removed
 fleet_timeout: 5m
-
-# Accounts that get icpcadmin keys: each fleet's user for its own machines,
-# and ansible_user for every fleet's
-admin_users: "{{ [ansible_user] + (fleets.keys() | list) }}"
-fleet_key_holders: >-
-  {{ (fleets.keys() | zip(fleets.keys()) | list)
-     + ([ansible_user] | product(fleets.keys()) | list) }}
 
 # contestforge's signed list of fleets, which wg-fleet serves alongside the
 # static ones below. config_signers are the allowed_signers lines it must be
