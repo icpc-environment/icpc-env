@@ -2,6 +2,11 @@
 icpc_timezone: 'America/New_York'
 icpcadmin_pass: icpcadmin
 
+# authorized_keys lines that let the build and dev tooling log in as icpcadmin.
+# They go in ~icpcadmin/.ssh/authorized_keys2, which makeDist.sh deletes, so
+# they never reach a finished image. build-final.sh sets its own.
+build_ssh_keys: []
+
 # The desktop wallpaper, which the team name and affiliation are drawn on: a
 # file relative to the repo root, or an http(s) URL the build downloads.
 icpc_wallpaper: files/wallpaper.png

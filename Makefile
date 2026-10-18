@@ -12,7 +12,7 @@ login_install:
 		ssh -p 5222 -i ./configs/imageadmin-ssh_key -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no imageadmin@localhost
 
 test_ssh:
-		ssh -p 2222 -i "$$(secrets/admin-key.sh)" -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no icpcadmin@localhost
+		ssh -p 2222 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no icpcadmin@localhost
 
 
 ansible:

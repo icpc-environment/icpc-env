@@ -4,3 +4,7 @@
 # so the wizard can be tried against dev/sample-configs.
 config_signers:
   - contestforge ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA5F5kCi9lynenBOEz7V96NX2HYj/EhbPiX5oWjZNl/G
+
+# So `just vm admin` can log in as icpcadmin with dev/icpcadmin-dev-key
+build_ssh_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPNdL4XYkU2ChTcBP5fA+IfJLUJqjdo2rBUbgtg6m0Xn icpcadmin on dev VMs (dev/vm-vars.yml only)

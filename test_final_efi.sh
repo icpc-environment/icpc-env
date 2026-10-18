@@ -2,7 +2,8 @@
 VARIANT=${1:-""}
 
 SSHPORT=2222
-SSH_ICPCADMIN_KEY=$(secrets/admin-key.sh "${VARIANT:-all}")
+# Finished images only let in what their build vars allow (ssh_keys, ssh_user_ca_keys),
+# so this uses your own keys unless ICPCADMIN_KEY names one
 PIDFILE="tmp/qemu.pid"
 SNAPSHOT="-snapshot"
 ALIVE=0
@@ -12,7 +13,7 @@ echo "Booting $BASEIMG"
 
 function launchssh() {
   echo "Launching ssh session"
-  ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost -i $SSH_ICPCADMIN_KEY -p$SSHPORT
+  ssh -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null icpcadmin@localhost ${ICPCADMIN_KEY:+-i "$ICPCADMIN_KEY"} -p$SSHPORT
 }
 function cleanup() {
   echo "Forcing shutdown(poweroff)"

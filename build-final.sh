@@ -16,6 +16,11 @@ fi
 
 BASEIMG="${BASEIMG:-base-amd64.img}"
 
+# Logs in as icpcadmin once imageadmin is gone; makeDist.sh removes it from the image
+SSH_ICPCADMIN_KEY=$(mktemp -d)/icpcadmin
+ssh-keygen -q -t ed25519 -N "" -C "build-final.sh $(date +%F)" -f $SSH_ICPCADMIN_KEY
+trap 'rm -rf "$(dirname $SSH_ICPCADMIN_KEY)"' EXIT
+
 # Copy to a raw disk image
 qemu-img convert -O raw output/$BASEIMG $IMGFILE
 
@@ -84,10 +89,8 @@ vm ansible_port=$SSHPORT ansible_host=127.0.0.1
 vm
 EOF
 
-ANSIBLE_HOST_KEY_CHECKING=False .venv/bin/ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY main.yml
+ANSIBLE_HOST_KEY_CHECKING=False .venv/bin/ansible-playbook -i $INVENTORY_FILE  --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --diff --become -u imageadmin --private-key $SSH_BUILD_KEY -e "{\"build_ssh_keys\": [\"$(cat $SSH_ICPCADMIN_KEY.pub)\"]}" main.yml
 rm -f $INVENTORY_FILE
-
-SSH_ICPCADMIN_KEY=$(secrets/admin-key.sh "$VARIANT")
 
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo reboot
 # Wait 5 seconds for reboot to happen so we don't ssh back in before it actually reboots

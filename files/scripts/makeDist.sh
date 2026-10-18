@@ -7,6 +7,9 @@ UTILDIR="/icpc"
 rm -rf /etc/skel/.git
 rm -rf /home/icpcadmin/.git
 
+# The build's own way in (build_ssh_keys). Sessions already open stay up
+rm -f /home/icpcadmin/.ssh/authorized_keys2
+
 # Cleanup 'imageadmin' things (if it exists)
 if id "imageadmin" >/dev/null 2>&1; then
   killall -9 -u imageadmin

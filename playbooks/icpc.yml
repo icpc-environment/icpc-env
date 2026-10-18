@@ -219,6 +219,24 @@
     update_password: on_create
     shell: /bin/bash
 
+- name: Create icpcadmin's .ssh
+  ansible.builtin.file:
+    path: /home/icpcadmin/.ssh
+    state: directory
+    owner: icpcadmin
+    group: icpcadmin
+    mode: "0700"
+- name: Let the build log in as icpcadmin until makeDist.sh
+  ansible.builtin.copy:
+    dest: /home/icpcadmin/.ssh/authorized_keys2
+    content: |
+      {% for key in build_ssh_keys %}
+      {{ key }}
+      {% endfor %}
+    owner: icpcadmin
+    group: icpcadmin
+    mode: "0600"
+
 - name: Make sure desktop directory exists
   ansible.builtin.file:
     path: /home/icpcadmin/Desktop

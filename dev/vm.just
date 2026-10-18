@@ -60,15 +60,14 @@ up image="" timeout="600": && (wait-ssh timeout)
       ACCEL=(-cpu max)
     fi
 
-    chmod 0400 configs/imageadmin-ssh_key
-    [ -L "$VM_STATE/secrets" ] || ln -sfn "$(dirname "$(secrets/admin-key.sh)")" "$VM_STATE/secrets"
+    chmod 0400 configs/imageadmin-ssh_key dev/icpcadmin-dev-key
     cat > "$VM_STATE/ssh_config" <<EOF
     Host vm
       User imageadmin
       IdentityFile {{root}}/configs/imageadmin-ssh_key
     Host vm-admin
       User icpcadmin
-      IdentityFile $VM_STATE/secrets/icpcadmin@contestmanager
+      IdentityFile {{source_directory()}}/icpcadmin-dev-key
     Host *
       HostName 127.0.0.1
       Port $VM_SSHPORT
@@ -233,7 +232,6 @@ ansible *args:
     [$variant]
     vm
     EOF
-    ln -sfn "$(dirname "$(secrets/admin-key.sh "$variant")")" "$VM_STATE/secrets"
     for f in ansible.log timing.jsonl; do
       [ -f "$VM_STATE/$f" ] && mv "$VM_STATE/$f" "$VM_STATE/$f.prev"
     done
