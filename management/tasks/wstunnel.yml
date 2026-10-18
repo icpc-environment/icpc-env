@@ -42,10 +42,11 @@
 
       [Install]
       WantedBy=multi-user.target
-- name: enable wstunnel wireguard service for port
+- name: Reload systemd for the wstunnel unit
   systemd:
-    name: wstunnel@{{ item.value.port }}
-    enabled: true
-    daemon_reload: "{{ wstunnel_unit is changed }}"
-    state: "{{ 'restarted' if wstunnel_link is changed or wstunnel_unit is changed else 'started' }}"
-  loop: "{{ fleets|dict2items }}"
+    daemon_reload: true
+  when: wstunnel_unit is changed
+# fleet-sync starts one for each fleet's port
+- name: Restart running wstunnel servers on the new version or unit
+  command: systemctl try-restart 'wstunnel@*.service'
+  when: wstunnel_link is changed or wstunnel_unit is changed

@@ -27,6 +27,15 @@
   loop_control:
     label: "{{ item.key }}"
 
+- name: Check wg-fleet can verify fleets_url
+  ansible.builtin.assert:
+    that: config_signers | length > 0
+    fail_msg: >-
+      fleets_url is set but config_signers is empty, so wg-fleet would refuse
+      the file. Add contestforge's allowed_signers line, as images have.
+    quiet: true
+  when: fleets_url is truthy
+
 - name: Look up existing users
   ansible.builtin.getent:
     database: passwd

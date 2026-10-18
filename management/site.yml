@@ -10,6 +10,7 @@
     - import_tasks: tasks/validate.yml
     - import_tasks: tasks/base.yml
     - import_tasks: tasks/firewall.yml
+    - import_tasks: tasks/fleets.yml
     - import_tasks: tasks/ssh.yml
     - import_tasks: tasks/wg-fleet.yml
     - import_tasks: tasks/wstunnel.yml

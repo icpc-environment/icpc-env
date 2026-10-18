@@ -1,0 +1,58 @@
+---
+# Logins for each fleet's admins, created by fleet-sync for every fleet
+# wg-fleet serves. The static ones are created here too, so their
+# fleet_authorized_keys can be installed before wg-fleet first runs.
+- name: Create the fleets group
+  ansible.builtin.group:
+    name: fleets
+    system: true
+
+- name: Create a login for each static fleet
+  ansible.builtin.user:
+    name: "{{ item }}"
+    comment: wg-fleet fleet
+    groups: fleets
+    append: true
+    shell: /bin/bash
+    create_home: true
+  loop: "{{ fleets.keys() | list }}"
+
+- name: Install fleet-sync
+  ansible.builtin.copy:
+    src: files/fleet-sync
+    dest: /usr/local/sbin/fleet-sync
+    mode: '0755'
+
+- name: Run fleet-sync whenever wg-fleet rewrites /run/wg_fleets.json
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/{{ item.name }}
+    content: "{{ item.content }}"
+    mode: '0644'
+  loop:
+    - name: fleet-sync.service
+      content: |
+        [Unit]
+        Description=Create users, repos and tunnels for wg-fleet's fleets
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/fleet-sync {{ external_hostname }}
+    - name: fleet-sync.path
+      content: |
+        [Unit]
+        Description=Watch wg-fleet's list of fleets
+
+        [Path]
+        PathChanged=/run/wg_fleets.json
+
+        [Install]
+        WantedBy=paths.target
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Enable fleet-sync.path
+  ansible.builtin.systemd:
+    name: fleet-sync.path
+    enabled: true
+    state: started
+    daemon_reload: true

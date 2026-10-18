@@ -1,11 +1,4 @@
 ---
-- name: create a regular interactive user for each "fleet"
-  user:
-    name: "{{ item }}"
-    shell: /bin/bash
-    createhome: true
-  loop: "{{ fleets.keys() | list }}"
-
 - name: Make sure .ssh directory exists
   file:
     path: "~{{ item }}/.ssh"
@@ -61,6 +54,18 @@
       {% endfor %}
     dest: /etc/ssh/ssh_known_hosts
     mode: '0644'
+
+# fleet-sync writes both from /run/wg_fleets.json. A Match block in an
+# included file ends with that file
+- name: Let admins' certificates log in as their fleets' users
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/20-fleet-users.conf
+    content: |
+      Match Group fleets
+          TrustedUserCAKeys /etc/ssh/fleet_user_ca.pub
+          AuthorizedPrincipalsFile /etc/ssh/fleet_principals/%u
+    mode: '0644'
+  notify: Restart ssh
 
 # sshd keeps the first value it reads, so this has to sort before cloud-init's 50-cloud-init.conf
 - name: ensure password authentication is disabled in sshd

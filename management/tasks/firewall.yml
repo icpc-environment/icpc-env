@@ -1,4 +1,10 @@
 ---
+- name: Create /etc/nftables.d
+  ansible.builtin.file:
+    path: /etc/nftables.d
+    state: directory
+    mode: '0755'
+
 - name: Configure nftables for web interface firewall
   ansible.builtin.copy:
     dest: /etc/nftables.conf
@@ -21,9 +27,7 @@
           tcp dport 22 accept comment "Allow SSH"
           tcp dport 80 accept comment "Allow HTTP"
           tcp dport 443 accept comment "Allow HTTPS"
-          {% for k,v in fleets.items() -%}
-          udp dport {{ v.port }} accept comment "Allow WireGuard port for {{ k }}"
-          {% endfor %}
+          udp dport 51820-51920 accept comment "Allow WireGuard, every fleet's port is in this range"
 
           limit rate 10/minute burst 20 packets log prefix "nftables-drop: " comment "Log some of what gets dropped"
         }
@@ -36,6 +40,9 @@
           type filter hook output priority 0; policy accept;
         }
       }
+
+      # fleet-sync's rules for the fleet users
+      include "/etc/nftables.d/*.nft"
     mode: '0755'
     owner: root
     group: root

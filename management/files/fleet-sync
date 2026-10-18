@@ -1,0 +1,281 @@
+#!/usr/bin/python3
+"""Make this server match the fleets wg-fleet serves, as listed in /run/wg_fleets.json.
+
+usage: fleet-sync <external hostname>
+
+Run by fleet-sync.path whenever wg-fleet rewrites the file (when it starts,
+and when its fleets change). For each fleet it creates:
+
+- a login user named after the fleet, in group "fleets": the bastion account
+  its admins jump through. Certificates from the file's user_ca_keys log in
+  with one of the fleet's admin_principals, or node:*.
+- the fleet's last-minute git repo, /srv/git/<fleet>.git
+- wstunnel@<port>, for machines whose network blocks WireGuard's UDP
+
+and writes nftables rules that let each fleet user reach only its fleet's
+subnet, ssh client settings for the fleets' names, and known_hosts trust in
+wg-fleet's host CA.
+
+A fleet that goes away keeps its user and repo, but loses its principals and
+network access, and its wstunnel unit is stopped. Nothing is deleted: the
+repo's history is the record of what ran on the fleet's machines.
+"""
+import grp
+import ipaddress
+import json
+import pwd
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+FLEETS = Path("/run/wg_fleets.json")
+GROUP = "fleets"
+# The GECOS of users this script created; any other user with a fleet's name is left alone
+COMMENT = "wg-fleet fleet"
+FLEET_RE = r"[a-z][a-z0-9_-]{0,31}"
+KEY_RE = r"(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) [A-Za-z0-9+/]+=*( [^\n]*)?"
+PRINCIPAL_RE = r"[^\s,#][^\s,]*"
+# nginx only proxies /wgtunnel/<port> for these
+PORTS = range(51820, 51921)
+
+GIT = Path("/srv/git")
+USER_CAS = Path("/etc/ssh/fleet_user_ca.pub")
+PRINCIPALS = Path("/etc/ssh/fleet_principals")
+NFT = Path("/etc/nftables.d/fleet-users.nft")
+SSH_CONFIG = Path("/etc/ssh/ssh_config.d/50-fleets.conf")
+KNOWN_HOSTS = Path("/etc/ssh/ssh_known_hosts")
+HOST_CA = Path("/var/lib/wg-fleet/host_ca.pub")
+GENERATED = f"# Generated from {FLEETS} by /usr/local/sbin/fleet-sync"
+
+LASTMINUTE = """---
+# Team machines run this with ansible-pull on boot, and whenever
+# /icpc/trigger-ansible is created. Push changes here to apply them to every
+# {fleet} machine.
+- name: Last minute setup for {fleet}
+  hosts: all
+  become: true
+  tasks:
+    - name: Record which revision was applied
+      ansible.builtin.shell: >
+        printf '%s - ansible-pull on %s\\nRevision: %s\\n'
+        {fleet} "$(date '+%Y-%m-%d %H:%M:%S')" "$(git rev-parse --short HEAD)"
+        > /icpc/update-version
+
+    - name: Remove the trigger file
+      ansible.builtin.file:
+        path: /icpc/trigger-ansible
+        state: absent
+"""
+
+problems = []
+
+
+def log(message):
+    print(message, flush=True)
+
+
+def run(cmd, **kwargs):
+    p = subprocess.run(cmd, capture_output=True, text=True, **kwargs)
+    if p.returncode != 0:
+        problems.append(f"{' '.join(cmd)} exited {p.returncode}: {(p.stderr or p.stdout).strip()}")
+    return p
+
+
+def write(path, text, mode=0o644):
+    """Replace path's contents, never leaving it half written; True if they changed"""
+    if path.exists() and path.read_text() == text:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", dir=path.parent, prefix=f".{path.name}.", delete=False) as f:
+        f.write(text)
+    Path(f.name).chmod(mode)
+    Path(f.name).replace(path)
+    return True
+
+
+def strings(value, pattern):
+    return [v for v in value if isinstance(v, str) and re.fullmatch(pattern, v)] if isinstance(value, list) else []
+
+
+def load():
+    """{name: fleet} for every usable fleet in the file, and its user CA keys"""
+    data = json.loads(FLEETS.read_text())
+    if data.get("version") != 1:
+        raise SystemExit(f"{FLEETS} is version {data.get('version')!r}, this only understands 1")
+    fleets = {}
+    for name, fleet in data.get("fleets", {}).items():
+        try:
+            if not re.fullmatch(FLEET_RE, name):
+                raise ValueError("isn't a usable login name")
+            subnet = ipaddress.IPv6Network(fleet["subnet"])
+            port = int(fleet["port"])
+            if port not in PORTS:
+                raise ValueError(f"port {port} isn't one nginx proxies wstunnel to")
+        except (KeyError, TypeError, ValueError) as e:
+            problems.append(f"skipping fleet {name!r}: {e}")
+            continue
+        fleets[name] = {
+            "static": bool(fleet.get("static")),
+            "subnet": subnet,
+            "port": port,
+            "principals": sorted(set(strings(fleet.get("admin_principals"), PRINCIPAL_RE)) | {"node:*"}),
+        }
+    return fleets, strings(data.get("user_ca_keys"), KEY_RE)
+
+
+def fleet_users():
+    """{name: uid} of the users this script has created"""
+    return {p.pw_name: p.pw_uid for p in pwd.getpwall() if p.pw_gecos == COMMENT}
+
+
+def ensure_users(fleets):
+    try:
+        grp.getgrnam(GROUP)
+    except KeyError:
+        run(["groupadd", "--system", GROUP])
+    ours = fleet_users()
+    for name in list(fleets):
+        if name in ours:
+            continue
+        try:
+            pwd.getpwnam(name)
+            problems.append(f"skipping fleet {name!r}: there's already a user {name} that isn't a fleet's")
+            del fleets[name]
+            continue
+        except KeyError:
+            pass
+        if run(["useradd", "--create-home", "--shell", "/bin/bash", "--comment", COMMENT,
+                "--groups", GROUP, name]).returncode == 0:
+            log(f"created user {name}")
+        else:
+            del fleets[name]
+
+
+def ensure_repo(name, server):
+    repo = GIT / f"{name}.git"
+    as_www = ["runuser", "-u", "www-data", "--"]
+    if not repo.exists():
+        run(as_www + ["git", "init", "-q", "--bare", "-b", "master", str(repo)])
+        log(f"created {repo}")
+    if subprocess.run(as_www + ["git", "-C", str(repo), "rev-parse", "-q", "--verify", "HEAD"],
+                      capture_output=True).returncode == 0:
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp).chmod(0o777)
+        work = Path(tmp) / "work"
+        run(as_www + ["git", "clone", "-q", str(repo), str(work)])
+        (work / "local.yml").write_text(LASTMINUTE.format(fleet=name))
+        run(as_www + ["git", "-C", str(work), "add", "local.yml"])
+        run(as_www + ["git", "-C", str(work), "-c", "user.name=ICPC Admin", "-c", f"user.email=icpcadmin@{server}",
+                      "commit", "-q", "-m", "Initial last minute ansible script"])
+        run(as_www + ["git", "-C", str(work), "push", "-q", "origin", "HEAD:master"])
+    log(f"seeded {repo} with a starter local.yml")
+
+
+def sync_wstunnel(fleets):
+    wanted = {f"wstunnel@{f['port']}.service" for f in fleets.values()}
+    out = subprocess.run(["systemctl", "list-units", "--all", "--plain", "--no-legend", "wstunnel@*.service"],
+                         capture_output=True, text=True).stdout
+    running = {line.split()[0] for line in out.splitlines() if line.strip()}
+    for unit in sorted(wanted):
+        run(["systemctl", "enable", "--now", "--quiet", unit])
+    for unit in sorted(running - wanted):
+        run(["systemctl", "disable", "--now", "--quiet", unit])
+        log(f"stopped {unit}")
+
+
+def sync_principals(fleets, user_cas):
+    """What sshd's Match Group fleets block reads: the user CAs, and each fleet user's principals"""
+    write(USER_CAS, "".join(f"{k}\n" for k in user_cas))
+    PRINCIPALS.mkdir(mode=0o755, exist_ok=True)
+    for name in fleet_users():
+        path = PRINCIPALS / name
+        if name in fleets:
+            write(path, "".join(f"{p}\n" for p in fleets[name]["principals"]))
+        elif path.exists():
+            path.unlink()
+            log(f"removed {name}'s principals, its fleet is gone")
+
+
+def sync_firewall(fleets):
+    """Fleet users may only reach their own fleet's subnet (and the DNS server)"""
+    users = fleet_users()
+    rules = [f"meta skuid {users[name]} ip6 daddr {fleet['subnet']} accept comment \"{name}\""
+             for name, fleet in sorted(fleets.items()) if name in users]
+    everyone = ", ".join(str(uid) for uid in sorted(users.values()))
+    if everyone:
+        rules += [
+            f"meta skuid {{ {everyone} }} oifname \"lo\" meta l4proto {{ tcp, udp }} th dport 53 accept",
+            f"meta skuid {{ {everyone} }} counter reject",
+        ]
+    text = "\n".join([
+        GENERATED,
+        "table inet fleet_users",
+        "delete table inet fleet_users",
+        "table inet fleet_users {",
+        "  chain output {",
+        "    type filter hook output priority 0; policy accept;",
+        "    ct state established,related accept",
+        *[f"    {r}" for r in rules],
+        "  }",
+        "}",
+        "",
+    ])
+    if write(NFT, text, 0o600) or not subprocess.run(["nft", "list", "table", "inet", "fleet_users"],
+                                                       capture_output=True).returncode == 0:
+        run(["nft", "-f", str(NFT)])
+
+
+def sync_ssh_config(fleets):
+    """Short names like t107.<fleet> canonicalize to the FQDN, only for real fleets, so a
+    public name is never looked up as a team machine. Static fleets' machines have no host
+    certificate, so their keys are accepted on first use, kept apart in known_hosts.<fleet>"""
+    blocks = [GENERATED]
+    for name, fleet in sorted(fleets.items()):
+        blocks.append(f"Host *.{name} *.{name}.icpcnet.internal")
+        blocks.append("    CanonicalizeHostname yes")
+        blocks.append("    CanonicalDomains icpcnet.internal")
+        if fleet["static"]:
+            blocks.append("    StrictHostKeyChecking accept-new")
+            blocks.append(f"    UserKnownHostsFile ~/.ssh/known_hosts.{name}")
+    blocks += ["Host *.icpcnet.internal", "    User icpcadmin", ""]
+    write(SSH_CONFIG, "\n".join(blocks))
+
+
+def sync_known_hosts():
+    if not HOST_CA.exists():
+        return
+    begin, end = "# BEGIN wg-fleet host CA, " + GENERATED[2:], "# END wg-fleet host CA"
+    lines = KNOWN_HOSTS.read_text().splitlines() if KNOWN_HOSTS.exists() else []
+    if begin in lines:
+        start = lines.index(begin)
+        lines = lines[:start] + lines[lines.index(end, start) + 1:]
+    lines += [begin, f"@cert-authority *.icpcnet.internal {HOST_CA.read_text().strip()}", end]
+    write(KNOWN_HOSTS, "\n".join(lines) + "\n")
+
+
+def main(args):
+    if len(args) != 1:
+        sys.exit(__doc__.strip())
+    if not FLEETS.exists():
+        log(f"{FLEETS} isn't there yet, wg-fleet writes it when it starts")
+        return
+    fleets, user_cas = load()
+    ensure_users(fleets)
+    for name in fleets:
+        ensure_repo(name, args[0])
+    sync_wstunnel(fleets)
+    sync_principals(fleets, user_cas)
+    sync_firewall(fleets)
+    sync_ssh_config(fleets)
+    sync_known_hosts()
+    log(f"{len(fleets)} fleets: {', '.join(sorted(fleets)) or '(none)'}")
+    if problems:
+        print("\n".join(problems), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

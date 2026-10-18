@@ -14,6 +14,12 @@
       ---
       domain: icpcnet.internal
       prune_timeout: {{ fleet_timeout }}
+      server_name: {{ external_hostname }}
+      external_ip: {{ external_ip }}
+      {% if fleets_url -%}
+      fleets_url: {{ fleets_url }}
+      config_signers: {{ config_signers | to_json }}
+      {% endif -%}
       fleets:
         {% for k,v in fleets.items() -%}
         {{ k }}:
@@ -91,3 +97,10 @@
     name: wg-fleet
     enabled: true
     state: started
+
+# fleet-sync.path runs it from then on
+- name: Make the host match the fleets wg-fleet serves
+  ansible.builtin.systemd:
+    name: fleet-sync.service
+    state: started
+  changed_when: false

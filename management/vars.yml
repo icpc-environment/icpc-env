@@ -29,9 +29,16 @@ fleet_key_holders: >-
   {{ (fleets.keys() | zip(fleets.keys()) | list)
      + ([ansible_user] | product(fleets.keys()) | list) }}
 
-# One entry per contest_id. Each gets its own wireguard interface, a login
-# user for that contest's admins (keys in secret.yml), and a last-minute git
-# repo at /git/<name>.git.
+# contestforge's signed list of fleets, which wg-fleet serves alongside the
+# static ones below. config_signers are the allowed_signers lines it must be
+# signed with, the same ones images are built with. null serves only these.
+fleets_url: https://configs.cloudcontest.org/v2/fleets.json
+config_signers: []
+
+# Static fleets: the setup fleet images join before setup (named after their
+# contest_id), and contests not managed in contestforge. Each gets its own
+# wireguard interface, a login user for its admins (keys in secret.yml), and a
+# last-minute git repo at /git/<name>.git.
 #
 # Generate a new subnet with:
 #   echo "fd`openssl rand -hex 5 | fold -w2 | paste -sd: | sed 's/^/:/'`::/64"
