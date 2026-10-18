@@ -6,8 +6,11 @@ import re
 import urllib.request
 from urllib.parse import urlparse, quote
 from subprocess import PIPE, Popen
+import subprocess
 import sys
 import os
+import tempfile
+from datetime import datetime, timedelta, timezone
 from pprint import pprint
 
 from pyrage import passphrase
@@ -26,22 +29,61 @@ def make_safe_url(url: str) -> str:
 def fetch_url(url):
     try:
         with urllib.request.urlopen(make_safe_url(url)) as response:
-            return response.read().decode("UTF-8").strip()
-    except urllib.error.URLError as e:
-        sg.popup(f"Exception fetching {url}:\n{e}", title="URL Fetch Error")
+            return response.read()
     except Exception as e:
         sg.popup(f"Exception fetching {url}:\n{e}", title="URL Fetch Error")
-    return ''
+    return None
+
+# Who may sign what the wizard fetches, as ssh-keygen allowed_signers lines.
+# Baked in when the image is built, so whoever serves config_url can't change it
+CONFIG_SIGNERS = "/etc/icpc/config-signers"
+SIGNER_ID = "contestforge"
+
+def signature_error(content, signature):
+    """None if signature is a good signature over content by one of CONFIG_SIGNERS, else why not"""
+    with tempfile.NamedTemporaryFile(suffix=".sig") as sig:
+        sig.write(signature)
+        sig.flush()
+        p = subprocess.run(["ssh-keygen", "-Y", "verify", "-n", SIGNER_ID, "-I", SIGNER_ID,
+                            "-f", CONFIG_SIGNERS, "-s", sig.name], input=content, capture_output=True)
+    return None if p.returncode == 0 else (p.stderr or p.stdout).decode(errors="replace").strip()
 
 def fetch_json(url):
+    """url's JSON, if its .sig is a good signature by this image's publisher"""
     content = fetch_url(url)
-    if not content:
+    if content is None:
+        return None
+    signature = fetch_url(url + ".sig")
+    if signature is None:
+        return None
+    error = signature_error(content, signature)
+    if error is not None:
+        sg.popup(f"{url} isn't signed by this image's publisher, so it can't be used:\n\n{error}", title="Bad Signature")
         return None
     try:
         return json.loads(content)
     except ValueError as e:
         sg.popup(f"{url} isn't valid JSON:\n{e}", title="URL Fetch Error")
         return None
+
+# How far this machine's clock may be ahead before a config counts as expired
+CLOCK_SKEW = timedelta(days=1)
+
+def still_valid(url, valid_until):
+    try:
+        until = datetime.fromisoformat(valid_until)
+    except (TypeError, ValueError):
+        sg.popup(f"{url} has no valid_until date ({valid_until!r})", title="Unsupported Config")
+        return False
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if now <= until + CLOCK_SKEW:
+        return True
+    sg.popup(f"{url} expired on {until:%Y-%m-%d}, so it's probably an old contest's configuration.\n\n"
+             f"This machine's clock says it's {now:%Y-%m-%d %H:%M} UTC. If that's wrong, set the clock and try again.",
+             title="Expired Config")
+    return False
 
 # Passphrases that worked this run; sites in a region usually share one
 passphrases = []
@@ -53,8 +95,15 @@ def fetch_site_config(site_id):
     config = fetch_json(url)
     if config is None:
         return None, False
-    if config.get("version") != 2:
-        sg.popup(f"{url} is config version {config.get('version')!r}, this image only understands version 2", title="Unsupported Config")
+    if config.get("version") != 3:
+        sg.popup(f"{url} is config version {config.get('version')!r}, this image only understands version 3", title="Unsupported Config")
+        return None, False
+    # The signature only says the publisher wrote this file, not that it's this site's
+    if config.get("node") != site_id or config.get("contest") != configuration.get("contest"):
+        sg.popup(f"{url} is the config of {config.get('node')!r} in contest {config.get('contest')!r}, "
+                 f"not of {site_id!r} in {configuration.get('contest')!r}", title="Wrong Config")
+        return None, False
+    if not still_valid(url, config.get("valid_until")):
         return None, False
     if not config.get("encrypted"):
         return config.get("data", {}), False
@@ -390,7 +439,7 @@ def main():
   icpcconfig.save(machine_config)
 
   # Never saved: config.json is readable by contestants, who could crack it.
-  # An unencrypted config could have been changed on the way, so it's ignored there
+  # An unencrypted config is public, so its hash could be cracked by anyone
   if configuration.get("encrypted") and "admin_password_hash" in data:
     set_admin_password(data["admin_password_hash"])
 
