@@ -66,7 +66,7 @@ echo "" > /etc/machine-id
 # make sure wireguard config is wiped so it can be generated for each system on boot
 systemctl stop wg-setup
 wg-quick down contest
-rm -f /etc/wireguard/contest.conf
+rm -f /etc/wireguard/contest.conf /etc/wireguard/contest.fleet
 
 # Free up space(just to make the image smaller)
 dd if=/dev/zero of=/empty bs=1M || true

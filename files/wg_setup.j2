@@ -2,6 +2,18 @@
 set -euo pipefail
 source /icpc/CONFIG
 
+# The fleet contest.conf was registered in
+REGISTERED=/etc/wireguard/contest.fleet
+
+# A tunnel into another fleet (the setup fleet, until the wizard sets this
+# site's) has to go, or the ping below would keep it forever
+if [ -f /etc/wireguard/contest.conf ] && [ "$(cat $REGISTERED 2>/dev/null)" != "$FLEET" ]; then
+  echo "Registered in fleet $(cat $REGISTERED 2>/dev/null || echo '(unknown)'), moving to $FLEET"
+  wg-quick down contest || true
+  systemctl stop 'wstunnel@*'
+  rm -f /etc/wireguard/contest.conf $REGISTERED /run/wg_setup-vpn-hostname-updated
+fi
+
 # Try to start wireguard if we have a config for it and it isn't already up
 if [ -f /etc/wireguard/contest.conf ] && ! wg show contest >/dev/null 2>&1; then
   wg-quick up contest || true
@@ -33,6 +45,7 @@ if [ $? != 0 ]; then
 fi
 
 echo "$wg_config" | jq -r .config > /etc/wireguard/contest.conf
+echo "$FLEET" > $REGISTERED
 wg-quick up contest
 
 server_ip=$(echo "$wg_config" | jq -r .server_ip)
