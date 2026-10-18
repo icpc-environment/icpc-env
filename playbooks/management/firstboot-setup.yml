@@ -12,9 +12,11 @@
   command: python3 -m venv --system-site-packages /icpc/scripts/venv
   args:
     creates: /icpc/scripts/venv
-- name: Install freesimplegui
+- name: Install freesimplegui, and pyrage to decrypt encrypted site configs
   pip:
-    name: freesimplegui
+    name:
+      - freesimplegui
+      - pyrage
     executable: /icpc/scripts/venv/bin/pip
 
 
