@@ -23,6 +23,8 @@
           iif lo accept comment "Accept all loopback traffic"
           ct state established,related accept comment "Accept established/related connections"
 
+          icmp type echo-request accept comment "Allow ping"
+          icmpv6 type echo-request accept comment "Allow ping"
           tcp dport 22 accept comment "Allow SSH (OpenSSH)"
           iifname "contest" tcp dport 9100 accept comment "Allow prometheus from contest interface"
 
