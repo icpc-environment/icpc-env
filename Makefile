@@ -15,10 +15,5 @@ test_ssh:
 		ssh -p 2222 -i "$$(secrets/admin-key.sh)" -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no icpcadmin@localhost
 
 
-download_configs:
-	aws s3 sync s3://configs.cloudcontest.org/ printer-configs/
-upload_configs:
-	aws s3 sync --delete printer-configs/ s3://configs.cloudcontest.org/
-
 ansible:
 	bash -c 'ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i tmp_inventory --diff --become -u imageadmin --private-key "${PWD}/configs/imageadmin-ssh_key" --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" main.yml'

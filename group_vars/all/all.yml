@@ -61,9 +61,10 @@ remote_management_vpn_enabled: true
 # Whether to run ansible-pull to apply any last minute changes on system boot.
 remote_management_lastminute_enabled: true
 
-# This is the config server used by the icpc_setup script. It contains sites, teams, and printer configurations.
-# See the readme for more information on what files this server needs to return
-config_url: http://configs.cloudcontest.org
+# Where contestforge publishes its files (contests.json, <contest>/tree.json,
+# <site>/config.json), which the setup wizard reads the site's teams, printers
+# and settings from
+config_url: https://configs.cloudcontest.org/v2
 
 # # Firefox policies. Documented here:
 # https://mozilla.github.io/policy-templates/
