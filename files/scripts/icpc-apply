@@ -232,9 +232,11 @@ def apply_reverseproxy(sites):
     hosts = replace_block(hosts, HOSTS_BEGIN, HOSTS_END, [f"127.0.0.1\t{name}" for name in sites])
     Path("/etc/hosts").write_text("\n".join(hosts) + "\n")
 
-    # squid reads /etc/hosts when it starts or reloads
-    if Path("/run/systemd/system").exists():
-        run(["systemctl", "try-reload-or-restart", "nginx", "squid"])
+    # squid reads /etc/hosts when it starts or reloads. It isn't there in builds
+    # that skip the lockdown tag, and systemctl fails on a unit it can't find
+    units = [u for u in ("nginx", "squid") if Path(f"/usr/lib/systemd/system/{u}.service").exists()]
+    if Path("/run/systemd/system").exists() and units:
+        run(["systemctl", "try-reload-or-restart"] + units)
 
 
 def apply_hostname(team):
