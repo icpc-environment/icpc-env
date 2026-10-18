@@ -7,6 +7,29 @@ REGISTERED=/etc/wireguard/contest.fleet
 # From the site's config, written by the setup wizard. Fleets from contestforge
 # only let a site's machines register with it; static ones take anyone
 TOKEN=/etc/icpc/enrollment-token
+HOST_KEY=/etc/ssh/ssh_host_ed25519_key.pub
+HOST_CERT=/etc/ssh/ssh_host_ed25519_key-cert.pub
+
+# Install the host certificate in a ping response, if it's new and for our host key
+install_host_certificate() {
+  local cert tmp
+  cert=$(echo "$1" | jq -r '.host_certificate // empty' 2>/dev/null || true)
+  if [ -z "$cert" ] || [ "$cert" = "$(cat $HOST_CERT 2>/dev/null || true)" ]; then
+    return 0
+  fi
+  tmp=$(mktemp /etc/ssh/.host-cert.XXXXXX)
+  echo "$cert" > "$tmp"
+  if [ "$(ssh-keygen -L -f "$tmp" 2>/dev/null | sed -n 's/^ *Public key: [^ ]* //p')" != "$(ssh-keygen -l -f $HOST_KEY | cut -d' ' -f2)" ]; then
+    echo "wg-fleet sent a host certificate that isn't for this machine's host key, ignoring it"
+    rm -f "$tmp"
+    return 0
+  fi
+  chmod 0644 "$tmp"
+  mv "$tmp" $HOST_CERT
+  echo "HostCertificate $HOST_CERT" > /etc/ssh/sshd_config.d/ssh_host_cert.conf
+  systemctl reload ssh
+  echo "Installed a host certificate: $(ssh-keygen -L -f $HOST_CERT | grep -A1 Principals: | tail -1 | xargs)"
+}
 
 # A tunnel into another fleet (the setup fleet, until the wizard sets this
 # site's) has to go, or the ping below would keep it forever
@@ -30,7 +53,8 @@ if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
   [ -f /run/wg_setup-vpn-hostname-updated ] && exit 0
 
   # Send a ping request to register our hostname
-  curl --fail -X POST https://contestmanager.icpcnet.internal/fleet/$FLEET/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k
+  response=$(curl --fail -sS -X POST https://contestmanager.icpcnet.internal/fleet/$FLEET/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k)
+  install_host_certificate "$response"
   touch /run/wg_setup-vpn-hostname-updated
   exit 0
 fi
@@ -45,7 +69,7 @@ wg-quick down contest || true
 registration=$(jq -n \
   --arg site "${SITE:-}" \
   --arg token "$(cat $TOKEN 2>/dev/null || true)" \
-  --arg host_key "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)" \
+  --arg host_key "$(cut -d' ' -f1,2 $HOST_KEY)" \
   '{host_key: $host_key} + (if $site != "" then {site: $site} else {} end) + (if $token != "" then {token: $token} else {} end)')
 wg_config=$(echo "$registration" | curl --fail -sS -X POST https://$REMOTE_MANAGEMENT_SERVER/fleet/$FLEET/register \
   --header "Content-Type: application/json" --data @-)
