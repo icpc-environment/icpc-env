@@ -39,6 +39,13 @@ def fetch_url(url):
 CONFIG_SIGNERS = "/etc/icpc/config-signers"
 SIGNER_ID = "contestforge"
 
+class Refused(Exception):
+    """A file that was fetched, but mustn't be used"""
+
+def refuse(message, title):
+    sg.popup(message, title=title)
+    raise Refused(message)
+
 def signature_error(content, signature):
     """None if signature is a good signature over content by one of CONFIG_SIGNERS, else why not"""
     with tempfile.NamedTemporaryFile(suffix=".sig") as sig:
@@ -49,7 +56,8 @@ def signature_error(content, signature):
     return None if p.returncode == 0 else (p.stderr or p.stdout).decode(errors="replace").strip()
 
 def fetch_json(url):
-    """url's JSON, if its .sig is a good signature by this image's publisher"""
+    """url's JSON if its .sig is a good signature by this image's publisher, None if it
+    couldn't be fetched, or Refused if it isn't signed"""
     content = fetch_url(url)
     if content is None:
         return None
@@ -58,8 +66,7 @@ def fetch_json(url):
         return None
     error = signature_error(content, signature)
     if error is not None:
-        sg.popup(f"{url} isn't signed by this image's publisher, so it can't be used:\n\n{error}", title="Bad Signature")
-        return None
+        refuse(f"{url} isn't signed by this image's publisher, so it can't be used:\n\n{error}", "Bad Signature")
     try:
         return json.loads(content)
     except ValueError as e:
@@ -69,42 +76,36 @@ def fetch_json(url):
 # How far this machine's clock may be ahead before a config counts as expired
 CLOCK_SKEW = timedelta(days=1)
 
-def still_valid(url, valid_until):
+def check_valid(url, valid_until):
     try:
         until = datetime.fromisoformat(valid_until)
     except (TypeError, ValueError):
-        sg.popup(f"{url} has no valid_until date ({valid_until!r})", title="Unsupported Config")
-        return False
+        refuse(f"{url} has no valid_until date ({valid_until!r})", "Unsupported Config")
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
-    if now <= until + CLOCK_SKEW:
-        return True
-    sg.popup(f"{url} expired on {until:%Y-%m-%d}, so it's probably an old contest's configuration.\n\n"
-             f"This machine's clock says it's {now:%Y-%m-%d %H:%M} UTC. If that's wrong, set the clock and try again.",
-             title="Expired Config")
-    return False
+    if now > until + CLOCK_SKEW:
+        refuse(f"{url} expired on {until:%Y-%m-%d}, so it's probably an old contest's configuration.\n\n"
+               f"This machine's clock says it's {now:%Y-%m-%d %H:%M} UTC. If that's wrong, set the clock and try again.",
+               "Expired Config")
 
 # Passphrases that worked this run; sites in a region usually share one
 passphrases = []
 
 def fetch_site_config(site_id):
     """The site's settings from contestforge, asking for the passphrase if they're encrypted.
-    Returns (data, encrypted), or (None, False) if there aren't any"""
+    Returns (data, encrypted), or (None, False) if there aren't any, or raises Refused"""
     url = f"{config_url}/{site_id}/config.json"
     config = fetch_json(url)
     if config is None:
         return None, False
     if config.get("version") != 3:
-        sg.popup(f"{url} is config version {config.get('version')!r}, this image only understands version 3", title="Unsupported Config")
-        return None, False
+        refuse(f"{url} is config version {config.get('version')!r}, this image only understands version 3", "Unsupported Config")
     # The signature only says the publisher wrote this file, not that it's this site's
     if config.get("node") != site_id or config.get("contest") != configuration.get("contest"):
-        sg.popup(f"{url} is the config of {config.get('node')!r} in contest {config.get('contest')!r}, "
-                 f"not of {site_id!r} in {configuration.get('contest')!r}", title="Wrong Config")
-        return None, False
-    if not still_valid(url, config.get("valid_until")):
-        return None, False
+        refuse(f"{url} is the config of {config.get('node')!r} in contest {config.get('contest')!r}, "
+               f"not of {site_id!r} in {configuration.get('contest')!r}", "Wrong Config")
+    check_valid(url, config.get("valid_until"))
     if not config.get("encrypted"):
         return config.get("data", {}), False
 
@@ -279,10 +280,15 @@ def mainwindow():
     if event == "reload":
       window['site'].update(values=["default"])
       pinned = machine_config.get("config_contest") or None
+      configuration["refused"] = {}
       if pinned is not None:
         contests = {pinned: pinned}
       else:
-        contests = {f"{c['name']} ({c['id']})": c['id'] for c in fetch_json(f"{config_url}/contests.json") or []}
+        try:
+          contests = {f"{c['name']} ({c['id']})": c['id'] for c in fetch_json(f"{config_url}/contests.json") or []}
+        except Refused as e:
+          configuration["refused"]["contests"] = str(e)
+          contests = {}
       if len(contests) == 0:
         contests = {"default": "default"}
       configuration["contests"] = contests
@@ -296,8 +302,12 @@ def mainwindow():
       configuration["contest"] = configuration["contests"][values["contest"]]
 
       tree = None
+      configuration["refused"].pop("tree", None)
       if configuration["contest"] != "default":
-        tree = fetch_json(f"{config_url}/{configuration['contest']}/tree.json")
+        try:
+          tree = fetch_json(f"{config_url}/{configuration['contest']}/tree.json")
+        except Refused as e:
+          configuration["refused"]["tree"] = str(e)
       sites = site_choices(tree) if tree else {}
       if len(sites) == 0:
         sites = {"default": "default"}
@@ -312,8 +322,12 @@ def mainwindow():
 
       configuration["site"] = configuration["sites"][values["site"]]
       data, encrypted = None, False
+      configuration["refused"].pop("site", None)
       if configuration["site"] != "default":
-        data, encrypted = fetch_site_config(configuration["site"])
+        try:
+          data, encrypted = fetch_site_config(configuration["site"])
+        except Refused as e:
+          configuration["refused"]["site"] = str(e)
       configuration["data"], configuration["encrypted"] = data or {}, encrypted
       data = configuration["data"]
 
@@ -367,6 +381,12 @@ def mainwindow():
         invalid_fields.append('team_id (letters, digits and - only)')
       if len(invalid_fields) > 0:
         sg.popup(f"Invalid fields, please correct: {', '.join(invalid_fields)}", title="Invalid Fields")
+        continue
+      # Whoever served it may be trying to keep this machine off its site's settings
+      if configuration["refused"]:
+        sg.popup("This can't be applied, because a file from the configuration server was refused:\n\n"
+                 + "\n\n".join(configuration["refused"].values())
+                 + "\n\nPick another site, or fix the problem and press Refresh.", title="Can't Apply")
         continue
 
       ret = sg.popup_yes_no(f"""
