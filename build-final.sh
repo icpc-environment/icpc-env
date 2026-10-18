@@ -103,8 +103,8 @@ scp -i $SSH_ICPCADMIN_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev
 
 echo "Preparing image for distribution"
 set -x
-ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/makeDist.sh"
-ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo shutdown --poweroff --no-wall +1
+# One session, since makeDist.sh deletes the host keys sshd answers with
+ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "'/icpc/scripts/makeDist.sh && shutdown --poweroff --no-wall +1'"
 
 # Wait for qemu to exit, see https://unix.stackexchange.com/a/427133
 tail --pid=$(cat $PIDFILE) -f /dev/null

@@ -162,26 +162,37 @@
     owner: root
     group: root
 
-- name: Install a set of host keys that are signed by the ssh CA
+- name: Create missing ssh host keys at boot
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/secrets/{{ contest_id }}/contestant.icpcnet.internal_{{ item.name }}"
-    dest: /etc/ssh/ssh_{{ item.name }}
-    mode: "{{ item.mode }}"
+    dest: /etc/systemd/system/icpc-host-identity.service
+    content: |
+      [Unit]
+      Description=Create this machine's ssh host keys
+      Before=ssh.service sshd.service ssh.socket wg-setup.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/icpc/scripts/host-identity
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
     owner: root
     group: root
-  loop:
-    # sshd refuses a host key that anything but root can read
-    - {name: host_ed25519_key, mode: "0600"}
-    - {name: host_ed25519_key.pub, mode: "0644"}
-    - {name: host_ed25519_key-cert.pub, mode: "0644"}
-  notify: Restart ssh
 
-- name: sshd host certificate
+- name: Enable icpc-host-identity
+  ansible.builtin.systemd:
+    name: icpc-host-identity
+    enabled: true
+    daemon_reload: true
+
+# wg_setup adds a HostCertificate once wg-fleet has signed this key
+- name: Only offer the ed25519 host key
   ansible.builtin.copy:
     content: |
       HostKey /etc/ssh/ssh_host_ed25519_key
-      HostCertificate /etc/ssh/ssh_host_ed25519_key-cert.pub
-    dest: /etc/ssh/sshd_config.d/ssh_host_cert.conf
+    dest: /etc/ssh/sshd_config.d/ssh_host_key.conf
     mode: "0644"
     owner: root
     group: root

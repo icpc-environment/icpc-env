@@ -69,6 +69,9 @@ wg-quick down contest
 rm -f /etc/wireguard/contest.conf /etc/wireguard/contest.fleet
 rm -f /etc/icpc/enrollment-token
 
+# icpc-host-identity makes new ones on the next boot, so no two machines share them
+rm -f /etc/ssh/ssh_host_* /etc/ssh/sshd_config.d/ssh_host_cert.conf
+
 # Free up space(just to make the image smaller)
 dd if=/dev/zero of=/empty bs=1M || true
 rm -f /empty

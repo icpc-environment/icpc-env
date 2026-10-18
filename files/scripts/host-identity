@@ -1,0 +1,6 @@
+#!/bin/bash
+# Run at boot before sshd: create whatever ssh host keys this machine lacks.
+# Images are sealed without any, so every machine (cloned VMs too) gets its own.
+set -euo pipefail
+
+ssh-keygen -A
