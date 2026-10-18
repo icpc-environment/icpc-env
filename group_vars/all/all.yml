@@ -71,6 +71,15 @@ remote_management_lastminute_enabled: true
 # and settings from
 config_url: https://configs.cloudcontest.org/v2
 
+# The keys whose signatures the setup wizard accepts on those files, as
+# ssh-keygen allowed_signers lines with principal contestforge. contestforge
+# prints its line with `flask signing-key init`. Several lines are fine, e.g.
+# while rotating keys:
+#
+#   config_signers:
+#     - contestforge ssh-ed25519 AAAA...
+config_signers: []
+
 # # Firefox policies. Documented here:
 # https://mozilla.github.io/policy-templates/
 # Firefox gets firefox_default_policies, then the contest's firefox_policies

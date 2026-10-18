@@ -20,6 +20,33 @@
       {% endfor %}
     mode: "0644"
 
+- name: Check the setup wizard can verify what it fetches from config_url
+  ansible.builtin.assert:
+    that: config_signers | length > 0
+    fail_msg: >-
+      config_url is set but config_signers is empty, so the setup wizard would
+      refuse every file it fetches. Add the publisher's allowed_signers line.
+    quiet: true
+  when: config_url | length > 0
+
+- name: Create /etc/icpc
+  ansible.builtin.file:
+    path: /etc/icpc
+    state: directory
+    mode: "0755"
+
+# Not in /icpc/config.json, which `icpc-config set` can change
+- name: Install the keys config_url's files must be signed with
+  ansible.builtin.copy:
+    dest: /etc/icpc/config-signers
+    content: |
+      {% for line in config_signers %}
+      {{ line }}
+      {% endfor %}
+    mode: "0644"
+    owner: root
+    group: root
+
 - name: Write the machine config
   ansible.builtin.copy:
     dest: /icpc/config.json
