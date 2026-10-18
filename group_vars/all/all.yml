@@ -6,7 +6,8 @@ icpcadmin_pass: icpcadmin
 # file relative to the repo root, or an http(s) URL the build downloads.
 icpc_wallpaper: files/wallpaper.png
 
-# On the config server, what contest id is this for. Files will be fetched from {{ config_url }}/{{ contest_id }}
+# This contest's id, also its node id in contestforge: the setup wizard only
+# offers this contest's sites, from {{ config_url }}/{{ contest_id }}/tree.json
 contest_id: generic
 
 # Which submit client /usr/local/bin/submit points at (domjudge, pc2, or

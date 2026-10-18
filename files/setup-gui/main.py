@@ -1,13 +1,16 @@
 #!/icpc/scripts/venv/bin/python
 import FreeSimpleGUI as sg
 from pathlib import Path
+import json
+import re
 import urllib.request
 from urllib.parse import urlparse, quote
 from subprocess import PIPE, Popen
 import sys
-import csv
 import os
 from pprint import pprint
+
+from pyrage import passphrase
 
 sys.path.insert(0, "/icpc/scripts")
 import icpcconfig
@@ -30,9 +33,71 @@ def fetch_url(url):
         sg.popup(f"Exception fetching {url}:\n{e}", title="URL Fetch Error")
     return ''
 
-def run_cmd(cmd, ignore_errors=False):
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
+def fetch_json(url):
+    content = fetch_url(url)
+    if not content:
+        return None
+    try:
+        return json.loads(content)
+    except ValueError as e:
+        sg.popup(f"{url} isn't valid JSON:\n{e}", title="URL Fetch Error")
+        return None
+
+# Passphrases that worked this run; sites in a region usually share one
+passphrases = []
+
+def fetch_site_config(site_id):
+    """The site's settings from contestforge, asking for the passphrase if they're encrypted.
+    Returns (data, encrypted), or (None, False) if there aren't any"""
+    url = f"{config_url}/{site_id}/config.json"
+    config = fetch_json(url)
+    if config is None:
+        return None, False
+    if config.get("version") != 2:
+        sg.popup(f"{url} is config version {config.get('version')!r}, this image only understands version 2", title="Unsupported Config")
+        return None, False
+    if not config.get("encrypted"):
+        return config.get("data", {}), False
+
+    for secret in passphrases:
+        try:
+            return json.loads(passphrase.decrypt(config["encryptedData"].encode(), secret)), True
+        except Exception:
+            pass
+
+    prompt = "This site's configuration is encrypted, enter its passphrase:"
+    if config.get("note"):
+        prompt += f"\n\n{config['note']}"
+    while True:
+        secret = sg.popup_get_text(prompt, title="Passphrase", password_char="*", keep_on_top=True)
+        if secret is None:
+            return None, False
+        try:
+            data = json.loads(passphrase.decrypt(config["encryptedData"].encode(), secret))
+        except Exception:
+            sg.popup("That passphrase didn't work, try again", title="Wrong Passphrase", keep_on_top=True)
+            continue
+        passphrases.append(secret)
+        return data, True
+
+def site_choices(tree):
+    """{label: node id} for every site in a contest's tree.json, labeled by the
+    names of the organizations above it"""
+    sites = {}
+    def walk(node, names):
+        if node.get("type") == "site":
+            label = " / ".join(names + [node["name"]])
+            sites[label if label not in sites else f"{label} ({node['id']})"] = node["id"]
+        else:
+            for child in node.get("children", []):
+                walk(child, names + [node["name"]])
+    for child in tree.get("children", []):
+        walk(child, [])
+    return sites
+
+def run_cmd(cmd, ignore_errors=False, input=None):
+    p = Popen(cmd, stdin=PIPE if input is not None else None, stdout=PIPE, stderr=PIPE)
+    out, err = p.communicate(input)
 
     if p.returncode != 0 and not ignore_errors:
         sg.popup(f"""Command: {cmd}
@@ -46,13 +111,25 @@ Err:
 
     return (p.returncode, out, err)
 
+# What a site's config may set in /icpc/config.json; everything else the image decides
+SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", "submit",
+                 "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys"]
+ADMIN_ACCOUNTS = ["icpcadmin", "teamreset"]
+
+def set_admin_password(crypted):
+    if not isinstance(crypted, str) or not re.fullmatch(r"\$6\$[^:\s]+", crypted):
+        sg.popup("The site's admin password isn't a sha512-crypt hash, leaving it unchanged", title="Configuration Error")
+        return
+    run_cmd(["chpasswd", "-e"], input="".join(f"{a}:{crypted}\n" for a in ADMIN_ACCOUNTS).encode())
+
 class Team(dict):
    def __str__(self):
        return f"{self['id'] : <4} {self['name'] : <30} {self['affiliation'] : <40}{' '+self['extra'] if len(self['extra']) > 0 else ''}"
 
 class Printer(dict):
     def __str__(self):
-        return f"[{self['group']}]: {self['note'] if len(self['note']) > 0 else 'default'} - {self['uri']} ({self['driver']})"
+        group = f"[{self['group']}]: " if self['group'] else ""
+        return f"{group}{self['note'] if len(self['note']) > 0 else 'default'} - {self['uri']} ({self['driver']})"
 
 # What the machine is configured with so far: build-time settings, plus the
 # last setup's choices when re-running
@@ -136,67 +213,62 @@ def mainwindow():
 
     if event == "reload":
       window['site'].update(values=["default"])
-      configuration["contest"] = machine_config.get("contest") or None
-      contest_list = [configuration["contest"]]
-      if configuration["contest"] is None:
-        contest_list = fetch_url(f"{config_url}/contests").splitlines()
-
-      if len(contest_list) == 0:
-         contest_list = ["default"]
-      window['contest'].update(values=contest_list, value=contest_list[0])
-      window.write_event_value('contest', contest_list[0])
+      pinned = machine_config.get("contest") or None
+      if pinned is not None:
+        contests = {pinned: pinned}
+      else:
+        contests = {f"{c['name']} ({c['id']})": c['id'] for c in fetch_json(f"{config_url}/contests.json") or []}
+      if len(contests) == 0:
+        contests = {"default": "default"}
+      configuration["contests"] = contests
+      first = next(iter(contests))
+      window['contest'].update(values=list(contests), value=first)
+      window.write_event_value('contest', first)
 
     if event == 'contest':
       if len(values['contest']) == 0:
         continue
-      configuration["contest"] = values["contest"]
-      configuration["site"] = machine_config.get("site")
-      configuration['url'] = config_url + '/' + configuration['contest']
+      configuration["contest"] = configuration["contests"][values["contest"]]
 
-
-      content = fetch_url(f"{config_url}/{values['contest']}/sites.csv")
-      sites = list(csv.DictReader(content.splitlines(), fieldnames=["id", "name"]))
+      tree = None
+      if configuration["contest"] != "default":
+        tree = fetch_json(f"{config_url}/{configuration['contest']}/tree.json")
+      sites = site_choices(tree) if tree else {}
       if len(sites) == 0:
-         window['site'].update(values=["default"])
-         window.write_event_value('site', "default")
-      else:
-        site_values = [f"{s['id']}: {s['name']}" for s in sites]
-        selected = site_values[0]
-        if configuration["site"] is not None:
-          selected = next((s for s in site_values if s.startswith(configuration["site"])), site_values[0])
-        window['site'].update(values=site_values, value=selected)
-        window.write_event_value('site', selected)
+        sites = {"default": "default"}
+      configuration["sites"] = sites
+      selected = next((label for label, id in sites.items() if id == machine_config.get("site")), next(iter(sites)))
+      window['site'].update(values=list(sites), value=selected)
+      window.write_event_value('site', selected)
 
     if event == 'site':
       if len(values['site']) == 0:
         continue
 
-      configuration["site"] = values["site"].split(":")[0]
+      configuration["site"] = configuration["sites"][values["site"]]
+      data, encrypted = None, False
+      if configuration["site"] != "default":
+        data, encrypted = fetch_site_config(configuration["site"])
+      configuration["data"], configuration["encrypted"] = data or {}, encrypted
+      data = configuration["data"]
 
-      teamid = machine_config.get("team", {}).get("id")
+      if "autostart_firefox" in data:
+        window['autostart_firefox'].update(bool(data["autostart_firefox"]))
+      if data.get("papersize") in ("letter", "a4"):
+        window[data["papersize"]].update(True)
 
-      # Update the list of teams when the site changes
-      content = fetch_url(configuration['url'] + f"/teams/{configuration['site']}_teams.csv")
-      teams = list(csv.DictReader(content.splitlines(), fieldnames=["id", "name", "affiliation", "extra"]))
-      teams = list(map(lambda t: {k: v.strip() for k, v in t.items()}, teams))
+      printers = [Printer({k: str(p.get(k) or "") for k in ("group", "uri", "driver", "note")}) for p in data.get("printers", [])]
+      window['configured_printers'].update(values=printers)
+
+      teams = [Team({k: str(t.get(k) or "").strip() for k in ("id", "name", "affiliation", "extra")}) for t in data.get("teams", [])]
+      window['team'].update(values=teams)
       if len(teams) == 0:
          continue
 
-      selected_idx = 0
-      if teamid is not None:
-        selected_idx = next((i for i, t in enumerate(teams) if t['id'] == teamid), 0)
-
-      window['team'].update(values=[Team(t) for t in teams], set_to_index=selected_idx, scroll_to_index=selected_idx)
-      window.write_event_value('team', [Team(teams[selected_idx])])
-
-      # Update the printers when the site changes:
-      content = fetch_url(configuration['url'] + f"/printers/{configuration['site']}_printers2.csv")
-      printers = list(
-          csv.DictReader(
-              content.splitlines(), fieldnames=["group","uri", "driver", "note"], restval="Automatically Provisioned"
-          )
-      )
-      window['configured_printers'].update(values=[Printer(p) for p in printers])
+      teamid = machine_config.get("team", {}).get("id")
+      selected_idx = next((i for i, t in enumerate(teams) if t['id'] == teamid), 0)
+      window['team'].update(set_to_index=selected_idx, scroll_to_index=selected_idx)
+      window.write_event_value('team', [teams[selected_idx]])
 
     if event == 'add_printer':
       if len(values['printer_uri']) == 0:
@@ -225,6 +297,9 @@ def mainwindow():
         if len(values[k]) == 0:
           invalid_fields.append(k)
           continue
+      # It becomes the hostname, icpc-team-<id>
+      if values['team_id'] and not re.fullmatch(r"[A-Za-z0-9-]{1,53}", values['team_id']):
+        invalid_fields.append('team_id (letters, digits and - only)')
       if len(invalid_fields) > 0:
         sg.popup(f"Invalid fields, please correct: {', '.join(invalid_fields)}", title="Invalid Fields")
         continue
@@ -296,9 +371,12 @@ def main():
     break
 
   configuration['print_test_page'] = values['print_test_page']
+  # The site's settings replace the image's whole; printers and team are picked below
+  data = configuration.get("data", {})
+  machine_config.update({k: data[k] for k in SITE_SETTINGS if k in data})
   machine_config.update({
-      "contest": values['contest'],
-      "site": values['site'].split(":")[0],
+      "contest": configuration['contest'],
+      "site": configuration['site'],
       "papersize": "letter" if values['letter'] else "a4",
       "autostart_firefox": values['autostart_firefox'],
       "printers": [dict(p) for p in values['configured_printers']],
@@ -310,6 +388,11 @@ def main():
       },
   })
   icpcconfig.save(machine_config)
+
+  # Never saved: config.json is readable by contestants, who could crack it.
+  # An unencrypted config could have been changed on the way, so it's ignored there
+  if configuration.get("encrypted") and "admin_password_hash" in data:
+    set_admin_password(data["admin_password_hash"])
 
   (ret, out, err) = run_cmd(["/icpc/scripts/icpc-apply"], ignore_errors=True)
   if ret != 0:
