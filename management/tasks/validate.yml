@@ -10,6 +10,20 @@
     quiet: true
   loop: "{{ fleets.keys() | list }}"
 
+# The server canonicalizes <host>.<fleet> to <host>.<fleet>.icpcnet.internal,
+# and accepts static fleets' host keys on first use, so a fleet named like a
+# TLD would capture ssh to real hosts in it. contestforge refuses these names
+# for the fleets it publishes, from the same IANA list.
+- name: Check fleet names aren't top-level domains
+  ansible.builtin.assert:
+    that:
+      - item | upper not in lookup('file', 'files/tlds-alpha-by-domain.txt').splitlines()
+    fail_msg: >-
+      Fleet "{{ item }}" is a top-level domain, so ssh on the server would
+      treat names like example.{{ item }} as team machines. Pick another name.
+    quiet: true
+  loop: "{{ fleets.keys() | list }}"
+
 - name: Check fleet ports and subnets
   ansible.builtin.assert:
     that:
