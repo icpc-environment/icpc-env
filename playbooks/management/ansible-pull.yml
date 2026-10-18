@@ -24,7 +24,7 @@
         --clean \
         --diff \
         --inventory localhost, \
-        --url https://$REMOTE_MANAGEMENT_SERVER/git/$CONTEST.git
+        --url ${ANSIBLE_PULL_URL}
 
       [Install]
       WantedBy=multi-user.target

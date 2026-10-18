@@ -66,7 +66,23 @@ def env_value(value):
     return f'"{value}"'
 
 
-def apply_files(config):
+# ansible-pull passes the URL through a shell, so nothing that means anything to one
+PULL_URL_RE = r"https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?"
+
+
+def ansible_pull_url(config):
+    """The last-minute playbook's git repo: ansible_pull_url, else the contest's repo on the management server"""
+    url = config.get("ansible_pull_url")
+    if url is None:
+        server, contest = config.get("remote_management_server"), config.get("contest")
+        return f"https://{server}/git/{contest}.git" if server and contest else None
+    if not isinstance(url, str) or not re.fullmatch(PULL_URL_RE, url):
+        errors.append(f"ansible_pull_url {url!r} isn't a plain https URL")
+        return None
+    return url
+
+
+def apply_files(config, pull_url):
     team = config.get("team")
     write("CONTEST", config.get("contest") or None)
     write("SITE", config.get("site", "default site"))
@@ -84,6 +100,7 @@ def apply_files(config):
     env = {
         "REMOTE_MANAGEMENT_SERVER": config.get("remote_management_server"),
         "CONTEST": config.get("contest"),
+        "ANSIBLE_PULL_URL": pull_url,
     }
     if "site" in config:
         env["SITE"] = config["site"]
@@ -153,11 +170,11 @@ export SUBMITOMITEXTRAHELP=yes
 """)
 
 
-def apply_management(config, start):
-    """The VPN and last-minute ansible-pull, which need a management server"""
+def apply_management(config, pull_url, start):
+    """The VPN, which needs a management server, and last-minute ansible-pull, which needs a repo"""
     server = config.get("remote_management_server")
     vpn = bool(server and config.get("remote_management_vpn_enabled"))
-    lastminute = bool(server and config.get("remote_management_lastminute_enabled"))
+    lastminute = bool(pull_url and config.get("remote_management_lastminute_enabled"))
     running = Path("/run/systemd/system").exists()
     for unit, enabled in [("wg-setup.service", vpn), ("ansible-pull.service", lastminute), ("ansible-pull.path", lastminute)]:
         was_enabled = subprocess.run(["systemctl", "is-enabled", "--quiet", unit]).returncode == 0
@@ -423,7 +440,8 @@ def main(args):
     config = icpcconfig.load()
     team = config.get("team")
 
-    apply_files(config)
+    pull_url = ansible_pull_url(config)
+    apply_files(config, pull_url)
     if "papersize" in config:
         apply_papersize(config["papersize"])
     if "timezone" in config:
@@ -432,7 +450,7 @@ def main(args):
         apply_language_scripts(config["language_scripts"])
     if "submit" in config:
         apply_submit(config["submit"])
-    apply_management(config, start=not args)
+    apply_management(config, pull_url, start=not args)
     if "reverseproxy_sites" in config:
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:
