@@ -115,8 +115,12 @@ def apply_language_scripts(scripts):
         path.chmod(0o755)
 
 
-# Clients a contest can pick for `submit`, if ccs_tools installed them
-SUBMIT_CLIENTS = {"kattis": Path("/usr/local/bin/kattis"), "pc2": Path("/usr/local/bin/pc2submit")}
+# Clients a contest can pick for `submit`, installed by playbooks/ccs
+SUBMIT_CLIENTS = {
+    "kattis": Path("/usr/local/bin/kattis"),
+    "pc2": Path("/usr/local/bin/pc2submit"),
+    "domjudge": Path("/usr/local/bin/domjudge-submit"),
+}
 
 
 def apply_submit(submit):
@@ -124,7 +128,7 @@ def apply_submit(submit):
     if client:
         target = SUBMIT_CLIENTS.get(client)
         if target is None or not target.exists():
-            errors.append(f"submit client {client} isn't installed (see ccs_tools)")
+            errors.append(f"submit client {client} isn't installed (see playbooks/ccs)")
         else:
             link = Path("/usr/local/bin/submit")
             link.unlink(missing_ok=True)

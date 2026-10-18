@@ -1,2 +1,14 @@
 ---
-# TODO
+- name: Install the DOMjudge submit client's dependencies
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - python3-requests
+      - python3-magic
+
+- name: Install the DOMjudge submit client
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/DOMjudge/domjudge/9.0.1/submit/submit
+    checksum: sha256:9dddeea4a7647d17ac1eedb7b7c0459869da0c36f14fd6a1327f8273212c3b6a
+    dest: /usr/local/bin/domjudge-submit
+    mode: "0755"

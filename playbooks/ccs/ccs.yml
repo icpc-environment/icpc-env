@@ -1,7 +1,11 @@
 ---
-- name: Include ccs tools
-  ansible.builtin.include_tasks:
-    file: "playbooks/ccs/{{ item }}.yml"
-    apply:
-      tags: always
-  loop: "{{ ccs_tools | default(['kattis']) }}"
+# Every client is installed; submit.client in /icpc/config.json picks the one
+# /usr/local/bin/submit points at
+- name: Install the kattis submit client
+  ansible.builtin.import_tasks: playbooks/ccs/kattis.yml
+
+- name: Install the pc2 submit client
+  ansible.builtin.import_tasks: playbooks/ccs/pc2.yml
+
+- name: Install the DOMjudge submit client
+  ansible.builtin.import_tasks: playbooks/ccs/domjudge.yml

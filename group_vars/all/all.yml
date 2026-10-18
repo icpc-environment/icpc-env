@@ -9,16 +9,11 @@ icpc_wallpaper: files/wallpaper.png
 # On the config server, what contest id is this for. Files will be fetched from {{ config_url }}/{{ contest_id }}
 contest_id: generic
 
-# Which contest control system submit clients to install. One playbook per
-# entry under playbooks/ccs/.
-ccs_tools:
-  - kattis
-
-# Which of the installed clients /usr/local/bin/submit points at
-# (domjudge, pc2, or kattis)
+# Which submit client /usr/local/bin/submit points at (domjudge, pc2, or
+# kattis). All of them are installed.
 submit_ccs: 'kattis'
 
-# Only used when 'pc2' is in ccs_tools - where the pc2 submit client posts to
+# Only used when submit_ccs is 'pc2' - where the pc2 submit client posts to
 pc2_submit_base_url: https://pc2server.icpc-vcss.org:50443
 
 # Send contestant printing through icpc-printer, a local IPP server that stamps
