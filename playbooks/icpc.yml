@@ -167,8 +167,8 @@
     dest: /etc/systemd/system/icpc-host-identity.service
     content: |
       [Unit]
-      Description=Create this machine's ssh host keys
-      Before=ssh.service sshd.service ssh.socket wg-setup.service
+      Description=Create this machine's ssh host keys, and name it after them until setup
+      Before=ssh.service sshd.service ssh.socket wg-setup.service display-manager.service
 
       [Service]
       Type=oneshot

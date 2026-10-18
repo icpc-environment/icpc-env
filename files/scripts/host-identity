@@ -1,6 +1,18 @@
 #!/bin/bash
 # Run at boot before sshd: create whatever ssh host keys this machine lacks.
 # Images are sealed without any, so every machine (cloned VMs too) gets its own.
+#
+# Until setup names it icpc-team-<id>, the machine is also named after its
+# host key, so machines in the setup fleet don't share names (and with them
+# the known_hosts entries admins accept on first use).
 set -euo pipefail
 
 ssh-keygen -A
+
+if [ -n "$(/icpc/scripts/icpc-config get team.id '')" ]; then
+  exit 0
+fi
+hostname=icpc-$(cut -d' ' -f2 /etc/ssh/ssh_host_ed25519_key.pub | base64 -d | sha256sum | cut -c1-6)
+echo "$hostname" > /etc/hostname
+hostname "$hostname"
+sed -i "s/^127\.0\.1\.1 .*/127.0.1.1 $hostname.icpcnet.internal $hostname/" /etc/hosts
