@@ -35,6 +35,13 @@ copies those to `tmp/vm/$VM_NAME/printouts/`, with a PNG per page. With
 `icpc_printer_enabled`, that printer is the real one behind icpc-printer, so the printouts
 show its stamp (and cover page).
 
+To try the real wizard instead, `just vm sample-configs` serves `dev/sample-configs/` (the
+files contestforge publishes) inside the guest and points `config_url` at it. Then
+`rm /icpc/setup-complete` and reboot. Contest `generic` has a plain site, an encrypted
+one (passphrase `sample-passphrase`; it also sets the admin password hash, to `icpcadmin`
+with a new salt) and a sysops site. The encrypted file was made with
+`AGE_PASSPHRASE=sample-passphrase age -e -a -j batchpass`, as contestforge does.
+
 ### State and checkpoints
 
 Each VM lives in `tmp/vm/$VM_NAME/` (default `agent`). That directory holds a qcow2

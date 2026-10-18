@@ -1,0 +1,32 @@
+{
+  "id": "generic",
+  "name": "Generic Dev Contest",
+  "type": "contest",
+  "children": [
+    {
+      "id": "generic/region-a",
+      "name": "Region A",
+      "type": "organization",
+      "children": [
+        {
+          "id": "generic/region-a/plain",
+          "name": "Plain Site",
+          "type": "site",
+          "children": []
+        },
+        {
+          "id": "generic/region-a/encrypted",
+          "name": "Encrypted Site",
+          "type": "site",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "generic/sysops",
+      "name": "Sysops",
+      "type": "site",
+      "children": []
+    }
+  ]
+}

@@ -267,6 +267,28 @@ fake-setup:
     just vm reboot
     just vm wait-desktop
 
+# Serve dev/sample-configs (contestforge's layout) in the guest and point config_url at it, to try the real setup wizard
+sample-configs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    host=$(cat "$VM_STATE/sudo_host" 2>/dev/null || echo vm)
+    tar -C {{source_directory()}}/sample-configs -cf - . | {{ssh}} "$host" 'sudo rm -rf /var/lib/sample-configs && sudo mkdir -p /var/lib/sample-configs && sudo tar -C /var/lib/sample-configs -xf -'
+    {{ssh}} "$host" sudo bash -s <<'SCRIPT'
+    set -euo pipefail
+    cat > /etc/systemd/system/sample-configs.service <<'UNIT'
+    [Unit]
+    Description=Sample contestforge configs for the setup wizard (dev/sample-configs)
+    [Service]
+    ExecStart=/usr/bin/python3 -m http.server --bind 127.0.0.1 --directory /var/lib/sample-configs 8999
+    [Install]
+    WantedBy=multi-user.target
+    UNIT
+    systemctl daemon-reload
+    systemctl enable --now sample-configs.service
+    /icpc/scripts/icpc-config set config_url http://127.0.0.1:8999
+    SCRIPT
+    echo "config_url is http://127.0.0.1:8999; run the wizard with: rm /icpc/setup-complete && reboot"
+
 # Copy what's been printed to the fake printer into tmp/vm/<name>/printouts/, with a PNG per page
 printouts:
     #!/usr/bin/env bash

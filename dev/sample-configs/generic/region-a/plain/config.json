@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "node": "generic/region-a/plain",
+  "data": {
+    "timezone": "America/Chicago",
+    "papersize": "a4",
+    "submit": {
+      "client": "domjudge",
+      "base_url": "https://domjudge.example.org/"
+    },
+    "ssh_keys": [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF+W9hR+kKwPgLLPrdx8U16ySteY0JxWgp9aNK/ScAu7 sample-config-key (no private key exists)"
+    ],
+    "teams": [
+      {
+        "id": "101",
+        "name": "Sample Team One",
+        "affiliation": "Sample University",
+        "extra": ""
+      },
+      {
+        "id": "102",
+        "name": "Sample Team Two",
+        "affiliation": "Another College",
+        "extra": "division 2"
+      }
+    ],
+    "printers": [
+      {
+        "group": "lab",
+        "uri": "ipp://192.0.2.10/ipp/print",
+        "driver": "ps",
+        "note": "Doesn't exist (TEST-NET)"
+      }
+    ]
+  }
+}

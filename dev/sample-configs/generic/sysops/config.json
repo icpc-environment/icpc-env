@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "node": "generic/sysops",
+  "data": {
+    "teams": [
+      {
+        "id": "999",
+        "name": "ICPC Sysops Team",
+        "affiliation": "ICPC Sysops",
+        "extra": ""
+      }
+    ]
+  }
+}
