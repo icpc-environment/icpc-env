@@ -8,6 +8,21 @@
     - /etc/wireguard
     - /var/lib/wg-fleet
 
+# Machines' host certificates and admins' known_hosts depend on it, so a
+# rebuilt server must get the same one rather than wg-fleet making a new one
+- name: Restore wg-fleet's host CA from {{ server_secrets_dir }}
+  ansible.builtin.copy:
+    src: "{{ server_secrets_dir }}/{{ item.name }}"
+    dest: /var/lib/wg-fleet/{{ item.name }}
+    mode: "{{ item.mode }}"
+    force: false
+  loop:
+    - {name: host_ca, mode: '0600'}
+    - {name: host_ca.pub, mode: '0644'}
+  when: (server_secrets_dir + '/' + item.name) is file
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Copy configuration file to remote host
   ansible.builtin.copy:
     content: |
@@ -97,6 +112,23 @@
     name: wg-fleet
     enabled: true
     state: started
+
+- name: Wait for wg-fleet to create its host CA
+  ansible.builtin.wait_for:
+    path: /var/lib/wg-fleet/host_ca.pub
+    timeout: 60
+  failed_when: false
+- name: Check whether wg-fleet has a host CA
+  ansible.builtin.stat:
+    path: /var/lib/wg-fleet/host_ca.pub
+  register: host_ca
+- name: Back up wg-fleet's host CA to {{ server_secrets_dir }}
+  ansible.builtin.fetch:
+    src: /var/lib/wg-fleet/{{ item }}
+    dest: "{{ server_secrets_dir }}/{{ item }}"
+    flat: true
+  loop: [host_ca, host_ca.pub]
+  when: host_ca.stat.exists and (server_secrets_dir + '/' + item) is not file
 
 # fleet-sync.path runs it from then on
 - name: Make the host match the fleets wg-fleet serves
