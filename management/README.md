@@ -1,13 +1,21 @@
 # Management server
 
 One server shared by every contest ("fleet"). Images built with
-`remote_management_server` set connect to it to:
+`remote_management_server` set, and machines whose site config names it,
+connect to it to:
 
 * join a WireGuard VPN, so admins can ssh to team machines and Prometheus can
   scrape them. Clients register with [wg-fleet](https://github.com/ubergeek42/wg-fleet),
   which hands out an address in their fleet's subnet. If UDP is blocked they
   fall back to wstunnel over `wss://<server>/wgtunnel/<port>`.
-* fetch last-minute changes with ansible-pull from `https://<server>/git/<contest_id>.git`.
+* fetch last-minute changes with ansible-pull from `https://<server>/git/<fleet>.git`.
+
+Most fleets come from contestforge: wg-fleet reads its signed `fleets.json`
+from `fleets_url` and picks up new ones without a deploy, and their machines
+register with their site's enrollment token. The static `fleets` in
+`vars.yml` take anyone: the setup fleet images join before setup (named after
+their `contest_id`), and contests not managed in contestforge. Machines move
+from the setup fleet to their site's fleet once setup has run.
 
 It runs wg-fleet (in podman), wstunnel, coredns, Prometheus, Grafana, and nginx.
 nginx serves https and ssh on port 443, for networks that only allow 443 out.
@@ -16,13 +24,23 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
 
 1. Create an Ubuntu 26.04 droplet with your ssh key, and point a DNS name at it.
 2. Put that name in `inventory.yml` (with the path to your key).
-3. `cp secret.yml.example secret.yml` and set the admin password and each
-   fleet's admin ssh keys.
-4. Make sure every fleet has keys in `secrets/<fleet>/` (`just keys <fleet>`).
-   Images built for that `contest_id` use the same directory, so a fleet's
-   keys only open its own machines. Back these up: images built with a lost
-   set can't be reached.
+3. `cp secret.yml.example secret.yml` and set the admin password, and any
+   plain ssh keys for static fleets' users.
+4. Set `config_signers` in `vars.yml` to contestforge's allowed_signers line
+   (the one images are built with), or `fleets_url: null` for static fleets
+   only.
 5. `just mgmt deploy`
+6. Get the server's own key a certificate, so root can reach team machines:
+   the deploy copies it to `secrets/mgmt/<server>/id_ed25519.pub`. In
+   contestforge, `flask ssh-cert sign --server <server> --pubkey <that file>`,
+   save the result as `secrets/mgmt/<server>/id_ed25519-cert.pub` and deploy
+   again.
+7. Give contestforge the server's host CA (`secrets/mgmt/<server>/host_ca.pub`,
+   or `https://<server>/ssh/host_ca.pub`) for its configs' `ssh_host_ca_keys`.
+
+The deploy backs wg-fleet's host CA up to `secrets/mgmt/<server>/` and
+restores it from there onto a rebuilt server. Keep that directory: every
+machine's host certificate and every admin's known_hosts depend on it.
 
 Rerun `just mgmt deploy` after changing anything. It also pulls the latest
 wg-fleet image and restarts wg-fleet if the image changed. `just mgmt check`
@@ -31,11 +49,14 @@ with debugging.
 
 ### Adding a contest
 
-Add an entry under `fleets` in `vars.yml` with a new subnet and port, and
-deploy, after `just keys <name>` for its ssh keys. The key must match the
-images' `contest_id`. This creates the
-wireguard interface, a login user with the same name, and an empty
-last-minute repo.
+Enable remote management for the contest in contestforge and publish. Within
+wg-fleet's refresh interval it creates the fleet's wireguard interface, and
+fleet-sync (run whenever wg-fleet's list of fleets changes) creates a login
+user with the fleet's name, its last-minute repo and its wstunnel server.
+
+A static fleet is an entry under `fleets` in `vars.yml` with a new subnet and
+port, and a deploy. A fleet that goes away keeps its user and repo, but its
+user can't log in with a certificate or reach any machine any more.
 
 ### Testing in a VM
 
@@ -46,19 +67,45 @@ from the inventory.
 
 ## Using it
 
-Log in as root or as your fleet's user (`ssh <fleet>@<server>`, or port 443).
-A fleet's account has that fleet's icpcadmin key and can only reach its
-machines; root has every fleet's key. Their ssh configs pick the key by name
-(`*.<fleet>`) or address (the fleet's subnet).
+Admins log in to team machines as icpcadmin with a certificate from
+contestforge (`flask ssh-cert sign`), whose principals say which contests'
+machines it opens. Jump through your fleet's user, which holds no keys and can
+only reach that fleet's machines:
 
-Machines appear once they register a hostname, named
-`<hostname>.<fleet>.icpcnet.internal`. On the server `t107.southeast` is enough:
+```
+ssh -J <fleet>@<server> icpcadmin@t107.<fleet>.icpcnet.internal
+```
+
+Port 443 works too (`-J <fleet>@<server>:443`). Global admins (`node:*`) can
+also use the setup fleet's user.
+
+On the server, root uses the server's own certified key. Machines appear once
+they register a hostname, named `<hostname>.<fleet>.icpcnet.internal`, and
+`t107.southeast` is enough:
 
 ```
 ssh t107.southeast
 cat /run/wg_fleet_hosts                       # everything currently connected
 ansible southeast -m shell -a 'uptime'        # a whole fleet; inventory is /run/ansible_inventory.yml
-ansible t107.southeast -b -m shell -a '/icpc/scripts/reset-team-account'
+ansible t107.southeast.icpcnet.internal -b -m shell -a '/icpc/scripts/reset-team-account'
+```
+
+Machines in fleets from contestforge have host certificates from wg-fleet's
+host CA, which the server trusts for `*.icpcnet.internal`. Put the same line
+in your own known_hosts:
+
+```
+@cert-authority *.icpcnet.internal <contents of https://<server>/ssh/host_ca.pub>
+```
+
+Machines in static fleets (the setup fleet) have no certificate. ssh on the
+server accepts their keys the first time and keeps them in
+`~/.ssh/known_hosts.<fleet>`. To do the same through the bastion:
+
+```
+Host *.<fleet>.icpcnet.internal
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile ~/.ssh/known_hosts.<fleet>
 ```
 
 Machines that stop pinging wg-fleet for `fleet_timeout` are dropped.
