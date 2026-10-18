@@ -67,6 +67,7 @@ echo "" > /etc/machine-id
 systemctl stop wg-setup
 wg-quick down contest
 rm -f /etc/wireguard/contest.conf /etc/wireguard/contest.fleet
+rm -f /etc/icpc/enrollment-token
 
 # Free up space(just to make the image smaller)
 dd if=/dev/zero of=/empty bs=1M || true

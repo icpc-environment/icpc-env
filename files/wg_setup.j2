@@ -4,6 +4,9 @@ source /icpc/CONFIG
 
 # The fleet contest.conf was registered in
 REGISTERED=/etc/wireguard/contest.fleet
+# From the site's config, written by the setup wizard. Fleets from contestforge
+# only let a site's machines register with it; static ones take anyone
+TOKEN=/etc/icpc/enrollment-token
 
 # A tunnel into another fleet (the setup fleet, until the wizard sets this
 # site's) has to go, or the ping below would keep it forever
@@ -38,7 +41,14 @@ rm -f /run/wg_setup-vpn-hostname-updated
 # Network is broken/not configured yet, bring it down so we can try to re-initialize it
 wg-quick down contest || true
 
-wg_config=$(curl --fail -X POST https://$REMOTE_MANAGEMENT_SERVER/fleet/$FLEET/register)
+# On stdin, since curl's arguments are visible to every user
+registration=$(jq -n \
+  --arg site "${SITE:-}" \
+  --arg token "$(cat $TOKEN 2>/dev/null || true)" \
+  --arg host_key "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)" \
+  '{host_key: $host_key} + (if $site != "" then {site: $site} else {} end) + (if $token != "" then {token: $token} else {} end)')
+wg_config=$(echo "$registration" | curl --fail -sS -X POST https://$REMOTE_MANAGEMENT_SERVER/fleet/$FLEET/register \
+  --header "Content-Type: application/json" --data @-)
 
 if [ $? != 0 ]; then
   exit 1 # failed, exit so it tries again

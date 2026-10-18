@@ -165,6 +165,21 @@ SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", 
                  "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys", "ansible_pull_url",
                  "management"]
 ADMIN_ACCOUNTS = ["icpcadmin", "teamreset"]
+# What wg_setup registers in the site's fleet with. Not in config.json, which contestants can read
+ENROLLMENT_TOKEN = Path("/etc/icpc/enrollment-token")
+
+def save_enrollment_token(token):
+    if token is None:
+        ENROLLMENT_TOKEN.unlink(missing_ok=True)
+        return
+    if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_=+/-]{16,256}", token):
+        sg.popup("The site's enrollment token isn't valid, so this machine can't join its VPN", title="Configuration Error")
+        ENROLLMENT_TOKEN.unlink(missing_ok=True)
+        return
+    fd = os.open(ENROLLMENT_TOKEN.with_suffix(".new"), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(token + "\n")
+    ENROLLMENT_TOKEN.with_suffix(".new").replace(ENROLLMENT_TOKEN)
 
 def set_admin_password(crypted):
     if not isinstance(crypted, str) or not re.fullmatch(r"\$6\$[^:\s]+", crypted):
@@ -443,6 +458,7 @@ def main():
   # An unencrypted config is public, so its hash could be cracked by anyone
   if configuration.get("encrypted") and "admin_password_hash" in data:
     set_admin_password(data["admin_password_hash"])
+  save_enrollment_token(data.get("enrollment_token"))
 
   (ret, out, err) = run_cmd(["/icpc/scripts/icpc-apply"], ignore_errors=True)
   if ret != 0:
