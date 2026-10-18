@@ -1,6 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "node": "generic/region-a/plain",
+  "contest": "generic",
+  "valid_until": "2027-12-31T00:00:00Z",
   "data": {
     "timezone": "America/Chicago",
     "papersize": "a4",

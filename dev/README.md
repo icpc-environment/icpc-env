@@ -41,6 +41,13 @@ files contestforge publishes) inside the guest and points `config_url` at it. Th
 one (passphrase `sample-passphrase`; it also sets the admin password hash, to `icpcadmin`
 with a new salt) and a sysops site. The encrypted file was made with
 `AGE_PASSPHRASE=sample-passphrase age -e -a -j batchpass`, as contestforge does.
+The sites under "Broken" are ones the wizard must refuse: a file whose signature is
+for another file, another site's config, and an expired one.
+
+Every file has a `.sig` made with `dev/sample-signing-key`, a key for these samples
+only (its private half is committed). `sample-configs` adds it to the guest's
+`/etc/icpc/config-signers`, and `just vm ansible` builds with it in `config_signers`
+(`dev/vm-vars.yml`). After editing a sample, rerun `dev/sign-sample-configs.sh`.
 
 ### State and checkpoints
 

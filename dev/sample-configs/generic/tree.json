@@ -27,6 +27,31 @@
       "name": "Sysops",
       "type": "site",
       "children": []
+    },
+    {
+      "id": "generic/broken",
+      "name": "Broken (the wizard must refuse these)",
+      "type": "organization",
+      "children": [
+        {
+          "id": "generic/broken/tampered",
+          "name": "Tampered",
+          "type": "site",
+          "children": []
+        },
+        {
+          "id": "generic/broken/wrong-node",
+          "name": "Another site's config",
+          "type": "site",
+          "children": []
+        },
+        {
+          "id": "generic/broken/expired",
+          "name": "Expired",
+          "type": "site",
+          "children": []
+        }
+      ]
     }
   ]
 }

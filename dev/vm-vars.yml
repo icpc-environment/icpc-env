@@ -1,0 +1,6 @@
+---
+# Extra vars for `just vm ansible`, on top of the variant's group_vars.
+# Dev VMs accept files signed by dev/sample-signing-key (see sign-sample-configs.sh),
+# so the wizard can be tried against dev/sample-configs.
+config_signers:
+  - contestforge ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA5F5kCi9lynenBOEz7V96NX2HYj/EhbPiX5oWjZNl/G

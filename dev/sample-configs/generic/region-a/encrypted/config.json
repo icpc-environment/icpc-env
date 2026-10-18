@@ -1,6 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "node": "generic/region-a/encrypted",
+  "contest": "generic",
+  "valid_until": "2027-12-31T00:00:00Z",
   "encrypted": true,
   "note": "The passphrase is sample-passphrase",
   "encryptedData": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNjcnlwdCBpQWNnd2NzUThBMWU2WGlK\nWEdYTjJnIDE4CjVnd3M0d3MzcW5PWHdLYytIclNrSWVGYkgvUCt1VVdCc0U4WGI3\nQk54VkEKLS0tIEhTVmlsMUJ0bGE0dlh4anAzRlBlQXpIYnk0Z1FkVWFCc2dlajRx\nTTE2QU0KM/5uoKIF2MHclpXMuTygk32BLP92UgG0sqyJNn8rBaPjGfusNvKC7bc3\nDKsEXtCeciMWjYk7XGMoVqxCU729yOz95O/FMihnCHkfXPU+kcn3mVmhfX/TG18P\n/y0+GjeNrfblpiOCTN1CbankRNM4FXHHTGdEfl67zxr4NKBUHMqrHhuGKak7fvm9\nQsYwGnBv94d2PnnJ220wvdPezf/sWztFI89EOPuFXJAlAToA98DndubEnuUescc+\nC8i0AQLeQrDDkb1phr3J2c5MqHvBh+y86barBWebFdOJf10TH+NcLvjoaPpYBUGn\n5lI2ASYkXEvy6xDBjL5r8xnk7iV9349PeRrLIZtr4AEgcV6C5k5ffglODGnp4oJD\niCw7XO0vMMHqlbcTu8TtJpfHlOtxC9sokWlE2dPe65b4F55BMgfEsqEgyv8OXGw6\nqlKfBZjD9hy9GPSufMonPHjz0JxZ+8cGR8k0cYAziXDOI/KFnaPgveshZtg/FFz7\nirddPjIvwlsXo+YOJZCAR+PAdyTS96+VSQRZkFNIW35lCbdwnLCV8rflN+jOcTDi\nCEe+T3pLzeV0KCD7oFx+qIu3pJbGWjpjypw9IPo8SExlRey/Wzf7YTCOcC0TxoGm\nbDaN7mY1HWiSWXcEBxLPEGedii9a9Yj/XZVpi8iJV/q1vDbVqI4hFsOAla3IJjgf\n9lRr7i4x+88uMjtwH2GKFcRUFe79tG/OGzTlmEYK+bp0f3zFPwUca8uTcjl/e5H3\nXtXsSKKtO5BPJnb48Tp+4ST/fv9Qoj310ofwkcn337C/A7klVJKXmDPaxqAPPF/n\nWu0Qh4EvKg2/JCtullSUWdfUl8tNgGqivePoWtcBh4IOoSRCEDGsXOYKPoZZRI55\nbUbfWHsa5g7w4ymct4Fe4IkioNBq03BIjyPPywQmILBDkxeyLyvx5bR0ylDmr/PI\n07qJUtkZLp/OXfGnPTZ7Yz9peFrWDEnDtKP+wV/XyWOuMb5UOn+HeyPDnvrh+LAU\n77EcU+h8K29uzvUzQ2jeLLJLMhSBoHoj275KB9CTKg==\n-----END AGE ENCRYPTED FILE-----"

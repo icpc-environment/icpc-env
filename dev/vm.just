@@ -251,7 +251,7 @@ ansible *args:
     VM_TIMING_LOG="$VM_STATE/timing.jsonl" \
       "$ansible_playbook" -i "$VM_STATE/inventory" --diff --become -u imageadmin --private-key configs/imageadmin-ssh_key \
       --ssh-extra-args="-o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-      main.yml "$@"
+      -e @dev/vm-vars.yml main.yml "$@"
 
 # Summarise per-task timings from the last `ansible` run (or the one before it with `prev=.prev`)
 timings top="25" prev="":
@@ -267,11 +267,13 @@ fake-setup:
     just vm reboot
     just vm wait-desktop
 
-# Serve dev/sample-configs (contestforge's layout) in the guest and point config_url at it, to try the real setup wizard
+# Serve dev/sample-configs (contestforge's layout) in the guest, trust their signing key and point config_url at them, to try the real setup wizard
 sample-configs:
     #!/usr/bin/env bash
     set -euo pipefail
     host=$(cat "$VM_STATE/sudo_host" 2>/dev/null || echo vm)
+    signer=$(cat {{source_directory()}}/sample-signers)
+    {{ssh}} "$host" "sudo grep -qxF '$signer' /etc/icpc/config-signers 2>/dev/null || echo '$signer' | sudo tee -a /etc/icpc/config-signers >/dev/null"
     tar -C {{source_directory()}}/sample-configs -cf - . | {{ssh}} "$host" 'sudo rm -rf /var/lib/sample-configs && sudo mkdir -p /var/lib/sample-configs && sudo tar -C /var/lib/sample-configs -xf -'
     {{ssh}} "$host" sudo bash -s <<'SCRIPT'
     set -euo pipefail

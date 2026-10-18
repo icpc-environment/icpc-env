@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "node": "generic/broken/expired",
+  "contest": "generic",
+  "valid_until": "2025-11-09T00:00:00Z",
+  "data": {
+    "teams": [
+      {
+        "id": "999",
+        "name": "ICPC Sysops Team",
+        "affiliation": "ICPC Sysops",
+        "extra": ""
+      }
+    ]
+  }
+}
