@@ -13,8 +13,8 @@ contest_id: generic
 # kattis). All of them are installed.
 submit_ccs: 'kattis'
 
-# Only used when submit_ccs is 'pc2' - where the pc2 submit client posts to
-pc2_submit_base_url: https://pc2server.icpc-vcss.org:50443
+# Where the pc2 and DOMjudge submit clients post to (kattis ignores it)
+submit_base_url: https://pc2server.icpc-vcss.org:50443
 
 # Send contestant printing through icpc-printer, a local IPP server that stamps
 # "<hostname> · job <id> · n/N" on every page, can add a cover page, archives
