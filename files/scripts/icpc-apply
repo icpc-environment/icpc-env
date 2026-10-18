@@ -66,23 +66,41 @@ def env_value(value):
     return f'"{value}"'
 
 
+# Both end up in URLs
+MANAGEMENT_SERVER_RE = r"[A-Za-z0-9.-]+"
+FLEET_RE = r"[a-z0-9][a-z0-9_-]{0,31}"
+
+
+def management(config):
+    """The management server and fleet this machine uses, and whether for the VPN and last-minute ansible"""
+    m = config.get("management") or {}
+    if not isinstance(m, dict):
+        m = {"server": m}
+    server, fleet = m.get("server"), m.get("fleet")
+    if not (server is None or isinstance(server, str) and re.fullmatch(MANAGEMENT_SERVER_RE, server)) \
+            or not (fleet is None or isinstance(fleet, str) and re.fullmatch(FLEET_RE, fleet)):
+        errors.append(f"management {m!r} isn't a valid server and fleet")
+        server = fleet = None
+    return {"server": server, "fleet": fleet, "vpn": bool(m.get("vpn")), "lastminute": bool(m.get("lastminute"))}
+
+
 # ansible-pull passes the URL through a shell, so nothing that means anything to one
 PULL_URL_RE = r"https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~%/-]*)?"
 
 
-def ansible_pull_url(config):
-    """The last-minute playbook's git repo: ansible_pull_url, else the contest's repo on the management server"""
+def ansible_pull_url(config, mgmt):
+    """The last-minute playbook's git repo: ansible_pull_url, else the fleet's repo on the management server"""
     url = config.get("ansible_pull_url")
     if url is None:
-        server, contest = config.get("remote_management_server"), config.get("contest")
-        return f"https://{server}/git/{contest}.git" if server and contest else None
+        server, fleet = mgmt["server"], mgmt["fleet"]
+        return f"https://{server}/git/{fleet}.git" if server and fleet else None
     if not isinstance(url, str) or not re.fullmatch(PULL_URL_RE, url):
         errors.append(f"ansible_pull_url {url!r} isn't a plain https URL")
         return None
     return url
 
 
-def apply_files(config, pull_url):
+def apply_files(config, mgmt, pull_url):
     team = config.get("team")
     write("CONTEST", config.get("contest") or None)
     write("SITE", config.get("site", "default site"))
@@ -98,7 +116,8 @@ def apply_files(config, pull_url):
 
     # Sourced by self_test and wg_setup, and the EnvironmentFile of the VPN and ansible-pull units
     env = {
-        "REMOTE_MANAGEMENT_SERVER": config.get("remote_management_server"),
+        "REMOTE_MANAGEMENT_SERVER": mgmt["server"],
+        "FLEET": mgmt["fleet"],
         "CONTEST": config.get("contest"),
         "ANSIBLE_PULL_URL": pull_url,
     }
@@ -170,11 +189,10 @@ export SUBMITOMITEXTRAHELP=yes
 """)
 
 
-def apply_management(config, pull_url, start):
-    """The VPN, which needs a management server, and last-minute ansible-pull, which needs a repo"""
-    server = config.get("remote_management_server")
-    vpn = bool(server and config.get("remote_management_vpn_enabled"))
-    lastminute = bool(pull_url and config.get("remote_management_lastminute_enabled"))
+def apply_management(mgmt, pull_url, start):
+    """The VPN, which needs a management server and fleet, and last-minute ansible-pull, which needs a repo"""
+    vpn = bool(mgmt["server"] and mgmt["fleet"] and mgmt["vpn"])
+    lastminute = bool(pull_url and mgmt["lastminute"])
     running = Path("/run/systemd/system").exists()
     for unit, enabled in [("wg-setup.service", vpn), ("ansible-pull.service", lastminute), ("ansible-pull.path", lastminute)]:
         was_enabled = subprocess.run(["systemctl", "is-enabled", "--quiet", unit]).returncode == 0
@@ -440,8 +458,9 @@ def main(args):
     config = icpcconfig.load()
     team = config.get("team")
 
-    pull_url = ansible_pull_url(config)
-    apply_files(config, pull_url)
+    mgmt = management(config)
+    pull_url = ansible_pull_url(config, mgmt)
+    apply_files(config, mgmt, pull_url)
     if "papersize" in config:
         apply_papersize(config["papersize"])
     if "timezone" in config:
@@ -450,7 +469,7 @@ def main(args):
         apply_language_scripts(config["language_scripts"])
     if "submit" in config:
         apply_submit(config["submit"])
-    apply_management(config, pull_url, start=not args)
+    apply_management(mgmt, pull_url, start=not args)
     if "reverseproxy_sites" in config:
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:

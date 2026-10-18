@@ -162,7 +162,8 @@ Err:
 
 # What a site's config may set in /icpc/config.json; everything else the image decides
 SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", "submit",
-                 "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys", "ansible_pull_url"]
+                 "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys", "ansible_pull_url",
+                 "management"]
 ADMIN_ACCOUNTS = ["icpcadmin", "teamreset"]
 
 def set_admin_password(crypted):

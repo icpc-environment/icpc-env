@@ -15,7 +15,7 @@ if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
   [ -f /run/wg_setup-vpn-hostname-updated ] && exit 0
 
   # Send a ping request to register our hostname
-  curl --fail -X POST https://contestmanager.icpcnet.internal/fleet/$CONTEST/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k
+  curl --fail -X POST https://contestmanager.icpcnet.internal/fleet/$FLEET/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k
   touch /run/wg_setup-vpn-hostname-updated
   exit 0
 fi
@@ -26,7 +26,7 @@ rm -f /run/wg_setup-vpn-hostname-updated
 # Network is broken/not configured yet, bring it down so we can try to re-initialize it
 wg-quick down contest || true
 
-wg_config=$(curl --fail -X POST https://$REMOTE_MANAGEMENT_SERVER/fleet/$CONTEST/register)
+wg_config=$(curl --fail -X POST https://$REMOTE_MANAGEMENT_SERVER/fleet/$FLEET/register)
 
 if [ $? != 0 ]; then
   exit 1 # failed, exit so it tries again

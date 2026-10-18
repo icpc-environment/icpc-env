@@ -55,9 +55,11 @@
   vars:
     icpc_config:
       contest: "{{ contest_id }}"
-      remote_management_server: "{{ remote_management_server }}"
-      remote_management_vpn_enabled: "{{ remote_management_vpn_enabled | bool }}"
-      remote_management_lastminute_enabled: "{{ remote_management_lastminute_enabled | bool }}"
+      management:
+        server: "{{ remote_management_server }}"
+        fleet: "{{ contest_id }}"
+        vpn: "{{ remote_management_vpn_enabled | bool }}"
+        lastminute: "{{ remote_management_lastminute_enabled | bool }}"
       config_url: "{{ config_url }}"
       config_contest: "{{ config_contest }}"
       papersize: "{{ icpc_papersize | default('letter') }}"

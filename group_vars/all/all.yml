@@ -58,8 +58,10 @@ firewall_backend: nftables
 iptables_rules: null
 
 # Set to the hostname of a remote management server. See management/README.md for more details
-# This is the host that has your lastminute git repositories, as well as a wg-fleet install that is aware of your contest-id
-# Set to null to disable the remote vpn and lastminute ansible
+# Until the setup wizard runs, machines join the fleet named contest_id on it
+# (a static fleet anyone can register in) and pull its last-minute repo. A site
+# config's management settings then replace these.
+# Set to null to disable the remote vpn and lastminute ansible before setup
 remote_management_server: null
 # Whether to connect to the wg-fleet wireguard vpn?
 remote_management_vpn_enabled: true
