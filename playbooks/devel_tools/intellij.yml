@@ -43,10 +43,16 @@
     mode: '0755'
     owner: root
     group: root
+# New projects use the Kotlin version bundled with the IDE, ex: 2.4.0-release-281
+- name: Read the Kotlin version bundled with IntelliJ IDEA
+  when: "'intellij-idea' in devtools"
+  ansible.builtin.slurp:
+    src: /opt/intellij-idea/plugins/Kotlin/kotlinc/build.txt
+  register: idea_kotlin_build
 # 14mb
-# version comes from /opt/intellij-idea/plugins/Kotlin/kotlinc/build.txt ex: 2.1.21-release-317
 - name: Fetch some things from maven
-  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.21" -Dmaven.repo.local="/opt/m2/repository"
+  when: "'intellij-idea' in devtools"
+  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:{{ (idea_kotlin_build.content | b64decode).split('-')[0] }}" -Dmaven.repo.local="/opt/m2/repository"
   register: maven_get
   changed_when: maven_get.rc != 0
 
