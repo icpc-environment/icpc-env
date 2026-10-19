@@ -47,6 +47,25 @@
     owner: root
     group: root
 
+# Root-only: they decrypt every site config that shares them
+- name: Install the passphrases the setup wizard tries before asking
+  ansible.builtin.copy:
+    dest: /etc/icpc/config-passphrases
+    content: |
+      {% for p in config_passphrases %}
+      {{ p }}
+      {% endfor %}
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+  when: config_passphrases | length > 0
+- name: Remove baked-in passphrases from an earlier build
+  ansible.builtin.file:
+    path: /etc/icpc/config-passphrases
+    state: absent
+  when: config_passphrases | length == 0
+
 - name: Write the machine config
   ansible.builtin.copy:
     dest: /icpc/config.json

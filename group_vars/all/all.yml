@@ -34,6 +34,13 @@ contest_id: generic
 # choice as setup_contest and never changes this
 config_contest: ""
 
+# Passphrases of encrypted site configs that the setup wizard tries before
+# asking, so machines set up without anyone typing one. Usually the pinned
+# contest's, e.g. ["midatlantic-demo"]. Anyone with the image (or root on a
+# machine) can read them, and with them every site config they decrypt:
+# teams, enrollment tokens and the admin password hash.
+config_passphrases: []
+
 # Which submit client /usr/local/bin/submit points at (domjudge, pc2, or
 # kattis). All of them are installed.
 submit_ccs: 'kattis'

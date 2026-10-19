@@ -89,8 +89,10 @@ def check_valid(url, valid_until):
                f"This machine's clock says it's {now:%Y-%m-%d %H:%M} UTC. If that's wrong, set the clock and try again.",
                "Expired Config")
 
-# Passphrases that worked this run; sites in a region usually share one
-passphrases = []
+# Passphrases baked into the image, then ones that worked this run; sites in a
+# region usually share one
+CONFIG_PASSPHRASES = Path("/etc/icpc/config-passphrases")
+passphrases = [p for p in CONFIG_PASSPHRASES.read_text().splitlines() if p] if CONFIG_PASSPHRASES.exists() else []
 
 def fetch_site_config(site_id):
     """The site's settings from contestforge, asking for the passphrase if they're encrypted.
