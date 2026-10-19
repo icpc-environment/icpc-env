@@ -105,6 +105,9 @@ def fetch_site_config(site_id):
     if config.get("node") != site_id or config.get("contest") != configuration.get("contest"):
         refuse(f"{url} is the config of {config.get('node')!r} in contest {config.get('contest')!r}, "
                f"not of {site_id!r} in {configuration.get('contest')!r}", "Wrong Config")
+    if pinned is not None and config.get("contest") != pinned:
+        refuse(f"{url} is a config for contest {config.get('contest')!r}, "
+               f"but this image was built for {pinned!r} only", "Wrong Contest")
     check_valid(url, config.get("valid_until"))
     if not config.get("encrypted"):
         return config.get("data", {}), False
@@ -203,6 +206,8 @@ machine_config = icpcconfig.load()
 
 # Load list of contests from the internet
 config_url = machine_config["config_url"]
+# The contestforge contest this image was built for, if any; the only one it offers
+pinned = machine_config.get("config_contest") or None
 configuration = {}
 
 
@@ -279,20 +284,19 @@ def mainwindow():
 
     if event == "reload":
       window['site'].update(values=["default"])
-      pinned = machine_config.get("config_contest") or None
       configuration["refused"] = {}
-      if pinned is not None:
+      try:
+        contests = {f"{c['name']} ({c['id']})": c['id'] for c in fetch_json(f"{config_url}/contests.json") or []
+                    if pinned is None or c['id'] == pinned}
+      except Refused as e:
+        configuration["refused"]["contests"] = str(e)
+        contests = {}
+      if pinned is not None and len(contests) == 0:
         contests = {pinned: pinned}
-      else:
-        try:
-          contests = {f"{c['name']} ({c['id']})": c['id'] for c in fetch_json(f"{config_url}/contests.json") or []}
-        except Refused as e:
-          configuration["refused"]["contests"] = str(e)
-          contests = {}
       if len(contests) == 0:
         contests = {"default": "default"}
       configuration["contests"] = contests
-      first = next(iter(contests))
+      first = next((label for label, id in contests.items() if id == machine_config.get("setup_contest")), next(iter(contests)))
       window['contest'].update(values=list(contests), value=first)
       window.write_event_value('contest', first)
 
@@ -439,8 +443,6 @@ def main():
     run_cmd(["xset", "-dpms"])
     run_cmd(["xset", "s", "noblank"])
 
-  # Figure out what contest this is, because it informs some other choices
-  configuration["contest"] = machine_config.get("config_contest") or None
   configuration["autostart_firefox"] = machine_config.get("autostart_firefox", True)
   configuration["papersize"] = machine_config.get("papersize", "letter")
 
@@ -460,7 +462,7 @@ def main():
   data = configuration.get("data", {})
   machine_config.update({k: data[k] for k in SITE_SETTINGS if k in data})
   machine_config.update({
-      "config_contest": configuration['contest'],
+      "setup_contest": configuration['contest'],
       "site": configuration['site'],
       "papersize": "letter" if values['letter'] else "a4",
       "autostart_firefox": values['autostart_firefox'],

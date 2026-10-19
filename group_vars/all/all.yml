@@ -28,8 +28,10 @@ icpc_wallpaper: files/wallpaper.png
 contest_id: generic
 
 # The contest's node id in contestforge (e.g. BigSouth2026/SouthEast). The setup
-# wizard offers only its sites; empty lets whoever sets up the machine pick
-# any contest in {{ config_url }}/contests.json
+# wizard offers only its sites and refuses any other contest's configs; empty
+# lets whoever sets up the machine pick any contest in
+# {{ config_url }}/contests.json, every time setup runs. The wizard saves its
+# choice as setup_contest and never changes this
 config_contest: ""
 
 # Which submit client /usr/local/bin/submit points at (domjudge, pc2, or
