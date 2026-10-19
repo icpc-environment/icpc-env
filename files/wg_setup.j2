@@ -49,10 +49,10 @@ fi
 
 # Nothing to do if the VPN is already up/contestmanager.icpcnet.internal is reachable
 if ping -w3 -c1 contestmanager.icpcnet.internal >/dev/null 2>&1 ; then
-  # Exit if we've already recorded our hostname
-  [ -f /run/wg_setup-vpn-hostname-updated ] && exit 0
+  # Exit if we've recorded our hostname in the last hour
+  [ -n "$(find /run/wg_setup-vpn-hostname-updated -mmin -60 2>/dev/null)" ] && exit 0
 
-  # Send a ping request to register our hostname
+  # Send a ping request to register our hostname and renew our host certificate
   response=$(curl --fail -sS -X POST https://contestmanager.icpcnet.internal/fleet/$FLEET/ping  --header "Content-Type: application/json" -d '{"hostname": "'"$HOSTNAME"'"}' -k)
   install_host_certificate "$response"
   touch /run/wg_setup-vpn-hostname-updated
