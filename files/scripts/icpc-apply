@@ -275,7 +275,7 @@ def apply_reverseproxy(sites):
 
 
 def apply_hostname(team):
-    hostname = "icpc-team-" + team["id"]
+    hostname = ("icpc-team-" + team["id"]).lower()
     Path("/etc/hostname").write_text(hostname + "\n")
     Path("/proc/sys/kernel/hostname").write_text(hostname + "\n")
     # Makes wg_setup tell the VPN about the new hostname
