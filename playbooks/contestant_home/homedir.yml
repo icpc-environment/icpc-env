@@ -59,8 +59,8 @@
     # - 'emacs.desktop'
     # - 'gedit.desktop'
     # - 'gvim.desktop'
-    # - 'intellij.desktop'
-    # - 'pycharm-community.desktop'
+    # - 'intellij-idea.desktop'
+    # - 'pycharm.desktop'
 
 
 - name: Configure xfdesktop

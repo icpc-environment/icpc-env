@@ -23,13 +23,13 @@
   when: apt_package_source != 'pc2'
 
 
-# IntelliJ IDEA community(2642mb installed in /opt/intellij-idea-community)
+# IntelliJ IDEA(4389mb installed in /opt/intellij-idea)
 - name: Install IntelliJ IDEs
   when: "'intellij-idea' in devtools"
   ansible.builtin.package:
     state: present
     name:
-      - intellij-idea-community
+      - intellij-idea
 
 # For intellij+kotlin, we need to fetch kotlin from maven (it doesn't want to easily use the local files we have)
 - name: Install maven
@@ -44,7 +44,7 @@
     owner: root
     group: root
 # 14mb
-# version comes from /opt/intellij-idea-community/plugins/Kotlin/kotlinc/build.txt ex: 2.1.21-release-317
+# version comes from /opt/intellij-idea/plugins/Kotlin/kotlinc/build.txt ex: 2.1.21-release-317
 - name: Fetch some things from maven
   ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.21" -Dmaven.repo.local="/opt/m2/repository"
   register: maven_get
@@ -67,13 +67,13 @@
     group: root
     mode: '0644'
 
-# PyCharm Community(1818mb installed in /opt/pycharm-community)
+# PyCharm(3603mb installed in /opt/pycharm)
 - name: Install PyCharm
   when: "'intellij-pycharm' in devtools"
   ansible.builtin.package:
     state: present
     name:
-      - pycharm-community
+      - pycharm
 
 # Clion(4880mb installed in /opt/clion)
 - name: Install clion block
