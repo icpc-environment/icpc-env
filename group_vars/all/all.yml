@@ -90,7 +90,7 @@ remote_management_lastminute_enabled: true
 # Where contestforge publishes its files (contests.json, <contest>/tree.json,
 # <site>/config.json), which the setup wizard reads the site's teams, printers
 # and settings from
-config_url: https://configs.cloudcontest.org/v2
+config_url: https://mgmt.env.cloudcontest.org/configs
 
 # The keys whose signatures the setup wizard accepts on those files, as
 # ssh-keygen allowed_signers lines with principal contestforge. contestforge

@@ -8,6 +8,16 @@ contest_id: generic
 icpc_timezone: 'America/New_York'
 icpcadmin_pass: icpcadmin
 
+# The setup wizard only uses files from config_url signed by contestforge
+config_signers:
+  - contestforge namespaces="contestforge" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4MLsZ9AwUhSpgtPkOG5LmVbYLVIiSb23pZXfOtRotM
+
+# Before setup, contestforge's global admins (node:*) and the management
+# server's root can log in as icpcadmin with certificates from its user CA
+ssh_user_ca_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEByFi1vEG6AGpyfCkmM9LB9knWHTkaMw0NnyrxrxNXe contestforge ssh user CA
+ssh_principals: ["node:*", "server:mgmt.env.cloudcontest.org"]
+
 # If unset, clion will be installed, but will not be configured with a license
 # clion_license_key: SET_YOUR_KEY_HERE
 
