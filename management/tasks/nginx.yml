@@ -71,6 +71,19 @@
       ssl_trusted_certificate /etc/letsencrypt/live/{{ external_hostname }}/chain.pem;
   notify: Restart nginx
 
+- name: Serve a copy of contestforge's published files at /configs/
+  ansible.posix.synchronize:
+    src: "{{ published_configs_dir }}/"
+    dest: /srv/configs/
+    delete: true
+    rsync_opts: ["--exclude=.contestforge-cache", "--chmod=D755,F644"]
+  when: published_configs_dir | length > 0
+- name: Stop serving them when published_configs_dir is unset
+  file:
+    path: /srv/configs
+    state: absent
+  when: published_configs_dir | length == 0
+
 - name: create web directory
   file:
     state: directory
