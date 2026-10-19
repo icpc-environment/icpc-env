@@ -189,7 +189,7 @@ export SUBMITOMITEXTRAHELP=yes
 """)
 
 
-def apply_management(mgmt, pull_url, start):
+def apply_management(mgmt, pull_url, pull_url_changed, start):
     """The VPN, which needs a management server and fleet, and last-minute ansible-pull, which needs a repo"""
     vpn = bool(mgmt["server"] and mgmt["fleet"] and mgmt["vpn"])
     lastminute = bool(pull_url and mgmt["lastminute"])
@@ -198,9 +198,9 @@ def apply_management(mgmt, pull_url, start):
         was_enabled = subprocess.run(["systemctl", "is-enabled", "--quiet", unit]).returncode == 0
         if enabled:
             run(["systemctl", "enable", "--quiet", unit])
-            # Only when it's newly turned on: starting ansible-pull.service runs the
-            # last-minute playbook, which may itself run icpc-apply
-            if running and start and not was_enabled:
+            # Only when it's newly turned on, or ansible-pull has a new repo: starting
+            # ansible-pull.service runs the last-minute playbook, which may itself run icpc-apply
+            if running and start and (not was_enabled or (unit == "ansible-pull.service" and pull_url_changed)):
                 run(["systemctl", "start", "--no-block", unit])
         else:
             run(["systemctl", "disable", "--quiet"] + (["--now"] if running else []) + [unit])
@@ -498,6 +498,8 @@ def main(args):
 
     mgmt = management(config)
     pull_url = ansible_pull_url(config, mgmt)
+    previous = (ICPC / "CONFIG").read_text().splitlines() if (ICPC / "CONFIG").exists() else []
+    pull_url_changed = f"ANSIBLE_PULL_URL={env_value(pull_url)}" not in previous
     apply_files(config, mgmt, pull_url)
     if "papersize" in config:
         apply_papersize(config["papersize"])
@@ -507,7 +509,7 @@ def main(args):
         apply_language_scripts(config["language_scripts"])
     if "submit" in config:
         apply_submit(config["submit"])
-    apply_management(mgmt, pull_url, start=not args)
+    apply_management(mgmt, pull_url, pull_url_changed, start=not args)
     if "reverseproxy_sites" in config:
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:
