@@ -96,11 +96,15 @@
           if [ "$EUID" -eq 0 ]; then
             exit 0
           fi
-          mkdir -p $HOME/.config/JetBrains/CLion2025.2
+          configdir=$(jq -r '.dataDirectoryName // empty' /opt/clion/product-info.json)
+          if [ -z "$configdir" ]; then
+            exit 1
+          fi
+          mkdir -p "$HOME/.config/JetBrains/$configdir"
           (
             printf '\xFF\xFF';
             echo -en "<certificate-key>\n{{ clion_license_key }}" | iconv -f UTF-8 -t UCS2 -
-          ) > $HOME/.config/JetBrains/CLion2025.2/clion.key
+          ) > "$HOME/.config/JetBrains/$configdir/clion.key"
       when: clion_license_key | length > 0
 
     - name: Add licensekey script to autostart
