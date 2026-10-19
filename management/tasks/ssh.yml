@@ -19,6 +19,17 @@
 
 # Team machines let it in through the server:<hostname> principal contestforge
 # adds to every site in a fleet here, once it has a certificate
+- name: Install the server's own ssh key from {{ server_secrets_dir }}
+  copy:
+    src: "{{ server_secrets_dir }}/{{ item.name }}"
+    dest: /root/.ssh/{{ item.name }}
+    mode: "{{ item.mode }}"
+  loop:
+    - {name: id_ed25519, mode: '0600'}
+    - {name: id_ed25519.pub, mode: '0644'}
+  loop_control:
+    label: "{{ item.name }}"
+  when: (server_secrets_dir + '/id_ed25519') is file
 - name: Create the server's own ssh key, which root uses for ansible and screenshots
   command: ssh-keygen -q -t ed25519 -N "" -C "root@{{ external_hostname }}" -f /root/.ssh/id_ed25519
   args:

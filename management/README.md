@@ -41,6 +41,9 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
 The deploy backs wg-fleet's host CA up to `secrets/mgmt/<server>/` and
 restores it from there onto a rebuilt server. Keep that directory: every
 machine's host certificate and every admin's known_hosts depend on it.
+Keys made elsewhere can be put there before the first deploy instead
+(`host_ca`, and the server's `id_ed25519` with its certificate), as
+contestforge's `just e2e-kit` does.
 
 Rerun `just mgmt deploy` after changing anything. It also pulls the latest
 wg-fleet image and restarts wg-fleet if the image changed. `just mgmt check`
