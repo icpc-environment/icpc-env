@@ -31,6 +31,7 @@
       prune_timeout: {{ fleet_timeout }}
       server_name: {{ external_hostname }}
       external_ip: {{ external_ip }}
+      removed_fleet_grace: {{ removed_fleet_grace }}
       {% if fleets_url -%}
       fleets_url: {{ fleets_url }}
       config_signers: {{ config_signers | to_json }}

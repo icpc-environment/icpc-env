@@ -28,6 +28,10 @@ fleet_timeout: 5m
 fleets_url: https://configs.cloudcontest.org/v2/fleets.json
 config_signers: []
 
+# How long wg-fleet keeps the interface of a fleet that left fleets.json (or
+# expired) after its last client is gone
+removed_fleet_grace: 24h
+
 # A copy of contestforge's published files (its instance/deployments) to
 # serve at https://<server>/configs/, for testing before they're in a bucket:
 # point fleets_url and images' config_url there. Empty serves nothing.
