@@ -94,13 +94,13 @@ also use the setup fleet's user.
 
 On the server, root uses the server's own certified key. Machines appear once
 they register a hostname, named `<hostname>.<fleet>.icpcnet.internal`, and
-`t107.southeast` is enough:
+`t107.bigsouth2026-southeast` is enough:
 
 ```
-ssh t107.southeast
+ssh t107.bigsouth2026-southeast
 cat /run/wg_fleet_hosts                       # everything currently connected
-ansible southeast -m shell -a 'uptime'        # a whole fleet; inventory is /run/ansible_inventory.yml
-ansible t107.southeast.icpcnet.internal -b -m shell -a '/icpc/scripts/reset-team-account'
+ansible bigsouth2026-southeast -m shell -a 'uptime'        # a whole fleet; inventory is /run/ansible_inventory.yml
+ansible t107.bigsouth2026-southeast.icpcnet.internal -b -m shell -a '/icpc/scripts/reset-team-account'
 ```
 
 Machines in fleets from contestforge have host certificates from wg-fleet's
@@ -145,9 +145,9 @@ starts out with a playbook that just records the applied revision in
 `/icpc/update-version`.
 
 ```
-git clone https://admin@<server>/git/southeast.git
+git clone https://admin@<server>/git/bigsouth2026-southeast.git
 # edit local.yml, commit, push (password from secret.yml)
-ansible southeast -b -m file -a 'path=/icpc/trigger-ansible state=touch'
+ansible bigsouth2026-southeast -b -m file -a 'path=/icpc/trigger-ansible state=touch'
 ```
 
 The repos can be cloned without a password, since team machines pull them

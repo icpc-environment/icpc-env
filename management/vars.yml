@@ -46,15 +46,3 @@ fleets:
     subnet: fd00:a0a8:34d:9900::/64
     ip: fd00:a0a8:34d:9900::1
     port: 51920
-  southeast:
-    subnet: fd00:a0a8:34d:4201::/64
-    ip: fd00:a0a8:34d:4201::1
-    port: 51820
-  midatlantic:
-    subnet: fd00:a0a8:34d:4202::/64
-    ip: fd00:a0a8:34d:4202::1
-    port: 51821
-  southcentral:
-    subnet: fd00:a0a8:34d:4203::/64
-    ip: fd00:a0a8:34d:4203::1
-    port: 51822
