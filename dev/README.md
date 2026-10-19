@@ -52,6 +52,15 @@ only (its private half is committed). `sample-configs` adds it to the guest's
 `/etc/icpc/config-signers`, and `just vm ansible` builds with it in `config_signers`
 (`dev/vm-vars.yml`). After editing a sample, rerun `dev/sign-sample-configs.sh`.
 
+For an end-to-end test against a management server deployed with
+`management/e2e.yml`, `just vm ansible --tags icpc,management -e @dev/e2e-vars.yml`
+and reboot: the VM joins the server's generic fleet, and the wizard reads
+contestforge's published files from the server (passphrases in contestforge's
+`docs/seed-config-scenarios.md`). Log in with the kit's keys through the fleet's
+user on the server, e.g. `ssh -i admin -o CertificateFile=admin-cert.pub -J
+bigsouth2026-midatlantic@<server> icpcadmin@icpc-team-107.bigsouth2026-midatlantic.icpcnet.internal`,
+with the kit's `known_hosts`.
+
 ### State and checkpoints
 
 Each VM lives in `tmp/vm/$VM_NAME/` (default `agent`). That directory holds a qcow2

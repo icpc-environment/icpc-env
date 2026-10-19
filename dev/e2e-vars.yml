@@ -1,0 +1,14 @@
+---
+# Extra vars for an end-to-end test against contestforge's dev instance in
+# ../contestforge and a management server deployed with management/e2e.yml:
+#   just vm ansible --tags icpc,management -e @dev/e2e-vars.yml
+# The machine joins the server's generic setup fleet, and the wizard reads the
+# instance's published files from the server and trusts its signing key and
+# user CA (for admin certificates before setup).
+contestforge_dir: "{{ playbook_dir }}/../contestforge"
+remote_management_server: mgmt.env.cloudcontest.org
+contest_id: generic
+config_url: "https://{{ remote_management_server }}/configs"
+config_signers: ["{{ lookup('file', contestforge_dir + '/secrets/e2e/config-signers') }}"]
+ssh_user_ca_keys: ["{{ lookup('file', contestforge_dir + '/secrets/e2e/ssh_user_ca.pub') }}"]
+ssh_principals: ["node:*"]

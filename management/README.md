@@ -68,6 +68,16 @@ machine, e.g. a local cloud-image VM, and nginx keeps a self-signed
 certificate. Variables from `vars.yml` can only be overridden with `-e`, not
 from the inventory.
 
+### End-to-end test with contestforge
+
+`e2e.yml` points a deploy at a contestforge dev instance in
+`../../contestforge`: after `just reset-db && just seed-db && just e2e-kit &&
+just deploy` there, `just mgmt deploy -e @e2e.yml` serves the instance's
+published files at `https://<server>/configs/`, takes its fleets from there,
+and uses the kit's host CA and server key. A dev VM built with
+`dev/e2e-vars.yml` then joins the server's generic fleet and sets up from
+those files (see `dev/README.md`). The kit's host CA stays on the server.
+
 ## Using it
 
 Admins log in to team machines as icpcadmin with a certificate from
