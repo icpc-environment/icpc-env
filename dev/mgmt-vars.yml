@@ -1,0 +1,8 @@
+---
+# Extra vars for a dev VM that uses the real management server and contestforge's
+# published files on it, as the generic image does:
+#   just vm ansible --tags icpc,management -e @dev/mgmt-vars.yml
+# dev/vm-vars.yml trusts only dev/sample-signing-key; this puts contestforge's
+# key back.
+config_signers:
+  - contestforge namespaces="contestforge" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4MLsZ9AwUhSpgtPkOG5LmVbYLVIiSb23pZXfOtRotM

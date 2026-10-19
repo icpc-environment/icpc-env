@@ -27,7 +27,8 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
 3. `cp secret.yml.example secret.yml` and set the admin password, and any
    plain ssh keys for static fleets' users.
 4. Set `config_signers` in `vars.yml` to contestforge's allowed_signers line
-   (the one images are built with), or `fleets_url: null` for static fleets
+   (the one images are built with), and `configs_publisher_keys` to the ssh
+   key contestforge publishes with. Or `fleets_url: null` for static fleets
    only.
 5. `just mgmt deploy`
 6. Get the server's own key a certificate, so root can reach team machines:
@@ -36,14 +37,14 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
    save the result as `secrets/mgmt/<server>/id_ed25519-cert.pub` and deploy
    again.
 7. Give contestforge the server's host CA (`secrets/mgmt/<server>/host_ca.pub`,
-   or `https://<server>/ssh/host_ca.pub`) for its configs' `ssh_host_ca_keys`.
+   or `https://<server>/ssh/host_ca.pub`) for its configs' `ssh_host_ca_keys`:
+   `flask mgmt-server set-host-ca <server> <file>`, then publish.
 
 The deploy backs wg-fleet's host CA up to `secrets/mgmt/<server>/` and
 restores it from there onto a rebuilt server. Keep that directory: every
 machine's host certificate and every admin's known_hosts depend on it.
 Keys made elsewhere can be put there before the first deploy instead
-(`host_ca`, and the server's `id_ed25519` with its certificate), as
-contestforge's `just e2e-kit` does.
+(`host_ca`, and the server's `id_ed25519` with its certificate).
 
 Rerun `just mgmt deploy` after changing anything. It also pulls the latest
 wg-fleet image and restarts wg-fleet if the image changed. `just mgmt check`
@@ -68,15 +69,22 @@ machine, e.g. a local cloud-image VM, and nginx keeps a self-signed
 certificate. Variables from `vars.yml` can only be overridden with `-e`, not
 from the inventory.
 
-### End-to-end test with contestforge
+### Published files
 
-`e2e.yml` points a deploy at a contestforge dev instance in
-`../../contestforge`: after `just reset-db && just seed-db && just e2e-kit &&
-just deploy` there, `just mgmt deploy -e @e2e.yml` serves the instance's
-published files at `https://<server>/configs/`, takes its fleets from there,
-and uses the kit's host CA and server key. A dev VM built with
-`dev/e2e-vars.yml` then joins the server's generic fleet and sets up from
-those files (see `dev/README.md`). The kit's host CA stays on the server.
+The server is also where images' `config_url` and wg-fleet's `fleets_url`
+point: `https://<server>/configs/` serves `/srv/configs`. contestforge
+publishes there as user `configs`, whose keys (`configs_publisher_keys`) can
+only rsync into that directory:
+
+```
+just deploy   # in contestforge, writes instance/deployments
+rsync -a --delete --delay-updates --exclude=.contestforge-cache \
+  -e "ssh -i secrets/configs_publish" \
+  instance/deployments/ configs@<server>:
+```
+
+`published_configs_dir` copies a local directory there on every deploy
+instead, e.g. for a test server.
 
 ## Using it
 

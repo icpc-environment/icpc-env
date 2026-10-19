@@ -71,18 +71,34 @@
       ssl_trusted_certificate /etc/letsencrypt/live/{{ external_hostname }}/chain.pem;
   notify: Restart nginx
 
-- name: Serve a copy of contestforge's published files at /configs/
+- name: Create the user contestforge publishes to /configs/ as
+  user:
+    name: configs
+    comment: contestforge publisher
+    home: /var/lib/configs
+    shell: /bin/sh
+    system: true
+- name: Create /srv/configs, served at /configs/
+  file:
+    path: /srv/configs
+    state: directory
+    owner: configs
+    group: configs
+    recurse: true
+- name: Let configs_publisher_keys rsync into /srv/configs, and nothing else
+  ansible.posix.authorized_key:
+    user: configs
+    key: "{{ configs_publisher_keys | join('\n') }}"
+    key_options: restrict,command="/usr/bin/rrsync /srv/configs"
+    exclusive: true
+  when: configs_publisher_keys | length > 0
+- name: Copy published_configs_dir to /srv/configs
   ansible.posix.synchronize:
     src: "{{ published_configs_dir }}/"
     dest: /srv/configs/
     delete: true
-    rsync_opts: ["--exclude=.contestforge-cache", "--chmod=D755,F644"]
+    rsync_opts: ["--exclude=.contestforge-cache", "--chmod=D755,F644", "--chown=configs:configs"]
   when: published_configs_dir | length > 0
-- name: Stop serving them when published_configs_dir is unset
-  file:
-    path: /srv/configs
-    state: absent
-  when: published_configs_dir | length == 0
 
 - name: create web directory
   file:

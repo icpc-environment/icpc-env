@@ -166,11 +166,9 @@ http {
       include snippets/wg-fleet-proxy.conf;
     }
 
-{% if published_configs_dir %}
     location /configs/ {
       alias /srv/configs/;
     }
-{% endif %}
     location / {
       auth_basic "Contest Admin Area";
       auth_basic_user_file /etc/nginx/contestadmin_users.htpasswd;
