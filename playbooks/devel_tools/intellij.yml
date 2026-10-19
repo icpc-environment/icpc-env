@@ -147,6 +147,16 @@
     - /.noai
     - /etc/skel/.noai
 
+- name: Disable the data sharing consent prompt in the JetBrains IDEs
+  ansible.builtin.lineinfile:
+    path: "/opt/{{ item.dir }}/bin/{{ item.vmoptions }}"
+    line: -Djb.consents.confirmation.enabled=false
+  when: item.devtool in devtools
+  loop:
+    - { devtool: intellij-idea, dir: intellij-idea, vmoptions: idea64.vmoptions }
+    - { devtool: intellij-pycharm, dir: pycharm, vmoptions: pycharm64.vmoptions }
+    - { devtool: intellij-clion, dir: clion, vmoptions: clion64.vmoptions }
+
 - name: Make sure directory exists for accepting eula prefs
   ansible.builtin.file:
     # This wild path is the java encoded version of `privacy_policy`
