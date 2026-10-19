@@ -133,7 +133,7 @@
   ansible.builtin.file:
     path: "/opt/{{ item.0 }}/plugins/{{ item.1 }}"
     state: absent
-  loop: "{{ ['intellij-idea-community', 'pycharm-community', 'clion'] | product(['fullLine', 'full-line-completion', 'llm', 'ml-llm']) | list }}"
+  loop: "{{ ['intellij-idea', 'pycharm', 'clion'] | product(['fullLine', 'full-line-completion', 'llm', 'ml-llm']) | list }}"
 
 # The IDEs also look for a .noai marker to disable all AI features machine-wide.
 - name: Create the .noai marker so the JetBrains IDEs disable AI features
