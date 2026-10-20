@@ -71,6 +71,11 @@ http {
   }
 
   limit_req_zone $binary_remote_addr zone=register:10m rate=10r/s;
+{% if backup_enabled | bool %}
+  limit_req_zone $binary_remote_addr zone=backup_request:10m rate=1r/s;
+  # Download links are unguessable; this stops anyone trying
+  limit_req_zone $binary_remote_addr zone=backup_download:10m rate=2r/s;
+{% endif %}
 
   upstream grafana {
     server 127.0.0.1:3000;
@@ -169,6 +174,25 @@ http {
     location /configs/ {
       alias /srv/configs/;
     }
+{% if backup_enabled | bool %}
+
+    # A team machine asking to be backed up now; icpc-backupd works out which
+    # one from its VPN address, and refuses anyone else
+    location = /backup/request {
+      limit_req zone=backup_request burst=5 nodelay;
+      limit_except POST { deny all; }
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_pass http://127.0.0.1:8011/request;
+    }
+    # Released backups, at unguessable /b/<token>/<file> links
+    location /b/ {
+      limit_req zone=backup_download burst=10 nodelay;
+      alias /srv/backup-downloads/;
+      autoindex off;
+      # The links are the only credential
+      access_log off;
+    }
+{% endif %}
     location / {
       auth_basic "Contest Admin Area";
       auth_basic_user_file /etc/nginx/contestadmin_users.htpasswd;
