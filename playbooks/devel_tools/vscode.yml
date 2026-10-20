@@ -88,30 +88,50 @@
       fi
 
       # Get the home directory for the user based on UID
-      USERHOME=$(getent passwd $SUDO_UID | cut -d: -f6)
+      USERHOME=$(getent passwd "$SUDO_UID" | cut -d: -f6)
+
+      # Everything below runs as root over paths in the contestant's own home, so
+      # a symlink planted at one of them would redirect root's mkdir/chown/mount
+      # onto an arbitrary target. Drop any leftover mounts first, then refuse a
+      # tampered home and strip any planted symlinks (removing a symlink never
+      # touches its target; a real directory is left alone)
+      umount -f "$USERHOME/.vscode/extensions" 2>/dev/null || true
+      umount -f "$USERHOME/.vscode/extensions-root" 2>/dev/null || true
+      if [ -L "$USERHOME" ] || [ ! -d "$USERHOME" ]; then
+        echo "vscode-extension-install: $USERHOME is not a real directory" >&2
+        exit 1
+      fi
+      for p in .pki .pki/nssdb .vscode .vscode/extensions .vscode/extensions-work .vscode/extensions-overlay .vscode/extensions-root; do
+        [ -L "$USERHOME/$p" ] && rm -f "$USERHOME/$p"
+      done
 
       # Make sure to import our root CA into the nssdb so vscode trusts our extension server
-      mkdir -p $USERHOME/.pki/nssdb
-      certutil -d sql:$USERHOME/.pki/nssdb -A -t "C,," -n "ICPC Root CA" -i /usr/local/share/ca-certificates/ca-icpc.crt
-      certutil -d sql:$USERHOME/.pki/nssdb -A -t "C,," -n "ICPC Network Filter" -i /usr/local/share/ca-certificates/squid-ca.crt
-      chown -R $SUDO_UID:$SUDO_GID $USERHOME/.pki
+      mkdir -p "$USERHOME/.pki/nssdb"
+      certutil -d sql:"$USERHOME/.pki/nssdb" -A -t "C,," -n "ICPC Root CA" -i /usr/local/share/ca-certificates/ca-icpc.crt
+      certutil -d sql:"$USERHOME/.pki/nssdb" -A -t "C,," -n "ICPC Network Filter" -i /usr/local/share/ca-certificates/squid-ca.crt
+      chown -R "$SUDO_UID:$SUDO_GID" "$USERHOME/.pki"
 
-      mkdir -p $USERHOME/.vscode/extensions $USERHOME/.vscode/extensions-work $USERHOME/.vscode/extensions-overlay $USERHOME/.vscode/extensions-root
-
-      # Make sure it isn't mounted
-      umount -f $USERHOME/.vscode/extensions || true
-      umount -f $USERHOME/.vscode/extensions-root || true
+      mkdir -p "$USERHOME/.vscode/extensions" "$USERHOME/.vscode/extensions-work" "$USERHOME/.vscode/extensions-overlay" "$USERHOME/.vscode/extensions-root"
 
       # Make sure permissions are correct
-      chown -R $SUDO_UID:$SUDO_GID $USERHOME/.vscode
+      chown -R "$SUDO_UID:$SUDO_GID" "$USERHOME/.vscode"
 
       set -e # Exit on error from this point forward
 
+      # Refuse if a mount point was swapped for a symlink since it was created
+      for p in extensions extensions-work extensions-overlay extensions-root; do
+        if [ -L "$USERHOME/.vscode/$p" ]; then
+          echo "vscode-extension-install: $USERHOME/.vscode/$p is a symlink" >&2
+          exit 1
+        fi
+      done
+
       # Mount the overlayfs
-      mount -t overlay -o metacopy=on,lowerdir=/opt/vscode/extensions,upperdir=$USERHOME/.vscode/extensions-overlay,workdir=$USERHOME/.vscode/extensions-work overlay $USERHOME/.vscode/extensions-root
+      opts="metacopy=on,lowerdir=/opt/vscode/extensions,upperdir=$USERHOME/.vscode/extensions-overlay,workdir=$USERHOME/.vscode/extensions-work"
+      mount -t overlay -o "$opts" overlay "$USERHOME/.vscode/extensions-root"
 
       # Use bindfs to make it writable by the SUDO user (which then overlayfs takes care of properly)
-      bindfs -u $SUDO_UID -g $SUDO_GID $USERHOME/.vscode/extensions-root $USERHOME/.vscode/extensions
+      bindfs -u "$SUDO_UID" -g "$SUDO_GID" "$USERHOME/.vscode/extensions-root" "$USERHOME/.vscode/extensions"
 
 # Add a sudoers file to allow the users to run vscode-extension-install as root
 - name: Add sudoers file for vscode-extension-install
