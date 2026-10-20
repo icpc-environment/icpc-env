@@ -28,6 +28,22 @@ ssh *args:
 logs unit="wg-fleet":
     just mgmt ssh journalctl -fu "$1"
 
+# Back up a fleet, or one machine (<host>.<fleet>.icpcnet.internal), now
+backup-now target:
+    just mgmt ssh backup-admin now "$1"
+
+# When each machine was last backed up, for one fleet or all of them
+backup-status fleet="":
+    just mgmt ssh backup-admin status $1
+
+# Make a fleet's latest backups downloadable, and write the CSV of links to email
+backup-release fleet:
+    just mgmt ssh backup-admin release "$1"
+
+# Fetch a fleet's CSV of download links, after backup-release
+backup-csv fleet:
+    just mgmt ssh cat "/srv/contestweb/backups/$1.csv"
+
 [private]
 preflight:
     #!/usr/bin/env bash

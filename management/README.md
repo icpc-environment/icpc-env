@@ -140,10 +140,51 @@ Everything at `https://<server>/` needs the `admin` login from `secret.yml`.
 * `/prometheus/`: Prometheus
 * `/contestweb/`: anything written to `/srv/contestweb`
 
+Released backups (`/b/`, see Backups) need no login: each link is its own
+credential.
+
 ### Screenshots
 
 `do-screenshots [fleet]` (as root) grabs every connected machine's screen and
 writes a gallery to `/contestweb/screens/`.
+
+### Backups
+
+With `backup_enabled`, icpc-backupd backs up every connected machine built
+with `remote_management_backup_enabled` (unless its site config turns
+`backup.enabled` off) every `backup_interval_minutes`, into its own append-only
+borg repo in `/srv/backups/<fleet>/<host>/`. It's pulled: the server forwards
+a `borg serve` restricted to that repo over ssh (`-R`), and the machine's
+`/icpc/scripts/icpc-backup run` sends it the contestant's home (no hidden
+files, nothing over 1 MB, no build output) and icpc-printer's printouts. The
+machine holds no credentials, and borg's cache there is in tmpfs, so backups
+don't write to its drive.
+
+Teams have a Backups app on their desktop: "Back up now", and up to three
+addresses to email a copy of their files to after the contest, behind a
+privacy notice (`remote_management_backup_contact` and
+`remote_management_backup_retention_days` in the image's vars).
+
+```
+backup-admin status [fleet]     # when each machine last backed up, what it left out
+backup-admin now <fleet|host>   # back up now
+```
+
+At the end of the contest:
+
+1. `backup-admin now <fleet>`, then `backup-admin status <fleet>` until every
+   machine has backed up since the contest ended.
+2. Once results are final, `backup-admin release <fleet>`. Each team's latest
+   backup (since its machine's last team reset) becomes a tarball at an
+   unguessable `https://<server>/b/<token>/...` link, and
+   `/contestweb/backups/<fleet>.csv` lists every team with its link and the
+   addresses it agreed to (`just mgmt backup-csv <fleet>`). Mail-merge from that.
+3. Links, and the addresses, are deleted `backup_download_days` after release.
+   `backup-admin purge <fleet> --yes` deletes the fleet's backups once you're done.
+
+Each fleet's interval (0 for only when asked) and upload rate limit can be
+overridden in `backup_fleets`. The `backups` Prometheus job has each
+machine's `icpc_backup_last_success_timestamp_seconds`.
 
 ### Last-minute ansible
 
