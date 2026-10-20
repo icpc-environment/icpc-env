@@ -98,7 +98,7 @@ remote_management_lastminute_enabled: true
 # and give teams an app to ask for a copy by email after the contest. Baked
 # into config.json as backup.enabled, which a site's config can turn off (but
 # not on, without borg and the app this installs).
-remote_management_backup_enabled: false
+remote_management_backup_enabled: true
 # Who teams can contact about their data, shown in the backup app's privacy notice
 remote_management_backup_contact: ""
 # How many days after release the download links and email addresses are kept,
