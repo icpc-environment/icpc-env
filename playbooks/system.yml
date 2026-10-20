@@ -6,7 +6,6 @@
       # performance tools
       - htop
       - btop        # a modern resource monitor
-      - dstat
       - iotop
       - sysstat
       # misc admin tools
