@@ -79,6 +79,10 @@
         fleet: "{{ contest_id }}"
         vpn: "{{ remote_management_vpn_enabled | bool }}"
         lastminute: "{{ remote_management_lastminute_enabled | bool }}"
+      backup:
+        enabled: "{{ remote_management_backup_enabled | bool }}"
+        contact: "{{ remote_management_backup_contact }}"
+        retention_days: "{{ remote_management_backup_retention_days | int }}"
       config_url: "{{ config_url }}"
       config_contest: "{{ config_contest }}"
       papersize: "{{ icpc_papersize | default('letter') }}"

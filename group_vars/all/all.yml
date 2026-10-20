@@ -94,6 +94,17 @@ remote_management_vpn_enabled: true
 # Whether to run ansible-pull to apply any last minute changes on system boot.
 remote_management_lastminute_enabled: true
 
+# Let the management server back up the team's work (see management/README.md),
+# and give teams an app to ask for a copy by email after the contest. Baked
+# into config.json as backup.enabled, which a site's config can turn off (but
+# not on, without borg and the app this installs).
+remote_management_backup_enabled: false
+# Who teams can contact about their data, shown in the backup app's privacy notice
+remote_management_backup_contact: ""
+# How many days after release the download links and email addresses are kept,
+# shown in the privacy notice. Must match backup_download_days on the server
+remote_management_backup_retention_days: 30
+
 # Where contestforge publishes its files (contests.json, <contest>/tree.json,
 # <site>/config.json), which the setup wizard reads the site's teams, printers
 # and settings from
