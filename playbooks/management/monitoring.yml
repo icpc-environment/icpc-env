@@ -155,6 +155,30 @@
     state: present
     pkg: python3-xlib
 
+- name: Foreground window tracker service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/icpc-focus-log.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Log which application has the foreground window
+
+      [Service]
+      Environment=DISPLAY=:0 XAUTHORITY=/var/run/lightdm/root/:0
+      ExecStart=/usr/local/bin/s.py /var/log/icpc/focus.jsonl
+      LogsDirectory=icpc
+      Restart=always
+      RestartSec=30
+      Nice=19
+
+      [Install]
+      WantedBy=graphical.target
+
+- name: Enable icpc-focus-log.service
+  ansible.builtin.service:
+    name: icpc-focus-log.service
+    enabled: true
+
 
 # TODO: ship logs to the management server with grafana alloy.
 # promtail used to live here, but it was only ever installed - no config file
