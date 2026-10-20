@@ -64,7 +64,7 @@ fleets:
 
 # Pull backups of team machines built with remote_management_backup_enabled,
 # and let teams download theirs after the contest (README.md, Backups)
-backup_enabled: false
+backup_enabled: true
 backup_dir: /srv/backups
 # How often each machine is backed up, and how long one may take
 backup_interval_minutes: 15
