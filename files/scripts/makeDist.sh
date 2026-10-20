@@ -45,6 +45,9 @@ if [ -d /var/lib/icpc-printer ]; then
   find /var/lib/icpc-printer -mindepth 1 -delete
 fi
 
+# Forget any team's backup settings
+rm -rf /var/lib/icpc-backup /run/icpc-backup
+
 # Cleanup apt cache/unnecessary package
 apt-get autoremove --purge -y
 apt-get clean

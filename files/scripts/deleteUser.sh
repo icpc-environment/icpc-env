@@ -23,6 +23,9 @@ rm -rf /home/contestant/.vscode/extensions-work
 echo "Deleting team files"
 find / -user contestant -delete
 
+# The next team mustn't be emailed this one's files, or see when it last backed up
+rm -rf /var/lib/icpc-backup /run/icpc-backup
+
 echo "Deleting contestant user"
 userdel contestant
 rm -rf /home/contestant

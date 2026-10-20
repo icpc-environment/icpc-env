@@ -130,6 +130,16 @@ if [ -f /usr/local/bin/wg_setup ]; then
   check_return $?
 fi
 
+if [ "$(/icpc/scripts/icpc-config get backup.enabled false)" = "true" ]; then
+  print_check "Last backup to the management server"
+  LAST_BACKUP=$(jq -r '.last_success // empty' /run/icpc-backup/status.json 2>/dev/null)
+  if [ -n "$LAST_BACKUP" ]; then
+    date -d "$LAST_BACKUP" +%H:%M
+  else
+    echo "${ORANGE}None yet${RESET}"
+  fi
+fi
+
 echo
 echo "${BLUE}Compiler Versions${RESET}"
 ERLANG_VERSION_OUT=$(erl -eval '{ok, Version} = file:read_file(filename:join([code:root_dir(), "releases", erlang:system_info(otp_release), "OTP_VERSION"])), io:fwrite(Version), halt().' -noshell 2>/dev/null)
