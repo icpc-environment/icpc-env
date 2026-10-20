@@ -43,16 +43,21 @@
     mode: '0755'
     owner: root
     group: root
-# New projects use the Kotlin version bundled with the IDE, ex: 2.4.0-release-281
-- name: Read the Kotlin version bundled with IntelliJ IDEA
+# New projects use the Kotlin version from the new project wizard's config, ex: 2.4.20
+- name: Read the Kotlin version the IntelliJ IDEA new project wizard uses
   when: "'intellij-idea' in devtools"
-  ansible.builtin.slurp:
-    src: /opt/intellij-idea/plugins/Kotlin/kotlinc/build.txt
-  register: idea_kotlin_build
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - import sys, zipfile; print(zipfile.ZipFile(sys.argv[1]).read('compatibility/wizard_versions.json').decode())
+      - /opt/intellij-idea/plugins/Kotlin/lib/kotlin-plugin.jar
+  register: idea_wizard_versions
+  changed_when: false
 # 14mb
 - name: Fetch some things from maven
   when: "'intellij-idea' in devtools"
-  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib-jdk8:{{ (idea_kotlin_build.content | b64decode).split('-')[0] }}" -Dmaven.repo.local="/opt/m2/repository"
+  ansible.builtin.command: mvn dependency:get -Dartifact="org.jetbrains.kotlin:kotlin-stdlib:{{ (idea_wizard_versions.stdout | from_json)[0].kotlinVersion }}" -Dmaven.repo.local="/opt/m2/repository"
   register: maven_get
   changed_when: maven_get.rc != 0
 
