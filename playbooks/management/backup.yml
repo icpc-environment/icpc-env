@@ -1,7 +1,7 @@
 ---
 # The machine's side of backups to the management server (management/README.md):
 # icpc-backup, which the server runs over ssh and the backup app runs through
-# sudo. /icpc/scripts/icpc-backup itself comes with the other scripts.
+# sudo, and the app. /icpc/scripts/icpc-backup itself comes with the other scripts.
 - name: Install borg, and socat for borg to reach the server's forwarded socket
   ansible.builtin.apt:
     state: present
@@ -16,3 +16,27 @@
       contestant ALL=(root) NOPASSWD: /icpc/scripts/icpc-backup settings, /icpc/scripts/icpc-backup request
     mode: "0440"
     validate: visudo -cf %s
+
+- name: Install the backup app
+  ansible.builtin.copy:
+    src: files/backup-gui/main.py
+    dest: /icpc/scripts/icpc_backup_app
+    mode: "0755"
+
+- name: Add the backup app to the menu and the desktop
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=Backups
+      Comment=Back up now, or get a copy of your files by email after the contest
+      Exec=/icpc/scripts/icpc_backup_app
+      Icon=document-save
+      Terminal=false
+      StartupNotify=false
+    mode: "0755"
+  loop:
+    - /usr/share/applications/icpc-backup.desktop
+    - /etc/skel/Desktop/icpc-backup.desktop
