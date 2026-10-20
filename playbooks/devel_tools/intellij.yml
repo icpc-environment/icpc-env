@@ -141,6 +141,21 @@
     state: absent
   loop: "{{ ['intellij-idea', 'pycharm', 'clion'] | product(['fullLine', 'full-line-completion', 'llm', 'ml-llm']) | list }}"
 
+# plugins/plugin-classpath.txt still lists the removed plugins, so the IDEs try to
+# load them anyway and log errors. Suppressing the id marks it disabled instead.
+# PyCharm still loads it (an essential plugin requires it) and logs the errors,
+# but starts fine.
+- name: Keep the JetBrains IDEs from loading the removed Full Line plugin
+  ansible.builtin.lineinfile:
+    path: "/opt/{{ item.dir }}/bin/{{ item.vmoptions }}"
+    regexp: '^-Didea\.suppressed\.plugins\.id='
+    line: -Didea.suppressed.plugins.id=org.jetbrains.completion.full.line
+  when: item.devtool in devtools
+  loop:
+    - { devtool: intellij-idea, dir: intellij-idea, vmoptions: idea64.vmoptions }
+    - { devtool: intellij-pycharm, dir: pycharm, vmoptions: pycharm64.vmoptions }
+    - { devtool: intellij-clion, dir: clion, vmoptions: clion64.vmoptions }
+
 # The IDEs also look for a .noai marker to disable all AI features machine-wide.
 - name: Create the .noai marker so the JetBrains IDEs disable AI features
   ansible.builtin.copy:
