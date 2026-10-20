@@ -10,6 +10,8 @@ import subprocess
 import sys
 import os
 import tempfile
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pprint import pprint
 
@@ -26,10 +28,52 @@ def make_safe_url(url: str) -> str:
     url = _url.scheme + "://" + _url.netloc + quote(_url.path) + "?" + quote(_url.query)
     return url
 
+def read_url(url):
+    with urllib.request.urlopen(make_safe_url(url)) as response:
+        return response.read()
+
+# url: Future of its content, for everything config_url serves that the wizard might ask for
+prefetched = {}
+prefetch_lock = threading.Lock()
+prefetch_pool = ThreadPoolExecutor(max_workers=8)
+
+def prefetch(url, cache):
+    with prefetch_lock:
+        if url not in cache:
+            cache[url] = prefetch_pool.submit(read_url, url)
+        return cache[url]
+
+def prefetch_contests(contest_ids):
+    """Start fetching each contest's tree.json, then the config.json of every site in it.
+    Nothing is checked here; fetch_json still verifies whatever it's handed"""
+    cache = prefetched
+    def prefetch_sites(future):
+        try:
+            sites = site_choices(json.loads(future.result())).values()
+        except Exception:
+            return
+        for site_id in sites:
+            prefetch(f"{config_url}/{site_id}/config.json", cache)
+            prefetch(f"{config_url}/{site_id}/config.json.sig", cache)
+    for contest_id in contest_ids:
+        prefetch(f"{config_url}/{contest_id}/tree.json", cache).add_done_callback(prefetch_sites)
+        prefetch(f"{config_url}/{contest_id}/tree.json.sig", cache)
+
+def forget_prefetched():
+    global prefetched
+    with prefetch_lock:
+        prefetched = {}
+
 def fetch_url(url):
+    with prefetch_lock:
+        future = prefetched.get(url)
+    if future is not None:
+        try:
+            return future.result()
+        except Exception:
+            pass
     try:
-        with urllib.request.urlopen(make_safe_url(url)) as response:
-            return response.read()
+        return read_url(url)
     except Exception as e:
         sg.popup(f"Exception fetching {url}:\n{e}", title="URL Fetch Error")
     return None
@@ -285,6 +329,7 @@ def mainwindow():
     # pprint(values)
 
     if event == "reload":
+      forget_prefetched()
       window['site'].update(values=["default"])
       configuration["refused"] = {}
       try:
@@ -299,6 +344,8 @@ def mainwindow():
         contests = {"default": "default"}
       configuration["contests"] = contests
       first = next((label for label, id in contests.items() if id == machine_config.get("setup_contest")), next(iter(contests)))
+      ids = list(dict.fromkeys([contests[first], *contests.values()]))
+      prefetch_contests([i for i in ids if i != "default"])
       window['contest'].update(values=list(contests), value=first)
       window.write_event_value('contest', first)
 
