@@ -78,6 +78,72 @@
     group: root
     mode: '0644'
 
+# A JDK that IDEA auto-detects is saved without its class path, and the build
+# process only reads the JDK from this file, so define it up front.
+- name: Read IntelliJ IDEA's product info and the JDK's release file
+  when: "'intellij-idea' in devtools"
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop:
+    - /opt/intellij-idea/product-info.json
+    - /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64/release
+  register: idea_jdk_info
+- name: Define the JDK for IntelliJ IDEA
+  when: "'intellij-idea' in devtools"
+  vars:
+    idea_config_dir: "{{ (idea_jdk_info.results[0].content | b64decode | from_json).dataDirectoryName }}"
+    jdk_release: "{{ idea_jdk_info.results[1].content | b64decode }}"
+    jdk_home: /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
+    jdk_modules: "{{ (jdk_release | regex_search('^MODULES=\"(.*)\"$', '\\1', multiline=True))[0].split() }}"
+    jdk_version: "{{ (jdk_release | regex_search('^JAVA_VERSION=\"(.*)\"$', '\\1', multiline=True))[0] }}"
+  block:
+    - name: Create the IntelliJ IDEA options directory in /etc/skel
+      ansible.builtin.file:
+        path: /etc/skel/.config/JetBrains/{{ idea_config_dir }}/options
+        state: directory
+        mode: '0755'
+    - name: Write the IntelliJ IDEA JDK table
+      ansible.builtin.copy:
+        dest: /etc/skel/.config/JetBrains/{{ idea_config_dir }}/options/jdk.table.xml
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          <application>
+            <component name="ProjectJdkTable">
+              <jdk version="2">
+                <name value="{{ java_version }}" />
+                <type value="JavaSDK" />
+                <version value="Java {{ jdk_version }}" />
+                <homePath value="{{ jdk_home }}" />
+                <roots>
+                  <annotationsPath>
+                    <root type="composite">
+                      <root url="jar://$APPLICATION_HOME_DIR$/plugins/java/lib/resources/jdkAnnotations.jar!/" type="simple" />
+                    </root>
+                  </annotationsPath>
+                  <classPath>
+                    <root type="composite">
+          {% for module in jdk_modules %}
+                      <root url="jrt://{{ jdk_home }}!/{{ module }}" type="simple" />
+          {% endfor %}
+                    </root>
+                  </classPath>
+                  <javadocPath>
+                    <root type="composite" />
+                  </javadocPath>
+                  <sourcePath>
+                    <root type="composite">
+          {% for module in jdk_modules %}
+                      <root url="jar://{{ jdk_home }}/lib/src.zip!/{{ module }}" type="simple" />
+          {% endfor %}
+                    </root>
+                  </sourcePath>
+                </roots>
+              </jdk>
+            </component>
+          </application>
+
 # PyCharm(3603mb installed in /opt/pycharm)
 - name: Install PyCharm
   when: "'intellij-pycharm' in devtools"
