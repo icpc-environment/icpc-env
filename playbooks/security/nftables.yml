@@ -40,6 +40,12 @@
         chain output {
           type filter hook output priority 0; policy accept;
 
+          # Before the loopback accept, or the contestant reaches the local DNS
+          # resolvers and tunnels out through them. /etc/hosts still resolves the
+          # allowed sites, and proxied traffic is resolved by squid, not the client
+          meta skuid "contestant" udp dport 53 reject comment "Block contestant from DNS (tunneling)"
+          meta skuid "contestant" tcp dport 53 reject comment "Block contestant from DNS (tunneling)"
+
           # Allow localhost to localhost traffic (fixes IntelliJ/Eclipse)
           oif lo accept comment "Allow loopback to loopback"
 
