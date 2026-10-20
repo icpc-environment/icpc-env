@@ -179,6 +179,45 @@
     name: icpc-focus-log.service
     enabled: true
 
+- name: Install auditd
+  ansible.builtin.apt:
+    state: present
+    pkg: auditd
+
+- name: Keep up to 500MB of audit logs
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^{{ item.key }} ='
+    line: '{{ item.key }} = {{ item.value }}'
+  loop:
+    - { key: max_log_file, value: 50 }
+    - { key: num_logs, value: 10 }
+  register: auditd_conf
+
+- name: Audit every program the contestant runs
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/icpc-contestant.rules
+    mode: "0640"
+    content: |
+      # Search with: ausearch --input-logs -k contestant-exec -i
+      -a always,exit -F arch=b64 -S execve,execveat -F uid=contestant -k contestant-exec
+      -a always,exit -F arch=b32 -S execve,execveat -F uid=contestant -k contestant-exec
+  register: audit_rules
+
+- name: Restart auditd
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+    enabled: true
+  when: auditd_conf.changed
+
+- name: Load the audit rules
+  ansible.builtin.service:
+    name: audit-rules
+    state: restarted
+    enabled: true
+  when: audit_rules.changed
+
 
 # TODO: ship logs to the management server with grafana alloy.
 # promtail used to live here, but it was only ever installed - no config file
