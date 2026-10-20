@@ -61,3 +61,24 @@ fleets:
     subnet: fd00:a0a8:34d:9900::/64
     ip: fd00:a0a8:34d:9900::1
     port: 51920
+
+# Pull backups of team machines built with remote_management_backup_enabled,
+# and let teams download theirs after the contest (README.md, Backups)
+backup_enabled: false
+backup_dir: /srv/backups
+# How often each machine is backed up, and how long one may take
+backup_interval_minutes: 15
+backup_timeout_minutes: 15
+# Per machine; a site's uplink is shared with judging
+backup_upload_ratelimit_kib: 256
+# How many machines are backed up at once, across all fleets
+backup_concurrency: 8
+# How long download links (and the addresses they were for) last after
+# release. Images show this as remote_management_backup_retention_days
+backup_download_days: 30
+# Per-fleet overrides of interval_minutes (0 backs up only when asked, e.g.
+# behind a throttled uplink) and upload_ratelimit_kib:
+#
+#   backup_fleets:
+#     wf2026: { interval_minutes: 10, upload_ratelimit_kib: 1024 }
+backup_fleets: {}

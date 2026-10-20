@@ -1,0 +1,543 @@
+#!/usr/bin/env python3
+"""Backups of team machines, pulled with borg (see README.md, Backups).
+
+  backup-admin daemon              pull every machine on its fleet's interval, and
+                                   when one asks (icpc-backupd.service runs this)
+  backup-admin now <fleet|host>    back up a fleet, or one machine, now
+  backup-admin status [fleet]      when each machine last backed up
+  backup-admin release <fleet>     make each team's latest backup downloadable,
+                                   and write the CSV of links to email them
+  backup-admin purge <fleet> --yes delete a fleet's backups, downloads and CSV
+
+Each pull starts a `borg serve` restricted to the machine's own append-only
+repo, behind a unix socket that ssh forwards to the machine (-R). The machine's
+/icpc/scripts/icpc-backup runs borg create through it and prints one JSON line
+about the run (team, email settings, stats), kept as latest.json.
+"""
+import argparse
+import csv
+import ipaddress
+import json
+import os
+import random
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+CONFIG = Path("/etc/icpc-backup.json")
+HOSTS_FILE = Path("/run/wg_fleet_hosts")
+RUN = Path("/run/icpc-backup")
+SPOOL = RUN / "requests"
+SOCKETS = RUN / "sockets"
+DOWNLOADS = Path("/srv/backup-downloads")
+CSV_DIR = Path("/srv/contestweb/backups")
+
+FQDN_RE = re.compile(r"([a-z0-9][a-z0-9-]{0,62})\.([a-z][a-z0-9_-]{0,11})\.icpcnet\.internal")
+ARCHIVE_RE = re.compile(r"r(\d+)-(\d{8}T\d{6}Z)")
+EXIT_DISABLED = 3
+DISABLED_RETRY = 3600
+MAX_BACKOFF = 3600
+
+BORG_ENV = dict(os.environ, BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK="yes",
+                BORG_RELOCATED_REPO_ACCESS_IS_OK="yes")
+
+
+def load_config():
+    config = json.loads(CONFIG.read_text())
+    for key in ("interval", "upload_ratelimit_kib", "concurrency", "timeout", "download_days",
+                "request_port", "metrics_port"):
+        config[key] = int(config[key])
+    return config
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def write_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def read_json(path):
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def connected_hosts():
+    """{fqdn: address} for every machine connected to wg-fleet right now"""
+    hosts = {}
+    try:
+        lines = HOSTS_FILE.read_text().splitlines()
+    except FileNotFoundError:
+        return hosts
+    for line in lines:
+        fields = line.split("#")[0].split()
+        if len(fields) < 2:
+            continue
+        for name in fields[1:]:
+            if FQDN_RE.fullmatch(name):
+                hosts[name] = fields[0]
+    return hosts
+
+
+def host_dir(config, fqdn):
+    host, fleet = FQDN_RE.fullmatch(fqdn).groups()
+    return Path(config["dir"]) / fleet / host
+
+
+def fleet_interval(config, fleet):
+    """Seconds between a fleet's backups; 0 for only when asked"""
+    override = (config.get("fleets") or {}).get(fleet, {})
+    if "interval_minutes" in override:
+        return int(float(override["interval_minutes"]) * 60)
+    return config["interval"]
+
+
+def fleet_ratelimit(config, fleet):
+    override = (config.get("fleets") or {}).get(fleet, {})
+    return int(override.get("upload_ratelimit_kib", config["upload_ratelimit_kib"]))
+
+
+def pull(config, fqdn):
+    """One backup of one machine: (exit code, the machine's JSON line or None)"""
+    host, fleet = FQDN_RE.fullmatch(fqdn).groups()
+    hdir = host_dir(config, fqdn)
+    repo = hdir / "repo"
+    if not repo.exists():
+        hdir.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["borg", "init", "--encryption=none", str(repo)], env=BORG_ENV, check=True,
+                       stdout=subprocess.DEVNULL)
+
+    name = secrets.token_hex(8)
+    local = SOCKETS / f"{name}.sock"
+    remote = f"/home/icpcadmin/.icpc-backup-{name}.sock"
+    SOCKETS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    serve = subprocess.Popen(["socat", f"UNIX-LISTEN:{local},mode=600",
+                              f"EXEC:borg serve --append-only --restrict-to-repository {repo}"],
+                             env=BORG_ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(50):
+            if local.exists():
+                break
+            time.sleep(0.1)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        try:
+            p = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes",
+                                "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=30",
+                                "-R", f"{remote}:{local}", fqdn,
+                                "sudo", "/icpc/scripts/icpc-backup", "run", "--repo", str(repo),
+                                "--socket", remote, "--archive-ts", ts,
+                                "--ratelimit", str(fleet_ratelimit(config, fleet))],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                               timeout=config["timeout"])
+        except subprocess.TimeoutExpired:
+            return None, {"error": "timed out"}
+    finally:
+        serve.kill()
+        serve.wait()
+        local.unlink(missing_ok=True)
+
+    result = None
+    for line in reversed(p.stdout.splitlines()):
+        try:
+            result = json.loads(line)
+            break
+        except ValueError:
+            continue
+    if result is None:
+        result = {"error": (p.stderr.strip().splitlines() or [f"ssh exited {p.returncode}"])[-1]}
+    return p.returncode, result
+
+
+class Metrics:
+    def __init__(self, port):
+        import prometheus_client as pc
+        labels = ["fleet", "host"]
+        self.last_success = pc.Gauge("icpc_backup_last_success_timestamp_seconds", "Last successful backup", labels)
+        self.last_attempt = pc.Gauge("icpc_backup_last_attempt_timestamp_seconds", "Last backup attempt", labels)
+        self.duration = pc.Gauge("icpc_backup_duration_seconds", "How long the last backup took", labels)
+        self.uploaded = pc.Gauge("icpc_backup_uploaded_bytes", "New data the last backup added to the repo", labels)
+        self.skipped = pc.Gauge("icpc_backup_skipped_files", "Files left out of the last backup for their size", labels)
+        self.over_budget = pc.Gauge("icpc_backup_over_budget", "1 if the last backup selected more than expected", labels)
+        self.failures = pc.Counter("icpc_backup_failures", "Failed backups", labels)
+        self.running = pc.Gauge("icpc_backup_running", "Backups running now")
+        pc.start_http_server(port, addr="127.0.0.1")
+
+    def record(self, fqdn, rc, result, started):
+        host, fleet = FQDN_RE.fullmatch(fqdn).groups()
+        self.last_attempt.labels(fleet, host).set(time.time())
+        self.duration.labels(fleet, host).set(time.time() - started)
+        if rc == 0 and result.get("ok"):
+            self.last_success.labels(fleet, host).set(time.time())
+            self.uploaded.labels(fleet, host).set(result.get("stats", {}).get("deduplicated_size", 0))
+            self.skipped.labels(fleet, host).set(result.get("skipped_count", 0))
+            self.over_budget.labels(fleet, host).set(1 if result.get("over_budget") else 0)
+        elif rc != EXIT_DISABLED:
+            self.failures.labels(fleet, host).inc()
+
+
+class Scheduler:
+    """Which machine to back up next. A request for a machine that's being
+    backed up runs it again straight after, so nothing changed since is missed"""
+
+    def __init__(self, config, metrics):
+        self.config = config
+        self.metrics = metrics
+        self.lock = threading.Lock()
+        self.hosts = {}
+        self.addresses = {}
+        self.state = {}
+        self.running = 0
+
+    def refresh_hosts(self):
+        hosts = connected_hosts()
+        with self.lock:
+            self.hosts = hosts
+            self.addresses = {ipaddress.ip_address(a): h for h, a in hosts.items() if self._valid_ip(a)}
+            for fqdn in hosts:
+                if fqdn not in self.state:
+                    interval = self.interval(fqdn)
+                    # Spread a fleet that connects at once over its interval
+                    self.state[fqdn] = {"due": time.time() + random.uniform(0, interval) if interval else None,
+                                        "running": False, "again": False, "failures": 0}
+
+    @staticmethod
+    def _valid_ip(a):
+        try:
+            ipaddress.ip_address(a)
+            return True
+        except ValueError:
+            return False
+
+    def interval(self, fqdn):
+        return fleet_interval(self.config, FQDN_RE.fullmatch(fqdn).group(2))
+
+    def request(self, fqdn):
+        with self.lock:
+            st = self.state.get(fqdn)
+            if st is None:
+                return "unknown"
+            if st["running"]:
+                st["again"] = True
+                return "running, will run again when it finishes"
+            st["due"] = 0
+            return "queued"
+
+    def request_from(self, address):
+        try:
+            fqdn = self.addresses.get(ipaddress.ip_address(address))
+        except ValueError:
+            fqdn = None
+        return (fqdn, self.request(fqdn)) if fqdn else (None, None)
+
+    def take_spool(self):
+        SPOOL.mkdir(parents=True, exist_ok=True)
+        for f in SPOOL.iterdir():
+            f.unlink(missing_ok=True)
+            if FQDN_RE.fullmatch(f.name):
+                self.request(f.name)
+
+    def start_due(self):
+        now = time.time()
+        with self.lock:
+            due = sorted((st["due"], fqdn) for fqdn, st in self.state.items()
+                         if fqdn in self.hosts and not st["running"] and st["due"] is not None and st["due"] <= now)
+            for _, fqdn in due:
+                if self.running >= self.config["concurrency"]:
+                    break
+                self.state[fqdn]["running"] = True
+                self.running += 1
+                threading.Thread(target=self.run, args=(fqdn,), daemon=True).start()
+            self.metrics.running.set(self.running)
+
+    def run(self, fqdn):
+        started = time.time()
+        try:
+            rc, result = pull(self.config, fqdn)
+        except Exception as e:
+            rc, result = None, {"error": str(e)}
+        self.metrics.record(fqdn, rc, result, started)
+        self.save(fqdn, rc, result)
+        with self.lock:
+            st = self.state[fqdn]
+            interval = self.interval(fqdn)
+            if rc == 0:
+                st["failures"] = 0
+                st["due"] = time.time() + interval * random.uniform(0.9, 1.1) if interval else None
+            elif rc == EXIT_DISABLED:
+                st["due"] = time.time() + DISABLED_RETRY
+            else:
+                st["failures"] += 1
+                st["due"] = time.time() + min(60 * 2 ** st["failures"], MAX_BACKOFF)
+            if st["again"]:
+                st["again"] = False
+                st["due"] = time.time()
+            st["running"] = False
+            self.running -= 1
+        if rc == 0 and result.get("ok"):
+            print(f"{fqdn}: {result.get('archive')}, {result.get('files')} files, "
+                  f"{result.get('stats', {}).get('deduplicated_size', 0)} new bytes", flush=True)
+        else:
+            print(f"{fqdn}: failed (rc={rc}): {self.load_error(fqdn)}", flush=True)
+
+    def load_error(self, fqdn):
+        return (read_json(host_dir(self.config, fqdn) / "latest.json") or {}).get("last_error")
+
+    def save(self, fqdn, rc, result):
+        path = host_dir(self.config, fqdn) / "latest.json"
+        latest = read_json(path) or {}
+        latest["last_attempt"] = now_iso()
+        latest["last_rc"] = rc
+        if rc == 0 and result.get("ok"):
+            # The machine is the authority on the team and its email settings
+            latest.update({k: result.get(k) for k in ("archive", "reset_ts", "contest", "site", "team", "settings",
+                                                       "files", "bytes", "over_budget", "skipped", "skipped_count",
+                                                       "stats")})
+            latest["last_success"] = now_iso()
+            latest["last_error"] = None
+        elif rc == EXIT_DISABLED:
+            latest["last_error"] = "backups are disabled on the machine"
+        else:
+            latest["last_error"] = result.get("error") or result.get("borg_stderr", "").strip()[-500:]
+        write_json(path, latest)
+
+
+def request_server(scheduler, port):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path != "/request":
+                self.send_error(404)
+                return
+            fqdn, outcome = scheduler.request_from(self.headers.get("X-Real-IP", ""))
+            if fqdn is None or outcome == "unknown":
+                self.send_error(403, "not a connected team machine")
+                return
+            body = f"{outcome}\n".encode()
+            self.send_response(202)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, fmt, *args):
+            print(f"request: {self.headers.get('X-Real-IP')} {fmt % args}", flush=True)
+
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+
+def expire(config):
+    """Forget releases, and the email addresses they were for, once their time is up"""
+    limit = config["download_days"] * 86400
+    for release_path in Path(config["dir"]).glob("*/*/release.json"):
+        release = read_json(release_path) or {}
+        released = release.get("released_at")
+        if not released or release.get("expired"):
+            continue
+        if time.time() - datetime.fromisoformat(released).timestamp() < limit:
+            continue
+        shutil.rmtree(DOWNLOADS / release["token"], ignore_errors=True)
+        latest_path = release_path.parent / "latest.json"
+        latest = read_json(latest_path)
+        if latest is not None:
+            latest["settings"] = None
+            write_json(latest_path, latest)
+        write_json(release_path, {"expired": True, "reset_ts": release.get("reset_ts"),
+                                  "released_at": released, "expired_at": now_iso()})
+        print(f"expired release {release_path.parent}", flush=True)
+
+
+def cmd_daemon(args):
+    config = load_config()
+    for d in (SPOOL, SOCKETS):
+        shutil.rmtree(d, ignore_errors=True)
+    SOCKETS.mkdir(mode=0o700, parents=True)
+    scheduler = Scheduler(config, Metrics(config["metrics_port"]))
+    request_server(scheduler, config["request_port"])
+    last_expire = 0
+    while True:
+        scheduler.refresh_hosts()
+        scheduler.take_spool()
+        scheduler.start_due()
+        if time.time() - last_expire > 3600:
+            expire(config)
+            last_expire = time.time()
+        time.sleep(2)
+
+
+def fleet_arg(fleet):
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{0,11}", fleet):
+        raise SystemExit(f"not a fleet name: {fleet}")
+    return fleet
+
+
+def targets(spec):
+    hosts = connected_hosts()
+    if FQDN_RE.fullmatch(spec):
+        return [spec] if spec in hosts else []
+    return sorted(h for h in hosts if FQDN_RE.fullmatch(h).group(2) == spec)
+
+
+def cmd_now(args):
+    hosts = targets(args.target)
+    if not hosts:
+        raise SystemExit(f"no connected machines match {args.target}")
+    SPOOL.mkdir(parents=True, exist_ok=True)
+    for h in hosts:
+        (SPOOL / h).touch()
+    print(f"queued {len(hosts)} machine(s)")
+
+
+def age(iso):
+    if not iso:
+        return "never"
+    s = int(time.time() - datetime.fromisoformat(iso).timestamp())
+    return f"{s // 60}m ago" if s < 7200 else f"{s // 3600}h ago"
+
+
+def host_dirs(config, fleet):
+    base = Path(config["dir"])
+    fleets = [base / fleet] if fleet else sorted(p for p in base.iterdir() if p.is_dir())
+    return [h for f in fleets if f.is_dir() for h in sorted(f.iterdir()) if (h / "repo").exists()]
+
+
+def cmd_status(args):
+    config = load_config()
+    connected = connected_hosts()
+    print(f"{'machine':<36} {'team':<34} {'backed up':<10} {'skipped':>7} {'emails':>6}  problem")
+    for hdir in host_dirs(config, args.fleet):
+        latest = read_json(hdir / "latest.json") or {}
+        fqdn = f"{hdir.name}.{hdir.parent.name}.icpcnet.internal"
+        team = latest.get("team") or {}
+        teamname = f"{team.get('id') or '?'} {team.get('name') or ''}"[:34]
+        emails = len((latest.get("settings") or {}).get("emails", []))
+        problem = latest.get("last_error") or ("over budget" if latest.get("over_budget") else "")
+        if fqdn not in connected:
+            problem = ("offline; " + problem).rstrip("; ")
+        print(f"{hdir.parent.name + '/' + hdir.name:<36} {teamname:<34} {age(latest.get('last_success')):<10} "
+              f"{latest.get('skipped_count', 0):>7} {emails:>6}  {problem}")
+
+
+def newest_archive(repo):
+    """The latest backup since the machine's last team reset"""
+    p = subprocess.run(["borg", "list", "--json", str(repo)], env=BORG_ENV, capture_output=True, text=True, check=True)
+    best = None
+    for a in json.loads(p.stdout)["archives"]:
+        m = ARCHIVE_RE.fullmatch(a["name"])
+        if m and (best is None or (int(m[1]), m[2]) > best[0]):
+            best = ((int(m[1]), m[2]), a["name"])
+    return best[1] if best else None
+
+
+def safe_name(s):
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", s).strip("-") or "team"
+
+
+def cmd_release(args):
+    config = load_config()
+    rows = []
+    for hdir in host_dirs(config, args.fleet):
+        latest = read_json(hdir / "latest.json") or {}
+        team = latest.get("team") or {}
+        archive = newest_archive(hdir / "repo")
+        row = {"machine": hdir.name, "team_id": team.get("id"), "team_name": team.get("name"),
+               "affiliation": team.get("affiliation"), "emails": "", "url": "", "expires": "", "note": ""}
+        settings = latest.get("settings") or {}
+        if settings.get("consent"):
+            row["emails"] = " ".join(settings.get("emails", []))
+        if archive is None:
+            row["note"] = "no backup"
+            rows.append(row)
+            continue
+
+        release = read_json(hdir / "release.json") or {}
+        reset = int(ARCHIVE_RE.fullmatch(archive)[1])
+        if release.get("reset_ts") != reset:
+            # A new team since the last release: its files mustn't appear at the old team's link
+            if release.get("token"):
+                shutil.rmtree(DOWNLOADS / release["token"], ignore_errors=True)
+            release = {}
+        if release.get("expired"):
+            row["note"] = "expired"
+            rows.append(row)
+            continue
+        token = release.get("token") or secrets.token_urlsafe(16)
+        filename = f"{safe_name(args.fleet)}-team-{safe_name(str(team.get('id') or hdir.name))}-files.tar.gz"
+        out = DOWNLOADS / token / filename
+        if release.get("archive") != archive or not out.exists():
+            out.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+            tmp = out.with_suffix(".tmp.tar.gz")
+            subprocess.run(["borg", "export-tar", f"{hdir / 'repo'}::{archive}", str(tmp)], env=BORG_ENV, check=True)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, out)
+        released_at = release.get("released_at") or now_iso()
+        write_json(hdir / "release.json", {"token": token, "archive": archive, "reset_ts": reset,
+                                           "file": filename, "released_at": released_at})
+        expires = datetime.fromtimestamp(datetime.fromisoformat(released_at).timestamp()
+                                         + config["download_days"] * 86400, timezone.utc)
+        row.update({"url": f"https://{config['external_hostname']}/b/{token}/{filename}",
+                    "expires": expires.date().isoformat()})
+        rows.append(row)
+
+    CSV_DIR.mkdir(parents=True, exist_ok=True)
+    path = CSV_DIR / f"{safe_name(args.fleet)}.csv"
+    with open(path.with_suffix(".tmp"), "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else ["machine"])
+        w.writeheader()
+        w.writerows(rows)
+    os.chmod(path.with_suffix(".tmp"), 0o644)
+    os.replace(path.with_suffix(".tmp"), path)
+    released = sum(1 for r in rows if r["url"])
+    print(f"released {released} of {len(rows)} machine(s); links in https://{config['external_hostname']}"
+          f"/contestweb/backups/{path.name}")
+
+
+def cmd_purge(args):
+    if not args.yes:
+        raise SystemExit("this deletes every backup of the fleet; rerun with --yes")
+    config = load_config()
+    fleet_dir = Path(config["dir"]) / args.fleet
+    for hdir in host_dirs(config, args.fleet):
+        release = read_json(hdir / "release.json") or {}
+        if release.get("token"):
+            shutil.rmtree(DOWNLOADS / release["token"], ignore_errors=True)
+    shutil.rmtree(fleet_dir, ignore_errors=True)
+    (CSV_DIR / f"{safe_name(args.fleet)}.csv").unlink(missing_ok=True)
+    print(f"purged {args.fleet}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("daemon")
+    p = sub.add_parser("now")
+    p.add_argument("target", help="a fleet, or a machine's <host>.<fleet>.icpcnet.internal name")
+    p = sub.add_parser("status")
+    p.add_argument("fleet", nargs="?", type=fleet_arg)
+    p = sub.add_parser("release")
+    p.add_argument("fleet", type=fleet_arg)
+    p = sub.add_parser("purge")
+    p.add_argument("fleet", type=fleet_arg)
+    p.add_argument("--yes", action="store_true")
+    args = parser.parse_args()
+    {"daemon": cmd_daemon, "now": cmd_now, "status": cmd_status, "release": cmd_release,
+     "purge": cmd_purge}[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

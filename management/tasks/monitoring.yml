@@ -85,6 +85,12 @@
           file_sd_configs:
           - files:
             - '/run/prometheus_targets.json'
+        {%- if backup_enabled | bool %}
+
+        - job_name: 'backups'
+          static_configs:
+            - targets: ['127.0.0.1:9119']
+        {%- endif +%}
 
 - name: Configure prometheus external web url
   ansible.builtin.lineinfile:

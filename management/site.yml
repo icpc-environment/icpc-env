@@ -19,6 +19,8 @@
     - import_tasks: tasks/nginx.yml
     - import_tasks: tasks/lastminute.yml
     - import_tasks: tasks/screenshots.yml
+    - import_tasks: tasks/backups.yml
+      when: backup_enabled | bool
     - import_tasks: tasks/version.yml
 
   handlers:
@@ -36,6 +38,8 @@
       service: name=prometheus state=restarted enabled=true
     - name: Restart prometheus-node-exporter
       service: name=prometheus-node-exporter state=restarted enabled=true
+    - name: Restart icpc-backupd
+      service: name=icpc-backupd state=restarted enabled=true
     - name: Restart nftables
       ansible.builtin.systemd:
         name: nftables

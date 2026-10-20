@@ -1,0 +1,74 @@
+---
+# Backups of team machines (README.md, Backups): icpc-backupd pulls each one
+# with borg over ssh, and backup-admin releases them for teams to download.
+- name: Install borg, and socat to put its server behind the socket ssh forwards
+  apt:
+    state: present
+    pkg:
+      - borgbackup
+      - socat
+
+- name: Install backup-admin
+  copy:
+    src: files/backup-admin
+    dest: /usr/local/sbin/backup-admin
+    mode: "0755"
+  notify: Restart icpc-backupd
+
+- name: Configure backups
+  copy:
+    dest: /etc/icpc-backup.json
+    content: "{{ config | to_nice_json }}\n"
+    mode: "0644"
+  vars:
+    config:
+      dir: "{{ backup_dir }}"
+      external_hostname: "{{ external_hostname }}"
+      interval: "{{ (backup_interval_minutes * 60) | int }}"
+      upload_ratelimit_kib: "{{ backup_upload_ratelimit_kib | int }}"
+      concurrency: "{{ backup_concurrency | int }}"
+      timeout: "{{ (backup_timeout_minutes * 60) | int }}"
+      download_days: "{{ backup_download_days | int }}"
+      fleets: "{{ backup_fleets }}"
+      request_port: 8011
+      metrics_port: 9119
+  notify: Restart icpc-backupd
+
+- name: Make the backup and download directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ backup_dir }}", group: root, mode: "0700" }
+    # nginx serves /b/<token>/ from here, so it must be able to read but not list it
+    - { path: /srv/backup-downloads, group: www-data, mode: "0711" }
+    - { path: /srv/contestweb/backups, group: www-data, mode: "0755" }
+
+- name: Install icpc-backupd.service
+  copy:
+    dest: /etc/systemd/system/icpc-backupd.service
+    content: |
+      [Unit]
+      Description=Pull backups of team machines
+      After=network-online.target wg-fleet.service
+      Wants=network-online.target
+
+      [Service]
+      ExecStart=/usr/local/sbin/backup-admin daemon
+      Restart=always
+      RestartSec=10
+      Nice=10
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart icpc-backupd
+
+- name: Start icpc-backupd
+  systemd:
+    name: icpc-backupd
+    state: started
+    enabled: true
+    daemon_reload: true
