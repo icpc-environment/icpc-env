@@ -152,6 +152,11 @@
       ansible.builtin.import_tasks: 'playbooks/management/monitoring.yml'
       tags: management
 
+    - name: Install backups to the management server (if enabled)
+      ansible.builtin.import_tasks: 'playbooks/management/backup.yml'
+      tags: management
+      when: remote_management_backup_enabled | bool
+
     # Last, so whatever it points at (submit clients, services) is installed
     - name: Apply the machine config
       ansible.builtin.command: /icpc/scripts/icpc-apply --no-start

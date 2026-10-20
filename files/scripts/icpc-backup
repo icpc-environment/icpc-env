@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+"""Backups of the team's work, pulled by the management server.
+
+  icpc-backup run --repo PATH --socket PATH --archive-ts TS --ratelimit KIB
+      The machine's half of a pull, run as root by the management server over
+      ssh. borg reaches the server's `borg serve` through the unix socket the
+      server forwarded to us with `ssh -R`; the image holds no credentials.
+  icpc-backup settings
+      Save the addresses the team wants a copy of its files emailed to (JSON on
+      stdin), from the backup app via sudo.
+  icpc-backup request
+      Ask the management server for a backup now, from the backup app via sudo.
+
+borg runs as root over the contestant's home. That's safe against a contestant
+swapping a directory for a symlink to somewhere they can't read: borg opens
+everything it recurses into relative to its parent's fd with O_NOFOLLOW. So it
+must only ever be given whole trees to walk, never lists of paths.
+"""
+import argparse
+import json
+import os
+import re
+import ssl
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, "/icpc/scripts")
+import icpcconfig
+
+HOME = Path("/home/contestant")
+PRINTOUTS = Path("/var/lib/icpc-printer")
+RESET_MARKER = Path("/icpc/team-reset-complete")
+# Kept across reboots, and wiped by a team reset
+SETTINGS = Path("/var/lib/icpc-backup/settings.json")
+# Everything else lives in tmpfs, so a backup never writes to the (often slow) USB drive
+RUN = Path("/run/icpc-backup")
+STATUS = RUN / "status.json"
+LAST_REQUEST = RUN / "last-request"
+BORG_BASE = RUN / "borg"
+
+# Files bigger than this are left out (generated test data, binaries, ...)
+MAX_FILE_SIZE = 1024 * 1024
+# Above these the backup still runs, but is flagged for an admin to look at
+WARN_FILES = 20000
+WARN_BYTES = 100 * 1024 * 1024
+# Build output and caches, by directory name
+EXCLUDED_DIRS = ["__pycache__", "node_modules", "target", "cmake-build-*"]
+EXCLUDED_FILES = ["*.o", "*.class", "*.pyc"]
+# How many skipped files to report; the count is always complete
+SKIPPED_LIST_MAX = 200
+
+MAX_EMAILS = 3
+SETTINGS_MAX_INPUT = 4096
+EMAIL_RE = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+")
+REQUEST_INTERVAL = 10
+REQUEST_URL = "https://contestmanager.icpcnet.internal/backup/request"
+
+# The server passes these; anything else is refused before it gets near a shell
+REPO_RE = re.compile(r"/[A-Za-z0-9._/-]+")
+SOCKET_RE = re.compile(r"/home/icpcadmin/\.icpc-backup-[A-Za-z0-9]{8,64}\.sock")
+TS_RE = re.compile(r"\d{8}T\d{6}Z")
+
+EXIT_DISABLED = 3
+
+
+def enabled(config):
+    return bool((config.get("backup") or {}).get("enabled"))
+
+
+def reset_ts():
+    try:
+        return int(RESET_MARKER.stat().st_mtime)
+    except FileNotFoundError:
+        return 0
+
+
+def write_json(path, data, mode=0o644):
+    """Atomically, so the backup app never reads half a file"""
+    path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def read_json(path):
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def fm_escape(path):
+    """A borg fm: pattern matching exactly this path. Whitespace and control
+    characters become ?, as borg's pattern files are line based and trimmed"""
+    out = []
+    for c in path:
+        if c in "[]*?":
+            out.append(f"[{c}]")
+        elif c == "\\" or not c.isprintable() or c.isspace():
+            out.append("?")
+        else:
+            out.append(c)
+    return "".join(out)
+
+
+def excluded_dir(name):
+    return name.startswith(".") or any(Path(name).match(p) for p in EXCLUDED_DIRS)
+
+
+def excluded_file(name):
+    return name.startswith(".") or any(Path(name).match(p) for p in EXCLUDED_FILES)
+
+
+def survey_home():
+    """What borg will pick up from the home directory, and the big files to
+    leave out. Only decides what to exclude: a file swapped in after this just
+    changes which of the team's own files get in"""
+    files = 0
+    size = 0
+    skipped = []
+    dev = HOME.stat().st_dev
+    def walked(root, d):
+        path = os.path.join(root, d)
+        try:
+            return os.lstat(path).st_dev == dev and not os.path.lexists(os.path.join(path, "CACHEDIR.TAG"))
+        except FileNotFoundError:
+            return False
+
+    for root, dirs, names in os.walk(HOME):
+        dirs[:] = [d for d in dirs if not excluded_dir(d) and walked(root, d)]
+        for name in names:
+            if excluded_file(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                st = os.lstat(path)
+            except FileNotFoundError:
+                continue
+            if not os.path.isfile(path) or os.path.islink(path):
+                continue
+            if st.st_size > MAX_FILE_SIZE:
+                skipped.append((path, st.st_size))
+                continue
+            files += 1
+            size += st.st_size
+    return files, size, skipped
+
+
+def old_printouts(since):
+    """Printouts from before the last team reset, and icpc-printer's copy of
+    each job as submitted (we keep the stamped one the team got)"""
+    old = []
+    for entry in os.scandir(PRINTOUTS):
+        if entry.name.endswith("-original.pdf") or entry.stat(follow_symlinks=False).st_mtime <= since:
+            old.append(entry.path)
+    return old
+
+
+def patterns(skipped, printouts_excluded):
+    lines = [f"- sh:{HOME.relative_to('/')}/**/.*"]
+    lines += [f"- sh:{HOME.relative_to('/')}/**/{d}" for d in EXCLUDED_DIRS]
+    lines += [f"- sh:{HOME.relative_to('/')}/**/{f}" for f in EXCLUDED_FILES]
+    lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p, _ in skipped]
+    lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p in printouts_excluded]
+    return "\n".join(lines) + "\n"
+
+
+def cmd_run(args):
+    for value, regex in [(args.repo, REPO_RE), (args.socket, SOCKET_RE), (args.archive_ts, TS_RE)]:
+        if not regex.fullmatch(value):
+            raise SystemExit(f"refusing {value!r}")
+    config = icpcconfig.load()
+    if not enabled(config):
+        print(json.dumps({"version": 1, "disabled": True}))
+        return EXIT_DISABLED
+
+    RUN.mkdir(mode=0o755, exist_ok=True)
+    BORG_BASE.mkdir(mode=0o700, exist_ok=True)
+    status = read_json(STATUS) or {}
+    status["last_attempt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    write_json(STATUS, status)
+
+    since = reset_ts()
+    files, size, skipped = survey_home()
+    roots = [str(HOME)]
+    printouts_excluded = []
+    if PRINTOUTS.is_dir():
+        roots.append(str(PRINTOUTS))
+        printouts_excluded = old_printouts(since)
+
+    archive = f"r{since}-{args.archive_ts}"
+    with tempfile.NamedTemporaryFile("w", dir=RUN, prefix="patterns.") as pf:
+        pf.write(patterns(skipped, printouts_excluded))
+        pf.flush()
+        env = dict(os.environ,
+                   BORG_BASE_DIR=str(BORG_BASE),
+                   BORG_RSH=f"sh -c 'exec socat STDIO UNIX-CONNECT:{args.socket}'",
+                   BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK="yes",
+                   BORG_RELOCATED_REPO_ACCESS_IS_OK="yes")
+        try:
+            p = subprocess.run(["nice", "-n", "19", "ionice", "-c", "3",
+                                "borg", "create", "--json",
+                                "--upload-ratelimit", str(args.ratelimit),
+                                "--compression", "zstd,3",
+                                "--one-file-system", "--exclude-caches",
+                                "--patterns-from", pf.name,
+                                f"ssh://icpc-backup{args.repo}::{archive}", *roots],
+                               env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        finally:
+            # sshd leaves the forwarded socket behind
+            Path(args.socket).unlink(missing_ok=True)
+
+    # 1 is a warning, e.g. a file that vanished while it was being read
+    ok = p.returncode in (0, 1)
+    stats = {}
+    if ok:
+        try:
+            stats = json.loads(p.stdout).get("archive", {}).get("stats", {})
+        except ValueError:
+            pass
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    skipped_list = [{"path": str(Path(p).relative_to(HOME)), "size": s} for p, s in skipped[:SKIPPED_LIST_MAX]]
+    over_budget = files > WARN_FILES or size > WARN_BYTES
+    status.update({
+        "skipped": skipped_list,
+        "skipped_count": len(skipped),
+        "over_budget": over_budget,
+    })
+    if ok:
+        status.update({"last_success": now, "last_error": None})
+    else:
+        status["last_error"] = (p.stderr.strip().splitlines() or [f"borg exited {p.returncode}"])[-1]
+    write_json(STATUS, status)
+
+    team = config.get("team") or {}
+    print(json.dumps({
+        "version": 1,
+        "ok": ok,
+        "archive": archive,
+        "reset_ts": since,
+        "contest": config.get("contest"),
+        "site": config.get("site"),
+        "team": {k: team.get(k) for k in ("id", "name", "affiliation")},
+        # Only ever sent here, never put in an archive: the server must be
+        # able to forget the addresses, and archives are append-only
+        "settings": read_json(SETTINGS),
+        "files": files,
+        "bytes": size,
+        "over_budget": over_budget,
+        "skipped": skipped_list,
+        "skipped_count": len(skipped),
+        "stats": stats,
+        "borg_rc": p.returncode,
+        "borg_stderr": p.stderr[-2000:],
+    }))
+    return 0 if ok else 1
+
+
+def invoker():
+    """Who ran us through sudo; root when an admin runs us directly"""
+    return os.environ.get("SUDO_USER", "root") if os.geteuid() == 0 else None
+
+
+def cmd_settings(args):
+    if invoker() not in ("contestant", "root"):
+        raise SystemExit("must be run with sudo")
+    if not enabled(icpcconfig.load()):
+        raise SystemExit("backups aren't enabled on this machine")
+    raw = sys.stdin.read(SETTINGS_MAX_INPUT + 1)
+    if len(raw) > SETTINGS_MAX_INPUT:
+        raise SystemExit("settings too large")
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        raise SystemExit("settings aren't JSON")
+    if not isinstance(data, dict):
+        raise SystemExit("settings must be an object")
+    emails = data.get("emails", [])
+    if not isinstance(emails, list) or len(emails) > MAX_EMAILS:
+        raise SystemExit(f"at most {MAX_EMAILS} email addresses")
+    cleaned = []
+    for e in emails:
+        if not isinstance(e, str) or not EMAIL_RE.fullmatch(e.strip()):
+            raise SystemExit(f"not an email address: {e!r}")
+        if e.strip().lower() not in [c.lower() for c in cleaned]:
+            cleaned.append(e.strip())
+    notice_version = data.get("notice_version")
+    if not isinstance(notice_version, int):
+        raise SystemExit("notice_version must be a number")
+
+    if not cleaned:
+        # Withdrawing consent: forget the addresses entirely
+        SETTINGS.unlink(missing_ok=True)
+        print("cleared")
+        return 0
+    if data.get("consent") is not True:
+        raise SystemExit("addresses can only be saved with consent")
+
+    config = icpcconfig.load()
+    team = config.get("team") or {}
+    write_json(SETTINGS, {
+        "version": 1,
+        "emails": cleaned,
+        "consent": True,
+        "notice_version": notice_version,
+        "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "contest": config.get("contest"),
+        "site": config.get("site"),
+        "team": {k: team.get(k) for k in ("id", "name", "affiliation")},
+    })
+    print("saved")
+    return 0
+
+
+def cmd_request(args):
+    if invoker() not in ("contestant", "root"):
+        raise SystemExit("must be run with sudo")
+    if not enabled(icpcconfig.load()):
+        raise SystemExit("backups aren't enabled on this machine")
+    RUN.mkdir(mode=0o755, exist_ok=True)
+    try:
+        if time.time() - LAST_REQUEST.stat().st_mtime < REQUEST_INTERVAL:
+            print("already requested")
+            return 0
+    except FileNotFoundError:
+        pass
+    LAST_REQUEST.touch()
+
+    # Over the VPN, where the server's certificate (for its public name) can't match
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        with urllib.request.urlopen(urllib.request.Request(REQUEST_URL, data=b"", method="POST"),
+                                    timeout=10, context=ctx) as r:
+            print(r.read(200).decode(errors="replace").strip())
+    except Exception as e:
+        print(f"couldn't reach the management server: {e}")
+        return 1
+    status = read_json(STATUS) or {}
+    status["requested_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    write_json(STATUS, status)
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    run = sub.add_parser("run")
+    run.add_argument("--repo", required=True)
+    run.add_argument("--socket", required=True)
+    run.add_argument("--archive-ts", required=True)
+    run.add_argument("--ratelimit", type=int, required=True, help="KiB/s, 0 for no limit")
+    sub.add_parser("settings")
+    sub.add_parser("request")
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        raise SystemExit("must be run as root")
+    return {"run": cmd_run, "settings": cmd_settings, "request": cmd_request}[args.command](args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

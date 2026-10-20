@@ -1,0 +1,18 @@
+---
+# The machine's side of backups to the management server (management/README.md):
+# icpc-backup, which the server runs over ssh and the backup app runs through
+# sudo. /icpc/scripts/icpc-backup itself comes with the other scripts.
+- name: Install borg, and socat for borg to reach the server's forwarded socket
+  ansible.builtin.apt:
+    state: present
+    pkg:
+      - borgbackup
+      - socat
+
+- name: Let the contestant save backup settings and ask for a backup
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/icpc-backup
+    content: |
+      contestant ALL=(root) NOPASSWD: /icpc/scripts/icpc-backup settings, /icpc/scripts/icpc-backup request
+    mode: "0440"
+    validate: visudo -cf %s
