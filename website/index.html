@@ -23,7 +23,7 @@
       <li>Download one of the compressed image files below</li>
       <li>Find your flash drive with <code>lsblk</code> (e.g. <code>/dev/sdx</code>), and unmount any of its partitions that were mounted automatically</li>
       <li>Decompress the image straight onto the drive:
-        <pre class="mt-2"><code>gunzip -c ??.img.gz | sudo dd of=/dev/sdx bs=4M iflag=fullblock oflag=direct conv=fsync status=progress</code></pre>
+        <pre class="mt-2 text-break" style="white-space: pre-wrap"><code>gunzip -c ??.img.gz | sudo dd of=/dev/sdx bs=4M iflag=fullblock oflag=direct conv=fsync status=progress</code></pre>
         <ul>
           <li>Make sure to replace /dev/sdx with your actual flash drive (the whole drive, not a partition like /dev/sdx1)</li>
         </ul>
