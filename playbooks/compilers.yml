@@ -55,6 +55,12 @@
         regexp: 'hideIntro:.*'
         replace: 'hideIntro: true,'
 
+    - name: Update production_host in assets/javascripts/app/config.js.erb
+      ansible.builtin.replace:
+        path: /tmp/devdocs-build/assets/javascripts/app/config.js.erb
+        regexp: "production_host: '.*',"
+        replace: "production_host: 'devdocs',"
+
     - name: Update dockerfile to only fetch things we care about
       ansible.builtin.replace:
         path: /tmp/devdocs-build/Dockerfile-alpine
