@@ -186,14 +186,25 @@
     state: present
     pkg: auditd
 
-- name: Keep up to 500MB of audit logs
+- name: Keep the audit log in RAM, not on the USB flash drive
+  # auditd records every contestant execve continuously - a steady write
+  # stream, and the log is root-owned so it would otherwise survive the team
+  # reset. It isn't shipped off-box and is only read live, so volatile is fine.
+  ansible.posix.mount:
+    path: /var/log/audit
+    src: tmpfs
+    fstype: tmpfs
+    opts: size=256m,mode=0750
+    state: mounted
+
+- name: Bound the audit logs to what fits in the tmpfs
   ansible.builtin.lineinfile:
     path: /etc/audit/auditd.conf
     regexp: '^{{ item.key }} ='
     line: '{{ item.key }} = {{ item.value }}'
   loop:
-    - { key: max_log_file, value: 50 }
-    - { key: num_logs, value: 10 }
+    - { key: max_log_file, value: 20 }   # MB per file
+    - { key: num_logs, value: 10 }       # 20 x 10 = 200MB, under the 256MB tmpfs
   register: auditd_conf
 
 - name: Audit every program the contestant runs
