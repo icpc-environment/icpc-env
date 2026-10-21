@@ -33,10 +33,11 @@ config_signers:
 # expired) after its last client is gone
 removed_fleet_grace: 24h
 
-# The server is also the bucket images' config_url points at: contestforge's
-# published files (contests.json, <contest>/tree.json, <site>/config.json,
-# fleets.json and their .sig files) are served from /srv/configs at
-# https://<server>/configs/. These keys may replace them, as user "configs",
+# The server also serves contestforge's published files (contests.json,
+# <contest>/tree.json, <site>/config.json, fleets.json and their .sig files)
+# from /srv/configs at https://<server>/configs/, for wg-fleet's fleets_url and
+# for images whose config_url points here (the default is
+# configs.cloudcontest.org). These keys may replace them, as user "configs",
 # which can only rsync into that directory:
 #
 #   rsync -a --delete --delay-updates --exclude=.contestforge-cache \

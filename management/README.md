@@ -71,8 +71,9 @@ from the inventory.
 
 ### Published files
 
-The server is also where images' `config_url` and wg-fleet's `fleets_url`
-point: `https://<server>/configs/` serves `/srv/configs`. contestforge
+The server is also where wg-fleet's `fleets_url` points, and images'
+`config_url` can (by default it's `https://configs.cloudcontest.org/v2`):
+`https://<server>/configs/` serves `/srv/configs`. contestforge
 publishes there as user `configs`, whose keys (`configs_publisher_keys`) can
 only rsync into that directory:
 
