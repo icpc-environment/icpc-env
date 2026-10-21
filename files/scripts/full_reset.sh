@@ -12,12 +12,7 @@ do
 done
 lpadmin -x ContestPrinter
 
-# Empty icpc-printer's archive of printed jobs
-if [ -d /var/lib/icpc-printer ]; then
-  find /var/lib/icpc-printer -mindepth 1 -delete
-fi
-
-# clear the user
+# clear the user (deleteUser.sh also empties icpc-printer's archive)
 /icpc/scripts/deleteUser.sh
 
 # make sure the firewall is on

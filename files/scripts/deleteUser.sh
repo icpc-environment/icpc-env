@@ -26,6 +26,12 @@ find / -user contestant -delete
 # The next team mustn't be emailed this one's files, or see when it last backed up
 rm -rf /var/lib/icpc-backup /run/icpc-backup
 
+# Nor read back this one's printouts (they're root-owned, so the find above
+# leaves them)
+if [ -d /var/lib/icpc-printer ]; then
+    find /var/lib/icpc-printer -mindepth 1 -delete
+fi
+
 # Nor which windows this one had open
 systemctl stop icpc-focus-log
 rm -rf /run/icpc-focus
