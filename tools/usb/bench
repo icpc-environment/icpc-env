@@ -23,7 +23,7 @@ EOF
 READ_ONLY=0
 WRITE_GIB=8
 YES=0
-LOG="$(dirname "$(realpath "$0")")/../../tmp/usb-bench.tsv"
+LOG="$(realpath -m "$(dirname "$(realpath "$0")")/../../tmp/usb-bench.tsv")"
 MAX_GIB=128
 ANY_TRANSPORT=0
 ARGS=()
@@ -71,14 +71,49 @@ if [[ $READ_ONLY -eq 0 && $YES -eq 0 ]]; then
 fi
 unmount_drive
 
+# Only what the kernel says after this marker is about this run
+MARK="tools/usb/bench: testing $DEVICE (pid $$)"
+echo "$MARK" > /dev/kmsg
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# One request at a time: usb-storage drives don't queue more than that anyway
+SEQ_READ=- RAND_READ=- SEQ_WRITE=- WRITE_START=- WRITE_END=- RAND_WRITE=-
+
+report() {
+  cat <<EOF
+
+$DEVICE: ${MODEL:-unknown model} ...${SERIAL: -8} on port $PORT ($LINK)
+  sequential read    $SEQ_READ MB/s
+  sequential write   $SEQ_WRITE MB/s (first 10s $WRITE_START MB/s, last third $WRITE_END MB/s)
+  random 4K read     $RAND_READ IOPS
+  random 4K write    $RAND_WRITE IOPS
+EOF
+
+  mkdir -p "$(dirname "$LOG")"
+  if [[ ! -s "$LOG" ]]; then
+    printf 'date\tmodel\tserial\tport\tlink\tseq_read_MBps\tseq_write_MBps\twrite_first10s_MBps\twrite_last_third_MBps\trand_read_iops\trand_write_iops\n' > "$LOG"
+  fi
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%F %T')" "${MODEL:-unknown}" "$SERIAL" \
+    "$PORT" "$LINK" "$SEQ_READ" "$SEQ_WRITE" "$WRITE_START" "$WRITE_END" "$RAND_READ" "$RAND_WRITE" >> "$LOG"
+  [[ -z "${SUDO_UID:-}" ]] || chown "$SUDO_UID:$SUDO_GID" "$LOG"
+  echo "Added to $LOG"
+}
+
+# One request at a time: usb-storage drives don't queue more than that anyway.
+# A test that fails is recorded as "error" in its column, and ends the run
 run() {
-  local name=$1; shift
-  fio --name="$name" --filename="$DEVICE" --direct=1 --ioengine=libaio --iodepth=1 \
-    --output-format=json --output="$WORK/$name.json" "$@" >/dev/null
+  local name=$1 column=$2; shift 2
+  if ! fio --name="$name" --filename="$DEVICE" --direct=1 --ioengine=libaio --iodepth=1 \
+      --output-format=json --output="$WORK/$name.json" "$@" >/dev/null 2>"$WORK/$name.err"; then
+    grep -m1 'error' "$WORK/$name.err" >&2 || cat "$WORK/$name.err" >&2
+    printf -v "$column" error
+    report
+    if dmesg | awk -v m="$MARK" 'seen; index($0, m) { seen = 1 }' \
+        | grep -q "medium error, dev $(basename "$DEVICE")"; then
+      fail "the drive couldn't read back data it holds (dmesg: Medium Error), its flash is failing; don't use it"
+    fi
+    fail "$name failed, see dmesg for what the drive reported"
+  fi
 }
 
 result() {
@@ -90,16 +125,15 @@ EOF
 }
 
 echo "Sequential read (4 GiB, 1 MiB blocks)"
-run seqread --rw=read --bs=1M --size=4G --runtime=120 --readonly
+run seqread SEQ_READ --rw=read --bs=1M --size=4G --runtime=120 --readonly
 SEQ_READ=$(result seqread read mbps)
 echo "Random read (4 KiB blocks, 30s)"
-run randread --rw=randread --bs=4k --size=4G --runtime=30 --time_based --readonly
+run randread RAND_READ --rw=randread --bs=4k --size=4G --runtime=30 --time_based --readonly
 RAND_READ=$(result randread read iops)
 
-SEQ_WRITE=- WRITE_START=- WRITE_END=- RAND_WRITE=-
 if [[ $READ_ONLY -eq 0 ]]; then
   echo "Sequential write ($WRITE_GIB GiB, 1 MiB blocks, at most 15 minutes)"
-  run seqwrite --rw=write --bs=1M --size="${WRITE_GIB}G" --runtime=900 \
+  run seqwrite SEQ_WRITE --rw=write --bs=1M --size="${WRITE_GIB}G" --runtime=900 \
     --write_bw_log="$WORK/seqwrite" --log_avg_msec=1000
   SEQ_WRITE=$(result seqwrite write mbps)
   # From the per-second log: the first 10s, before any cache fills, and the
@@ -112,27 +146,11 @@ print(mb(kib[:10]), mb(kib[len(kib) * 2 // 3:]))
 EOF
 )
   echo "Random write (4 KiB blocks, 30s)"
-  run randwrite --rw=randwrite --bs=4k --size=4G --runtime=30 --time_based
+  run randwrite RAND_WRITE --rw=randwrite --bs=4k --size=4G --runtime=30 --time_based
   RAND_WRITE=$(result randwrite write iops)
 fi
 
-cat <<EOF
-
-$DEVICE: ${MODEL:-unknown model} ...${SERIAL: -8} on port $PORT ($LINK)
-  sequential read    $SEQ_READ MB/s
-  sequential write   $SEQ_WRITE MB/s (first 10s $WRITE_START MB/s, last third $WRITE_END MB/s)
-  random 4K read     $RAND_READ IOPS
-  random 4K write    $RAND_WRITE IOPS
-EOF
-
-mkdir -p "$(dirname "$LOG")"
-if [[ ! -s "$LOG" ]]; then
-  printf 'date\tmodel\tserial\tport\tlink\tseq_read_MBps\tseq_write_MBps\twrite_first10s_MBps\twrite_last_third_MBps\trand_read_iops\trand_write_iops\n' > "$LOG"
-fi
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%F %T')" "${MODEL:-unknown}" "$SERIAL" \
-  "$PORT" "$LINK" "$SEQ_READ" "$SEQ_WRITE" "$WRITE_START" "$WRITE_END" "$RAND_READ" "$RAND_WRITE" >> "$LOG"
-[[ -z "${SUDO_UID:-}" ]] || chown "$SUDO_UID:$SUDO_GID" "$LOG"
-echo "Added to $LOG"
+report
 if [[ $READ_ONLY -eq 0 ]]; then
   echo "$DEVICE now holds test data; write the image to it again before using it"
 fi
