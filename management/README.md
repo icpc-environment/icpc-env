@@ -199,9 +199,27 @@ when it boots, and again when `/icpc/trigger-ansible` is created. The repo
 starts out with a playbook that just records the applied revision in
 `/icpc/update-version`.
 
+Each fleet's user has a clone in `~/ansible-pull` that pushes without a
+password:
+
+```
+ssh bigsouth2026-southeast@<server>
+cd ~/ansible-pull
+git pull            # someone else may have pushed
+# edit local.yml, commit, push
+```
+
+From anywhere else, push over https with the admin password from
+`secret.yml`:
+
 ```
 git clone https://admin@<server>/git/bigsouth2026-southeast.git
-# edit local.yml, commit, push (password from secret.yml)
+```
+
+Either way, machines pick it up at their next boot, or when root on the server
+triggers them:
+
+```
 ansible bigsouth2026-southeast -b -m file -a 'path=/icpc/trigger-ansible state=touch'
 ```
 

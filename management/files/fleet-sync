@@ -9,7 +9,8 @@ and when its fleets change). For each fleet it creates:
 - a login user named after the fleet, in group "fleets": the bastion account
   its admins jump through. Certificates from the file's user_ca_keys log in
   with one of the fleet's admin_principals, or node:*.
-- the fleet's last-minute git repo, /srv/git/<fleet>.git
+- the fleet's last-minute git repo, /srv/git/<fleet>.git, and a clone of it
+  in the user's ~/ansible-pull that fetches and pushes through fleet-git
 - wstunnel@<port>, for machines whose network blocks WireGuard's UDP
 
 and writes nftables rules that let each fleet user reach only its fleet's
@@ -41,6 +42,9 @@ PRINCIPAL_RE = r"[^\s,#][^\s,]*"
 PORTS = range(51820, 51921)
 
 GIT = Path("/srv/git")
+CLONE = "ansible-pull"
+# The repos belong to www-data, which git won't read for anyone else
+FLEET_GIT = "sudo -n -u www-data /usr/local/sbin/fleet-git"
 USER_CAS = Path("/etc/ssh/fleet_user_ca.pub")
 PRINCIPALS = Path("/etc/ssh/fleet_principals")
 NFT = Path("/etc/nftables.d/fleet-users.nft")
@@ -174,6 +178,26 @@ def ensure_repo(name, server):
     log(f"seeded {repo} with a starter local.yml")
 
 
+def ensure_clone(name, server):
+    """A checkout of the fleet's repo in its user's home, which the user can push from.
+    Once it's there it's the admins', and left alone"""
+    home = Path(pwd.getpwnam(name).pw_dir)
+    work = home / CLONE
+    if work.exists():
+        return
+    as_user = ["runuser", "-u", name, "--"]
+    # --no-local, or clone reads the repo's files itself instead of through fleet-git
+    clone = ["git", "clone", "-q", "--no-local", "-u", f"{FLEET_GIT} upload-pack", str(GIT / f"{name}.git"), str(work)]
+    if run(as_user + clone, cwd=home).returncode != 0:
+        return
+    for key, value in [("remote.origin.uploadpack", f"{FLEET_GIT} upload-pack"),
+                       ("remote.origin.receivepack", f"{FLEET_GIT} receive-pack"),
+                       ("user.name", f"{name} admin"),
+                       ("user.email", f"{name}@{server}")]:
+        run(as_user + ["git", "-C", str(work), "config", key, value], cwd=home)
+    log(f"cloned {name}'s repo into {work}")
+
+
 def sync_wstunnel(fleets):
     wanted = {f"wstunnel@{f['port']}.service" for f in fleets.values()}
     out = subprocess.run(["systemctl", "list-units", "--all", "--plain", "--no-legend", "wstunnel@*.service"],
@@ -266,6 +290,7 @@ def main(args):
     ensure_users(fleets)
     for name in fleets:
         ensure_repo(name, args[0])
+        ensure_clone(name, args[0])
     sync_wstunnel(fleets)
     sync_principals(fleets, user_cas)
     sync_firewall(fleets)

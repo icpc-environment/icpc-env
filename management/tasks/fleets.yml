@@ -23,6 +23,19 @@
     dest: /usr/local/sbin/fleet-sync
     mode: '0755'
 
+- name: Install fleet-git, which fleet users' clones push and fetch through
+  ansible.builtin.copy:
+    src: files/fleet-git
+    dest: /usr/local/sbin/fleet-git
+    mode: '0755'
+- name: Let fleet users run fleet-git as www-data, the owner of the repos
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/fleet-git
+    content: |
+      %fleets ALL=(www-data) NOPASSWD: /usr/local/sbin/fleet-git
+    mode: '0440'
+    validate: visudo -cf %s
+
 - name: Run fleet-sync whenever wg-fleet rewrites /run/wg_fleets.json
   ansible.builtin.copy:
     dest: /etc/systemd/system/{{ item.name }}

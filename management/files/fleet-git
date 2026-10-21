@@ -1,0 +1,19 @@
+#!/bin/sh
+# Fetches from or pushes to the calling fleet user's last-minute repo as
+# www-data, which owns it. The clones fleet-sync makes in fleet users' homes
+# run it through sudo as their uploadpack and receivepack. The path git passes
+# after the service is ignored: a fleet's user only ever gets its own repo.
+set -eu
+
+case "${1-}" in
+upload-pack|receive-pack) ;;
+*) echo "usage: sudo -u www-data fleet-git upload-pack|receive-pack" >&2; exit 2 ;;
+esac
+repo="/srv/git/${SUDO_USER:?run this through sudo}.git"
+if [ ! -d "$repo" ]; then
+    echo "fleet-git: there's no repo $repo" >&2
+    exit 1
+fi
+# git needs a working directory it can read, and www-data can't read the caller's home
+cd /
+exec git "$1" "$repo"
