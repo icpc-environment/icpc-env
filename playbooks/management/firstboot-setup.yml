@@ -65,7 +65,9 @@
       [Unit]
       Description=Initial configuration of the image
       Before=lightdm.service
-      After=cups.service
+      # icpc-host-identity renames the machine at first boot, which would
+      # leave startx's X authority for the old name
+      After=cups.service icpc-host-identity.service
 
       [Service]
       Type=oneshot
