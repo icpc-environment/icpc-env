@@ -74,6 +74,10 @@ SITENAME="${SITENAME:-$NOSITE}"
 echo $SITENAME
 
 echo
+echo "${BLUE}Site Settings${RESET}"
+/icpc/scripts/icpc-config summary | sed 's/^/    /'
+
+echo
 echo "${BLUE}Printing Configuration${RESET}"
 print_check "Making sure cups is running"
 check_service 'cups'

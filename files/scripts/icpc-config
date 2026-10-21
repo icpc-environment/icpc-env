@@ -6,6 +6,7 @@ usage: icpc-config get <key> [default]    print a value, e.g. `get team.name`
        icpc-config set-json <key> <json>  set any JSON value
        icpc-config unset <key>...         remove values
        icpc-config dump                   print the whole file
+       icpc-config summary                what the settings do, in words
 
 Keys are dotted paths into the JSON. `get` prints strings as they are, null as
 an empty line and anything else as JSON, and fails if the key is missing and
@@ -71,6 +72,9 @@ def main(args):
         icpcconfig.save(config)
     elif command == "dump" and not args:
         print(json.dumps(config, indent=2, ensure_ascii=False))
+    elif command == "summary" and not args:
+        for label, text in icpcconfig.summary(config):
+            print(f"{label + ':':<18}{text}")
     else:
         usage()
 
