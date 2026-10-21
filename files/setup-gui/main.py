@@ -327,6 +327,20 @@ REVIEW_SECTIONS = [
 ]
 
 
+# Summary values that are probably a mistake, shown in red
+NEEDS_ATTENTION = {
+  "Printers": {"none"},
+  "Management": {"none"},
+  "Submit client": {"none"},
+  "Timezone": {"not set"},
+  "Allowed sites": {"none"},
+  "Language scripts": {"none"},
+  "Admin ssh": {"0 keys, certificate login off"},
+  # Only where the image can back up at all
+  "Backups": {"off"} if HAS_BACKUPS else set(),
+}
+
+
 def review_values(values, window):
   """Everything Apply will set up, for the summary page, by label"""
   printers = [str(Printer(p)) for p in values['configured_printers']]
@@ -347,7 +361,7 @@ def mainwindow():
   sg.theme('Default1') # this is the default anyway
 
   offline_page = [
-    [sg.Text('No Internet Connection', font=('Helvetica', 14))],
+    [sg.Text('No Internet Connection', font=('Helvetica', 16))],
     [sg.Text(f"""This machine can't reach {config_url}, where it gets its contest's settings.
 
 To connect it:
@@ -415,14 +429,13 @@ To connect it:
                      sg.Text("", key=f"review:{label}", size=(85, None), font=('Helvetica', 10), pad=(5, 2))]
                     for label in labels]
   review_page = [
-    [sg.Text('Check this is right, then press Apply', font=('Helvetica', 14))],
+    [sg.Text('Confirm Settings', font=('Helvetica', 16))],
     [sg.Column(review_rows, pad=(0, 0))],
     [sg.Button('Back', key='back'), sg.Push(), sg.Button('Apply Configuration and Exit', key='apply')],
   ]
 
   pages = ['offline_page', 'config_page', 'review_page']
   layout = [
-    [sg.Text('ICPC Contest Setup', font=('Helvetica', 16), justification='center')],
     [sg.pin(sg.Column(offline_page, key='offline_page', visible=False)),
      sg.pin(sg.Column(config_page, key='config_page', visible=False)),
      sg.pin(sg.Column(review_page, key='review_page', visible=False, expand_x=True), expand_x=True)],
@@ -596,7 +609,9 @@ To connect it:
 
       for label, text in review_values(values, window).items():
         if f"review:{label}" in window.AllKeysDict:
-          window[f"review:{label}"].update(text)
+          attention = text in NEEDS_ATTENTION.get(label, set())
+          window[f"review:{label}"].update(text, text_color='#b00020' if attention else 'black',
+                                           font=('Helvetica', 10, 'bold' if attention else 'normal'))
       show('review_page')
     if event == 'apply':
       window.close()
