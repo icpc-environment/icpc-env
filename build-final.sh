@@ -16,7 +16,7 @@ fi
 
 BASEIMG="${BASEIMG:-base-amd64.img}"
 
-# Logs in as icpcadmin once imageadmin is gone; makeDist.sh removes it from the image
+# Logs in as icpcadmin once imageadmin is gone; finalize-image removes it from the image
 SSH_ICPCADMIN_KEY=$(mktemp -d)/icpcadmin
 ssh-keygen -q -t ed25519 -N "" -C "build-final.sh $(date +%F)" -f $SSH_ICPCADMIN_KEY
 trap 'rm -rf "$(dirname $SSH_ICPCADMIN_KEY)"' EXIT
@@ -99,15 +99,15 @@ ALIVE=0
 waitforssh
 
 # Run the self test and pull the package/module inventory off the image before
-# makeDist.sh strips it down, so builds can be diffed against each other.
+# finalize-image strips it down, so builds can be diffed against each other.
 ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "/icpc/scripts/self_test"
 scp -i $SSH_ICPCADMIN_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -P $SSHPORT icpcadmin@localhost:/icpc/filesystem.manifest.amd64.txt output/
 scp -i $SSH_ICPCADMIN_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -P $SSHPORT icpcadmin@localhost:/icpc/pypy3.modules.txt output/
 
 echo "Preparing image for distribution"
 set -x
-# One session, since makeDist.sh deletes the host keys sshd answers with
-ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "'/icpc/scripts/makeDist.sh && shutdown --poweroff --no-wall +1'"
+# One session, since finalize-image deletes the host keys sshd answers with
+ssh -i $SSH_ICPCADMIN_KEY -o BatchMode=yes -o ConnectTimeout=1 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  icpcadmin@localhost -p$SSHPORT sudo bash -c "'/icpc/scripts/finalize-image && shutdown --poweroff --no-wall +1'"
 
 # Wait for qemu to exit, see https://unix.stackexchange.com/a/427133
 tail --pid=$(cat $PIDFILE) -f /dev/null

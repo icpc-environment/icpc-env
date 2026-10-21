@@ -249,7 +249,7 @@
     owner: icpcadmin
     group: icpcadmin
     mode: "0700"
-- name: Let the build log in as icpcadmin until makeDist.sh
+- name: Let the build log in as icpcadmin until finalize-image
   ansible.builtin.copy:
     dest: /home/icpcadmin/.ssh/authorized_keys2
     content: |

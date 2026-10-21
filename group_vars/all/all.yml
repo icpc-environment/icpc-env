@@ -3,7 +3,7 @@ icpc_timezone: 'America/New_York'
 icpcadmin_pass: icpcadmin
 
 # authorized_keys lines that let the build and dev tooling log in as icpcadmin.
-# They go in ~icpcadmin/.ssh/authorized_keys2, which makeDist.sh deletes, so
+# They go in ~icpcadmin/.ssh/authorized_keys2, which finalize-image deletes, so
 # they never reach a finished image. build-final.sh sets its own.
 build_ssh_keys: []
 
