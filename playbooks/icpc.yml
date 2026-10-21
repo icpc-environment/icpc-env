@@ -152,6 +152,7 @@
       - cups
       - cups-bsd
       - paps # UTF-8 clean replacement for enscript, used by files/scripts/pcpr
+      - highlight # syntax highlights for pcpr, as pango markup for paps
       - jc # for json output from various commands (used by firstLogin.sh)
       - python3-typing-extensions # needed for firstboot script
 

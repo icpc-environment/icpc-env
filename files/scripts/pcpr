@@ -5,42 +5,22 @@
 #usage: pcpr -P printer *.cpp
 #usage: pcpr --portrait -1 North.hs     [ For those with difficulty with the small print.]
 
-#This script prints contestant source with a header on every page, so a listing
-#picked up off the printer can be handed back to the right team:
-#
-#   1)  file name
-#   2)  page i of n
-#   3)  Contents of the files /icpc/SITE /icpc/TEAM
-#
-
-# This uses paps rather than enscript. enscript only speaks Latin-1, so source
-# (or a team name) containing any non-ASCII character prints as garbage; paps
-# renders through pango and is UTF-8 clean.
-#
-# paps has no equivalent of enscript's --pretty-print, so listings are no
-# longer syntax highlighted.
+#This script prints contestant source, syntax highlighted: highlight turns it
+#into pango markup (bold keywords, italic comments), which paps renders. Both
+#are UTF-8 clean, unlike enscript, which only speaks Latin-1. Who printed it is
+#added by the print server, not here.
 
 import os
 import subprocess
 import sys
 
-sitefile = "/icpc/SITE"
-teamfile = "/icpc/TEAM"
-
-
-def read_file(path):
-    try:
-        with open(path) as handle:
-            return handle.read().strip() or "[none]"
-    except OSError:
-        return "[none]"
-
-
-site = read_file(sitefile)
-team = read_file(teamfile)
+# highlight's font overrides paps' --font. --force passes files in languages it
+# doesn't know through as plain text
+HIGHLIGHT = ["/usr/bin/highlight", "--out-format=pango", "--style=print", "--font=Monospace",
+             "--font-size=8", "--replace-tabs=4", "--force"]
 
 # -MLetter: we assume US printers and generate letter size pages and not A4
-options = ["--paper=letter", "--columns=2", "--landscape", "--font=Monospace 8", "--header"]
+options = ["--paper=letter", "--columns=2", "--landscape"]
 printer = None
 output = None
 files = []
@@ -79,14 +59,16 @@ if os.path.exists("/usr/bin/icpc-printer") and output is None:
     sys.exit(0)
 
 for path in files:
-    # paps draws the title on every page, next to the page numbers
-    title = "%s; team=%s; site=%s" % (os.path.basename(path), team, site)
-    paps = ["/usr/bin/paps"] + options + ["--title=" + title, path]
+    # Invalid UTF-8 would make paps silently drop the line it's on
+    with open(path, "rb") as handle:
+        text = handle.read().decode("utf-8", errors="replace")
+    markup = subprocess.run(HIGHLIGHT + ["--syntax-by-name=" + os.path.basename(path)],
+                            input=text.encode(), stdout=subprocess.PIPE, check=True).stdout
+    paps = ["/usr/bin/paps", "--markup"] + options
 
     if output is not None:
         with open(output, "ab") as handle:
-            subprocess.run(paps, stdout=handle, check=True)
+            subprocess.run(paps, input=markup, stdout=handle, check=True)
     else:
-        # No shell here on purpose: team names routinely contain quotes
-        rendered = subprocess.run(paps, stdout=subprocess.PIPE, check=True)
+        rendered = subprocess.run(paps, input=markup, stdout=subprocess.PIPE, check=True)
         subprocess.run(lpr, input=rendered.stdout, check=True)
