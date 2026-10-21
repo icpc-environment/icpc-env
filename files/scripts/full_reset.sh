@@ -12,8 +12,8 @@ do
 done
 lpadmin -x ContestPrinter
 
-# clear the user (deleteUser.sh also empties icpc-printer's archive)
-/icpc/scripts/deleteUser.sh
+# clear the user (reset-contestant also empties icpc-printer's archive)
+/icpc/scripts/reset-contestant
 
 # make sure the firewall is on
 /icpc/scripts/firewall enable

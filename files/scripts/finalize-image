@@ -26,7 +26,7 @@ killall -9 -u contestant
 sleep 5
 
 # Reset the team(and any defaults)
-$UTILDIR/scripts/deleteUser.sh
+$UTILDIR/scripts/reset-contestant
 
 # Forget the team, site and printers (the files generated from them go back to
 # their defaults, the printers are deleted below)
