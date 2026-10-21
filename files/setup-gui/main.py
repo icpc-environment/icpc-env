@@ -306,7 +306,7 @@ def mainwindow():
           [sg.Text('Enter the name of the driver (everywhere should be supported on all modern printers)')],
           [sg.Text('Printer Driver'), sg.InputText(default_text="everywhere", key='printer_driver')],
           [sg.Button('Add Printer', key='add_printer')],
-          [sg.Text('Note: This button will add the printer to the list on the left, you need to select it in the list to actually install it', text_color='darkred')],
+          [sg.Text('Note: Only printers selected in the list on the left are installed. Added printers start out selected', text_color='darkred')],
         ])]
       ])
     ],
@@ -390,7 +390,7 @@ def mainwindow():
         window[data["papersize"]].update(True)
 
       printers = [Printer({k: str(p.get(k) or "") for k in ("group", "uri", "driver", "note")}) for p in data.get("printers", [])]
-      window['configured_printers'].update(values=printers)
+      window['configured_printers'].update(values=printers, set_to_index=list(range(len(printers))))
 
       teams = [Team({k: str(t.get(k) or "").strip() for k in ("id", "name", "affiliation", "extra")}) for t in data.get("teams", [])]
       window['team'].update(values=teams)
@@ -408,8 +408,9 @@ def mainwindow():
 
       # Add the printer to the list
       printers = window['configured_printers'].get_list_values()
+      selected = list(window['configured_printers'].get_indexes())
       printers.append(Printer({"group": "manual", "uri": values['printer_uri'], "driver": values["printer_driver"], "note": "Manually Added"}))
-      window['configured_printers'].update(values=printers)
+      window['configured_printers'].update(values=printers, set_to_index=selected + [len(printers) - 1])
 
     if event == 'team':
       if len(values['team']) == 0:
