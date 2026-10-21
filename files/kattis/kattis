@@ -1,17 +1,91 @@
 #!/usr/bin/python3
-"""The Kattis CLI, accepting the certificates squid makes for the allowed sites.
+"""The Kattis CLI, accepting the certificates squid makes for the allowed sites,
+and helping a team that doesn't have its ~/.kattisrc yet.
 
 squid (playbooks/security/squid.yml) intercepts their TLS with certificates it
 generates and signs, which have no Authority Key Identifier. urllib3 2.3+ on
 Python 3.13+ verifies strictly (VERIFY_X509_STRICT) and refuses those; this
 turns only that off, and everything else is verified as usual.
+
+The CLI has no login of its own: it needs the .kattisrc a team downloads from
+Kattis, with its username and token. Firefox saves that to ~/Downloads, and
+drops the leading dot, so a downloaded one is offered to be put in place.
 """
+import json
+import os
+import re
 import runpy
+import shutil
 import ssl
+import subprocess
 import sys
+from pathlib import Path
 
 import urllib3.connection
 import urllib3.util.ssl_
+
+KATTISRC = Path.home() / ".kattisrc"
+DOWNLOAD_DIRS = [Path.home() / "Downloads", Path.home()]
+# What Firefox calls it: kattisrc, kattisrc(1) for a second one, maybe with .txt
+DOWNLOAD_NAME = re.compile(r"\.?kattisrc(\(\d+\))?(\.txt)?")
+
+
+def kattis_url():
+    """The contest's Kattis, from the machine's submit settings"""
+    try:
+        submit = json.loads(Path("/icpc/config.json").read_text()).get("submit") or {}
+    except (OSError, ValueError):
+        return None
+    url = submit.get("base_url")
+    if submit.get("client") != "kattis" or not isinstance(url, str) or not url.startswith("https://"):
+        return None
+    return url.rstrip("/")
+
+
+def downloaded():
+    """kattisrc files Firefox saved, newest first"""
+    found = [f for d in DOWNLOAD_DIRS if d.is_dir() for f in d.iterdir()
+             if DOWNLOAD_NAME.fullmatch(f.name) and f.is_file() and not f.is_symlink() and f != KATTISRC]
+    return sorted(found, key=lambda f: f.stat().st_mtime, reverse=True)
+
+
+def ask(question):
+    if not sys.stdin.isatty():
+        return False
+    try:
+        return input(f"{question} [Y/n] ").strip().lower() in ("", "y", "yes")
+    except EOFError:
+        return False
+
+
+def ensure_kattisrc():
+    """Whether there's a ~/.kattisrc to log in with, now"""
+    if KATTISRC.exists():
+        return True
+    for f in downloaded():
+        text = f.read_text(errors="replace")
+        if "[user]" in text and "[kattis]" in text:
+            if ask(f"Use {f} as your Kattis login? It will be moved to {KATTISRC}."):
+                shutil.move(f, KATTISRC)
+                KATTISRC.chmod(0o600)
+                print(f"Saved {KATTISRC}\n")
+                return True
+            break
+
+    url = kattis_url()
+    page = f"{url}/download/kattisrc" if url else "the download/kattisrc page of your contest's Kattis site"
+    print(f"""To submit, you need your team's Kattis login file (.kattisrc).
+
+  1. Open {page} in Firefox,
+     and log in to Kattis if it asks.
+  2. Save the file it gives you. It goes in your Downloads folder.
+  3. Run this again: it finds the file and sets it up.
+""")
+    if url and os.environ.get("DISPLAY") and ask("Open that page in Firefox now?"):
+        subprocess.Popen(["firefox", page], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    return False
+
 
 _create_urllib3_context = urllib3.util.ssl_.create_urllib3_context
 
@@ -22,6 +96,8 @@ def create_urllib3_context(*args, **kwargs):
     return context
 
 
+if not {"-h", "--help"} & set(sys.argv[1:]) and not ensure_kattisrc():
+    sys.exit(1)
 urllib3.util.ssl_.create_urllib3_context = create_urllib3_context
 urllib3.connection.create_urllib3_context = create_urllib3_context
 sys.argv[0] = "kattis"
