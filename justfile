@@ -1,5 +1,6 @@
 mod vm 'dev/vm.just'
 mod mgmt 'management/mgmt.just'
+mod usb 'tools/usb/usb.just'
 
 test:
     ./runvm.sh

@@ -63,11 +63,31 @@ powers it off. Take a walk, this step takes some time(~30 minutes)
 ```bash
 ./build-final.sh
 ```
-1. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
+1. Copy the image to usb drives, see [Writing usb drives](#writing-usb-drives).
+To write a hard drive or a single drive by hand, a plain `dd` works too (as root):
 ```
 # WARNING: Make sure to replace /dev/sdx with your actual device
 sudo dd if=output/generic-2026-09-01_image-amd64.img of=/dev/sdx bs=1M status=progress oflag=direct
 ```
+
+## Writing usb drives
+`tools/usb` writes drives with partclone, which copies only the blocks each
+filesystem uses rather than the whole image, and checks each drive afterwards.
+It needs `partclone`, `e2fsprogs` and `dosfstools`. Every recipe uses the
+newest image in `output/` unless told otherwise.
+
+1. Split the image into the pieces that get written, in `output/<image>.img.d`
+```bash
+just usb prepare
+```
+1. Write a drive
+```bash
+just usb write /dev/sdx
+```
+
+It refuses drives that aren't on usb, are mounted somewhere other than
+`/media`, hold this machine's root filesystem, or are bigger than 128 GiB
+(`--max-size` to change).
 
 ## Customization of the Image
 One of our goals with this image is for it to be easily customized. To achieve this

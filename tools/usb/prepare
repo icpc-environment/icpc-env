@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Split a finished image into the pieces write-usb puts on a usb drive.
+
+partclone only stores the blocks each filesystem uses, so a drive gets the
+data in the image and not its free space. The pieces go in IMAGE.d/:
+
+  head.img        everything before the first partition (MBR boot code, GPT)
+  layout.sfdisk   the partition table, for sfdisk to recreate on the drive
+  pN.raw          partitions copied byte for byte (bios_grub, anything unknown)
+  pN.partclone    partitions partclone can clone
+  manifest.json   what write-usb needs to put it back together
+"""
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+# Partition type GUIDs whose contents are copied raw rather than with partclone
+OUTPUT = Path(__file__).resolve().parent.parent.parent / "output"
+
+RAW_TYPES = {
+    "21686148-6449-6E6F-744E-656564454649",  # bios_grub, grub's core.img with no filesystem
+}
+
+PARTCLONE = {
+    "ext4": "partclone.extfs",
+    "ext3": "partclone.extfs",
+    "ext2": "partclone.extfs",
+    "vfat": "partclone.fat",
+}
+
+
+def run(*cmd, **kwargs):
+    return subprocess.run(cmd, check=True, **kwargs)
+
+
+def output(*cmd):
+    return run(*cmd, capture_output=True, text=True).stdout
+
+
+def blkid_type(dev):
+    r = subprocess.run(["blkid", "-o", "value", "-s", "TYPE", dev], capture_output=True, text=True)
+    return r.stdout.strip() or None
+
+
+def read_version(dev):
+    """The image's /icpc/version, read without mounting the filesystem"""
+    r = subprocess.run(["debugfs", "-R", "cat /icpc/version", dev], capture_output=True)
+    if r.returncode != 0 or not r.stdout:
+        return None
+    return r.stdout
+
+
+def layout_script(image):
+    # The image's device name and last-lba don't apply to the drive; sfdisk
+    # works them out from the drive itself
+    lines = output("sfdisk", "--dump", str(image)).splitlines()
+    return "".join(
+        line + "\n" for line in lines if not line.startswith(("device:", "last-lba:"))
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("image", type=Path, nargs="?",
+                        help="raw disk image from build-final.sh (default: the newest in output/)")
+    parser.add_argument("--output", type=Path, help="where to put the pieces (default IMAGE.d)")
+    parser.add_argument("--force", action="store_true", help="replace an existing output directory")
+    args = parser.parse_args()
+
+    if os.geteuid() != 0:
+        sys.exit("prepare needs root to read the image's partitions through a loop device")
+
+    if not args.image:
+        images = sorted(OUTPUT.glob("*_image-amd64.img"), key=lambda f: f.stat().st_mtime)
+        if not images:
+            sys.exit("No image in output/, run build-final.sh first")
+        args.image = images[-1]
+    image = args.image.resolve()
+    outdir = (args.output or image.with_name(image.name + ".d")).resolve()
+    if outdir.exists() and not args.force:
+        sys.exit(f"{outdir} already exists, use --force to replace it")
+
+    table = json.loads(output("sfdisk", "--json", str(image)))["partitiontable"]
+    if table["label"] != "gpt":
+        sys.exit(f"{image} has a {table['label']} partition table, only gpt is supported")
+    sector = table.get("sectorsize", 512)
+    partitions = sorted(table["partitions"], key=lambda p: p["start"])
+
+    # Built next to the output and renamed at the end, so an interrupted run
+    # never leaves something that looks complete
+    workdir = Path(tempfile.mkdtemp(prefix=outdir.name + ".", dir=outdir.parent))
+    loop = output("losetup", "--find", "--show", "--read-only", "--partscan", str(image)).strip()
+    try:
+        run("udevadm", "settle")
+
+        head_bytes = partitions[0]["start"] * sector
+        print(f"Copying the {head_bytes // 1024} KiB before the first partition")
+        run("dd", f"if={loop}", f"of={workdir / 'head.img'}", f"bs={sector}",
+            f"count={partitions[0]['start']}", "status=none")
+        (workdir / "layout.sfdisk").write_text(layout_script(image))
+
+        manifest_parts = []
+        version = None
+        for p in partitions:
+            number = int(p["node"][len(str(image)):])
+            dev = f"{loop}p{number}"
+            fstype = blkid_type(dev)
+            tool = None if p["type"] in RAW_TYPES else PARTCLONE.get(fstype)
+            if tool:
+                name = f"p{number}.partclone"
+                print(f"Partition {number} ({fstype}): {tool}")
+                run(tool, "--clone", "--source", dev, "--output", str(workdir / name),
+                    "--logfile", str(workdir / f"p{number}.log"), "--no_block_detail")
+            else:
+                name = f"p{number}.raw"
+                if p["type"] not in RAW_TYPES:
+                    print(f"Partition {number}: partclone doesn't handle {fstype or 'no filesystem'}, copying it raw")
+                else:
+                    print(f"Partition {number}: copying raw")
+                run("dd", f"if={dev}", f"of={workdir / name}", "bs=1M", "status=none")
+            entry = {"number": number, "file": name, "tool": tool, "fstype": fstype}
+            if fstype in ("ext4", "ext3", "ext2") and version is None:
+                contents = read_version(dev)
+                if contents is not None:
+                    version = {"partition": number, "sha256": hashlib.sha256(contents).hexdigest(),
+                               "text": contents.decode(errors="replace").strip()}
+            manifest_parts.append(entry)
+    finally:
+        run("losetup", "--detach", loop)
+
+    last = max(p["start"] + p["size"] for p in partitions)
+    manifest = {
+        "image": image.name,
+        "created": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "sector_size": sector,
+        # The backup GPT takes 33 sectors at the end of the drive
+        "min_device_bytes": (last + 33) * sector,
+        "head": "head.img",
+        "layout": "layout.sfdisk",
+        "partitions": manifest_parts,
+        "version": version,
+    }
+    (workdir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+    # Hand the pieces to whoever ran sudo, like the rest of output/
+    uid, gid = int(os.environ.get("SUDO_UID", 0)), int(os.environ.get("SUDO_GID", 0))
+    for f in [workdir, *workdir.iterdir()]:
+        os.chown(f, uid, gid)
+    workdir.chmod(0o755)
+
+    if outdir.exists():
+        shutil.rmtree(outdir)
+    workdir.rename(outdir)
+
+    total = sum(f.stat().st_size for f in outdir.iterdir())
+    print(f"Wrote {outdir} ({total / 2**30:.1f} GiB to write per drive)")
+    if version is None:
+        print("No /icpc/version found, write-usb won't be able to check it")
+
+
+if __name__ == "__main__":
+    main()

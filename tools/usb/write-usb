@@ -1,0 +1,202 @@
+#!/bin/bash
+# Write an image prepared by tools/usb/prepare to a usb drive, then read it back to check it
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: write-usb [options] DEVICE [IMAGE_DIR]
+
+  DEVICE      whole usb drive, e.g. /dev/sdb. Everything on it is lost
+  IMAGE_DIR   output of tools/usb/prepare (default: the newest in output/)
+
+Options:
+  --confirm         ask before writing
+  --no-verify       skip reading the drive back after writing
+  --max-size GIB    refuse drives bigger than this (default 128), to keep
+                    from wiping an external hard drive by mistake
+  --any-transport   allow drives that aren't on usb, e.g. loop devices for testing
+EOF
+  exit "${1:-1}"
+}
+
+CONFIRM=0
+VERIFY=1
+MAX_GIB=128
+ANY_TRANSPORT=0
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --confirm) CONFIRM=1 ;;
+    --no-verify) VERIFY=0 ;;
+    --max-size) MAX_GIB=$2; shift ;;
+    --any-transport) ANY_TRANSPORT=1 ;;
+    -h|--help) usage 0 ;;
+    -*) echo "Unknown option $1"; usage ;;
+    *) ARGS+=("$1") ;;
+  esac
+  shift
+done
+[[ ${#ARGS[@]} -eq 1 || ${#ARGS[@]} -eq 2 ]] || usage
+DEVICE=$(realpath "${ARGS[0]}")
+if [[ ${#ARGS[@]} -eq 2 ]]; then
+  IMAGE_DIR=$(realpath "${ARGS[1]}")
+else
+  IMAGE_DIR=$(ls -td "$(dirname "$0")"/../../output/*_image-amd64.img.d 2>/dev/null | head -1 || true)
+  [[ -n "$IMAGE_DIR" ]] || { echo "Nothing prepared in output/, run tools/usb/prepare first" >&2; exit 1; }
+  IMAGE_DIR=$(realpath "$IMAGE_DIR")
+fi
+
+fail() {
+  echo "FAILED: $*" >&2
+  exit 1
+}
+
+[[ $EUID -eq 0 ]] || fail "write-usb needs root"
+[[ -f "$IMAGE_DIR/manifest.json" ]] || fail "$IMAGE_DIR has no manifest.json, run tools/usb/prepare first"
+[[ -b "$DEVICE" ]] || fail "$DEVICE is not a block device"
+
+manifest() {
+  python3 -I -c 'import json, sys; m = json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' \
+    "$IMAGE_DIR/manifest.json" "$1"
+}
+
+# Partitions of /dev/sdb are /dev/sdb1, of /dev/loop0 and /dev/nvme0n1 are /dev/loop0p1 and /dev/nvme0n1p1
+part() {
+  if [[ $DEVICE =~ [0-9]$ ]]; then echo "${DEVICE}p$1"; else echo "${DEVICE}$1"; fi
+}
+
+# Anything mounted from the drive. A desktop automounts it under /media or
+# /run/media, which is fine to undo; anywhere else means it's in use
+mounts() {
+  lsblk -lnpo NAME,MOUNTPOINT "$DEVICE" | awk 'NF == 2'
+}
+
+unmount_drive() {
+  local dev target
+  while read -r dev target; do
+    echo "Unmounting $dev from $target"
+    umount "$dev"
+  done < <(mounts)
+}
+
+### Make sure this is a drive we should be wiping
+
+TYPE=$(lsblk -dno TYPE "$DEVICE")
+TRAN=$(lsblk -dno TRAN "$DEVICE")
+SIZE=$(lsblk -dnbo SIZE "$DEVICE")
+MODEL=$(lsblk -dno MODEL "$DEVICE" | xargs)
+if [[ $ANY_TRANSPORT -eq 1 ]]; then
+  [[ $TYPE == disk || $TYPE == loop ]] || fail "$DEVICE is a $TYPE, not a whole drive"
+else
+  [[ $TYPE == disk ]] || fail "$DEVICE is a $TYPE, not a whole drive"
+  [[ $TRAN == usb ]] || fail "$DEVICE is on ${TRAN:-an unknown bus}, not usb"
+fi
+
+# Following / down through any crypt, lvm or raid to the disks under it
+if lsblk -slnpo NAME,TYPE "$(findmnt -nvo SOURCE /)" | awk '$2 == "disk" { print $1 }' | grep -qxF "$DEVICE"; then
+  fail "$DEVICE holds this machine's root filesystem"
+fi
+
+if lsblk -lnpo TYPE "$DEVICE" | tail -n +2 | grep -qv '^part$'; then
+  fail "$DEVICE is in use by raid, lvm or crypt"
+fi
+
+while read -r dev target; do
+  if [[ $target != /media/* && $target != /run/media/* ]]; then
+    fail "$dev is mounted at $target, not writing a drive that's in use"
+  fi
+done < <(mounts)
+
+MIN_BYTES=$(manifest 'm["min_device_bytes"]')
+MAX_BYTES=$((MAX_GIB * 1024 * 1024 * 1024))
+(( SIZE >= MIN_BYTES )) || fail "$DEVICE is $((SIZE / 1000000)) MB, the image needs $((MIN_BYTES / 1000000)) MB"
+(( SIZE <= MAX_BYTES )) || fail "$DEVICE is $((SIZE / 1000000000)) GB, bigger than --max-size $MAX_GIB GiB"
+
+echo "Writing $(manifest 'm["image"]') to $DEVICE (${MODEL:-unknown model}, $((SIZE / 1000000000)) GB)"
+if [[ $CONFIRM -eq 1 ]]; then
+  read -r -p "Everything on $DEVICE will be lost. Type yes to continue: " answer
+  [[ $answer == yes ]] || fail "not confirmed"
+fi
+
+START=$SECONDS
+LOGDIR=$(mktemp -d)
+trap 'rm -rf "$LOGDIR"' EXIT
+unmount_drive
+
+### Partition table and boot code
+
+# Old signatures left on the drive or inside the new partitions would make
+# blkid see two filesystems where partclone writes one
+sfdisk --quiet --wipe always --wipe-partitions always "$DEVICE" < "$IMAGE_DIR/$(manifest 'm["layout"]')"
+# From the image's first MiB, only the MBR boot code and the gap after the GPT
+# entries: its GPT is sized for the image, sfdisk's for this drive
+HEAD="$IMAGE_DIR/$(manifest 'm["head"]')"
+dd if="$HEAD" of="$DEVICE" bs=440 count=1 conv=notrunc,fsync status=none
+dd if="$HEAD" of="$DEVICE" bs=512 skip=34 seek=34 conv=notrunc,fsync status=none
+udevadm settle
+
+mapfile -t PARTS < <(manifest '"\n".join("%d %s %s" % (p["number"], p["file"], p["tool"] or "raw") for p in m["partitions"])')
+
+for entry in "${PARTS[@]}"; do
+  read -r n _ _ <<<"$entry"
+  for _ in $(seq 50); do
+    [[ -b "$(part "$n")" ]] && break
+    sleep 0.2
+  done
+  [[ -b "$(part "$n")" ]] || fail "$(part "$n") didn't appear after partitioning"
+done
+
+### Partition contents
+
+for entry in "${PARTS[@]}"; do
+  read -r n file tool <<<"$entry"
+  dev=$(part "$n")
+  echo "Partition $n: $file"
+  if [[ $tool == raw ]]; then
+    dd if="$IMAGE_DIR/$file" of="$dev" bs=1M conv=fsync status=none
+  else
+    "$tool" --restore --source "$IMAGE_DIR/$file" --output "$dev" \
+      --logfile "$LOGDIR/p$n.log" --no_block_detail \
+      || { tail -20 "$LOGDIR/p$n.log" >&2; fail "$tool couldn't restore partition $n"; }
+  fi
+done
+
+# Flushing also drops the cached blocks, so the checks below read the drive itself
+echo "Flushing to the drive"
+for entry in "${PARTS[@]}"; do
+  read -r n _ _ <<<"$entry"
+  blockdev --flushbufs "$(part "$n")"
+done
+blockdev --flushbufs "$DEVICE"
+
+### Read it back
+
+if [[ $VERIFY -eq 1 ]]; then
+  for entry in "${PARTS[@]}"; do
+    read -r n _ tool <<<"$entry"
+    dev=$(part "$n")
+    case "$tool" in
+      partclone.extfs)
+        echo "Checking partition $n's filesystem"
+        e2fsck -fn "$dev" >"$LOGDIR/fsck.log" 2>&1 \
+          || { tail -20 "$LOGDIR/fsck.log" >&2; fail "partition $n's filesystem has errors"; } ;;
+      partclone.fat)
+        echo "Checking partition $n's filesystem"
+        fsck.fat -n "$dev" >"$LOGDIR/fsck.log" 2>&1 \
+          || { tail -20 "$LOGDIR/fsck.log" >&2; fail "partition $n's filesystem has errors"; } ;;
+    esac
+  done
+
+  VERSION_PART=$(manifest '(m["version"] or {}).get("partition", "")')
+  if [[ -n "$VERSION_PART" ]]; then
+    got=$(debugfs -R 'cat /icpc/version' "$(part "$VERSION_PART")" 2>/dev/null | sha256sum | cut -d' ' -f1)
+    [[ $got == "$(manifest 'm["version"]["sha256"]')" ]] || fail "/icpc/version on the drive doesn't match the image"
+    echo "/icpc/version matches: $(manifest 'm["version"]["text"].splitlines()[0]')"
+  fi
+fi
+
+# The new filesystems can get automounted as they appear
+unmount_drive
+
+ELAPSED=$((SECONDS - START))
+echo "SUCCESS: $DEVICE written in $((ELAPSED / 60))m $((ELAPSED % 60))s"
