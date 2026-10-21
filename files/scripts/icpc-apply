@@ -374,11 +374,20 @@ def apply_firefox_policies(policies):
     path.write_text(json.dumps({"policies": merged}, indent=2, ensure_ascii=False) + "\n")
 
 
+FIREFOX_AUTOSTART = Path("/etc/xdg/autostart/icpc-firefox.desktop")
+
+
 def apply_firefox_autostart(enabled):
-    # TODO: this is insufficient... seems like we need to add/remove Hidden=true from the file
-    for path in ["/etc/skel/.config/autostart/firefox.desktop", "/home/contestant/.config/autostart/firefox.desktop"]:
-        if Path(path).exists():
-            Path(path).chmod(0o755 if enabled else 0o000)
+    """Hidden=true is how the XDG autostart spec turns an entry off"""
+    if not FIREFOX_AUTOSTART.exists():
+        return
+    lines = [line for line in FIREFOX_AUTOSTART.read_text().splitlines() if not line.startswith("Hidden=")]
+    if not enabled:
+        lines.append("Hidden=true")
+    tmp = FIREFOX_AUTOSTART.with_suffix(".new")
+    tmp.write_text("\n".join(lines) + "\n")
+    tmp.chmod(0o644)
+    tmp.replace(FIREFOX_AUTOSTART)
 
 
 WALLPAPER = ICPC / "wallpaper.png"

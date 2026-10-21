@@ -1,8 +1,10 @@
 ---
 # TODO: just set the wallpaper properly with xfce?
+# System-wide rather than in the contestant's home, so icpc-apply turns it on
+# and off (with Hidden=true) without touching files the contestant controls
 - name: Create autostart entry for firefox
   ansible.builtin.copy:
-    dest: /etc/skel/.config/autostart/firefox.desktop
+    dest: /etc/xdg/autostart/icpc-firefox.desktop
     content: |
       [Desktop Entry]
       Version=1.0
@@ -12,6 +14,11 @@
       Type=Application
       Icon=firefox
       StartupNotify=true
-    mode: "0755"
+    mode: "0644"
     owner: "root"
     group: "root"
+
+- name: Remove the old per-user firefox autostart entry from skel
+  ansible.builtin.file:
+    path: /etc/skel/.config/autostart/firefox.desktop
+    state: absent
