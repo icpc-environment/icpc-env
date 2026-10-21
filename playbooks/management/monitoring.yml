@@ -190,21 +190,25 @@
   # auditd records every contestant execve continuously - a steady write
   # stream, and the log is root-owned so it would otherwise survive the team
   # reset. It isn't shipped off-box and is only read live, so volatile is fine.
+  # size= is only a cap (tmpfs allocates on use), so the headroom over
+  # auditd's 200MB retention costs no RAM but keeps free space above
+  # auditd's stock space_left/admin_space_left thresholds (75/50MB) - below
+  # those it would warn and then SUSPEND logging instead of just rotating.
   ansible.posix.mount:
     path: /var/log/audit
     src: tmpfs
     fstype: tmpfs
-    opts: size=256m,mode=0750
+    opts: size=512m,mode=0750
     state: mounted
 
-- name: Bound the audit logs to what fits in the tmpfs
+- name: Bound the audit logs so they rotate rather than fill the tmpfs
   ansible.builtin.lineinfile:
     path: /etc/audit/auditd.conf
     regexp: '^{{ item.key }} ='
     line: '{{ item.key }} = {{ item.value }}'
   loop:
     - { key: max_log_file, value: 20 }   # MB per file
-    - { key: num_logs, value: 10 }       # 20 x 10 = 200MB, under the 256MB tmpfs
+    - { key: num_logs, value: 10 }       # 20 x 10 = 200MB retention, well under 512MB
   register: auditd_conf
 
 - name: Audit every program the contestant runs
