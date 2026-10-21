@@ -26,6 +26,15 @@
       - open-vm-tools
     install_recommends: false
 
+# nm-applet starts alongside the panel, and if the panel's StatusNotifierWatcher
+# isn't up yet it falls back to an old-style tray icon, then registers with the
+# watcher too when it appears: two network icons
+- name: Start nm-applet once the panel can show its icon
+  ansible.builtin.lineinfile:
+    path: /etc/xdg/autostart/nm-applet.desktop
+    regexp: '^Exec='
+    line: "Exec=sh -c 'gdbus wait --session --timeout 30 org.kde.StatusNotifierWatcher; exec nm-applet'"
+
 - name: Disable ssh socket based listening
   ansible.builtin.systemd_service:
     name: ssh.socket
