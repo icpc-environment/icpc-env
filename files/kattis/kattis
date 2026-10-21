@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+"""The Kattis CLI, accepting the certificates squid makes for the allowed sites.
+
+squid (playbooks/security/squid.yml) intercepts their TLS with certificates it
+generates and signs, which have no Authority Key Identifier. urllib3 2.3+ on
+Python 3.13+ verifies strictly (VERIFY_X509_STRICT) and refuses those; this
+turns only that off, and everything else is verified as usual.
+"""
+import runpy
+import ssl
+import sys
+
+import urllib3.connection
+import urllib3.util.ssl_
+
+_create_urllib3_context = urllib3.util.ssl_.create_urllib3_context
+
+
+def create_urllib3_context(*args, **kwargs):
+    context = _create_urllib3_context(*args, **kwargs)
+    context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return context
+
+
+urllib3.util.ssl_.create_urllib3_context = create_urllib3_context
+urllib3.connection.create_urllib3_context = create_urllib3_context
+sys.argv[0] = "kattis"
+runpy.run_path("/opt/kattis-cli/submit.py", run_name="__main__")

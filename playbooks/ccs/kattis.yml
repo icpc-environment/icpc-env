@@ -10,11 +10,12 @@
     state: present
     pkg:
       - python3-lxml
+      - python3-requests
 
-- name: Create a kattis binary wrapper script
+# /usr/local/etc/kattisrc, with the contest's URLs, is written by icpc-apply
+# from submit.base_url; a team's ~/.kattisrc adds its username and password
+- name: Install the kattis command
   ansible.builtin.copy:
+    src: files/kattis/kattis
     dest: /usr/local/bin/kattis
-    mode: 0755
-    content: |
-      #!/bin/sh
-      python "/opt/kattis-cli/submit.py" "$@"
+    mode: "0755"
