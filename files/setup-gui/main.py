@@ -316,13 +316,13 @@ def mainwindow():
     ],
     [
       sg.Frame("This machine's settings (from the site's configuration, and the options above)", [
-        [sg.Multiline("", key='settings_summary', size=(100, 10), font=("courier", 10), disabled=True, expand_x=True)],
+        [sg.Multiline("", key='settings_summary', size=(100, 7), font=("courier", 10), disabled=True, expand_x=True)],
       ], expand_x=True)
     ],
     [
       sg.Frame('Team Identification', [
          [sg.Text('Select your team from the list below to pre-populate the fields')],
-        [sg.Listbox([], size=(60,10), font=("courier",11), key="team", horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, expand_x=True, enable_events=True)],
+        [sg.Listbox([], size=(60,6), font=("courier",11), key="team", horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, expand_x=True, enable_events=True)],
         [sg.HorizontalSeparator()],
         [sg.Text('Team Information (This is what will be used, modify if necessary)')],
         [sg.Text('Team ID', size=(10,1)), sg.InputText(key='team_id', size=(50,1))],
@@ -335,7 +335,7 @@ def mainwindow():
       sg.Frame('Printer configuration', [
         [sg.Column([
           [sg.Text("Select printers to install (hold ctrl to select multiple)")],
-          [sg.Listbox([], size=(50,8), select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED, key="configured_printers", expand_y=True, enable_events=True)],
+          [sg.Listbox([], size=(50,5), select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED, key="configured_printers", expand_y=True, enable_events=True)],
         ]),
         sg.Column([
           [sg.Text('Enter your printer IP/hostname as a valid cups uri. E.g. ipp://10.1.2.3:631')],
