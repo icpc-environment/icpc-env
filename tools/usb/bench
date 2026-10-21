@@ -53,6 +53,9 @@ command -v fio >/dev/null || fail "bench needs fio (pacman -S fio, apt install f
 check_drive
 
 SERIAL=$(udevadm info --query=property --value --property=ID_SERIAL_SHORT "$DEVICE" 2>/dev/null || true)
+# Both ends: on these SanDisks the start differs from drive to drive, while
+# the end is shared by a whole batch
+if (( ${#SERIAL} > 20 )); then SHORT_SERIAL="${SERIAL:0:12}...${SERIAL: -8}"; else SHORT_SERIAL=$SERIAL; fi
 # The usb device the drive hangs off, for its port (e.g. 2-10) and link speed
 USB=$(readlink -f "/sys/block/$(basename "$DEVICE")/device")
 while [[ $USB != / && ! -f $USB/speed ]]; do USB=$(dirname "$USB"); done
@@ -64,7 +67,7 @@ else
   LINK=-
 fi
 
-echo "$DEVICE: ${MODEL:-unknown model}, serial ...${SERIAL: -8}, port $PORT at $LINK, $((SIZE / 1000000000)) GB"
+echo "$DEVICE: ${MODEL:-unknown model}, serial ${SHORT_SERIAL:-unknown}, port $PORT at $LINK, $((SIZE / 1000000000)) GB"
 if [[ $READ_ONLY -eq 0 && $YES -eq 0 ]]; then
   read -r -p "The write tests overwrite $DEVICE. Type yes to continue (or rerun with --read-only): " answer
   [[ $answer == yes ]] || fail "not confirmed"
@@ -82,7 +85,7 @@ SEQ_READ=- RAND_READ=- SEQ_WRITE=- WRITE_START=- WRITE_END=- RAND_WRITE=-
 report() {
   cat <<EOF
 
-$DEVICE: ${MODEL:-unknown model} ...${SERIAL: -8} on port $PORT ($LINK)
+$DEVICE: ${MODEL:-unknown model} ${SHORT_SERIAL:-unknown} on port $PORT ($LINK)
   sequential read    $SEQ_READ MB/s
   sequential write   $SEQ_WRITE MB/s (first 10s $WRITE_START MB/s, last third $WRITE_END MB/s)
   random 4K read     $RAND_READ IOPS
