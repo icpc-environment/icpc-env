@@ -26,3 +26,7 @@ station *args:
 # Name this machine's usb ports for the station, by plugging a drive into each
 learn:
     {{station}} --learn
+
+# Measure a drive's sequential and random read/write speed (overwrites it unless --read-only)
+bench device *args:
+    sudo tools/usb/bench "$@"

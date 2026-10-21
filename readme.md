@@ -100,7 +100,19 @@ Both refuse drives that aren't on usb, are mounted somewhere other than
 `/media`, hold this machine's root filesystem, or are bigger than 128 GiB
 (`--max-size` to change). A drive pulled out mid-write is marked failed; plug
 it back in to write it again. While the station runs it keeps the desktop
-from automounting usb drives.
+from automounting usb drives. Both also refuse a drive something else has
+open, such as the station writing it.
+
+### Comparing drives
+`just usb bench /dev/sdx` measures a drive's sequential and random (4 KiB)
+read and write speed with [fio](https://github.com/axboe/fio), and adds a line to
+`tmp/usb-bench.tsv` so batches of drives can be compared. The sequential write
+reports its first 10 seconds and its last third separately, since many drives
+start fast until a cache fills and then slow down; that last figure is the
+one that decides how long the station takes. The write tests overwrite the
+drive, so write the image to it again afterwards, or use `--read-only`. For
+numbers that compare, test each drive on its own, in the same usb 3 port and
+not through a hub (`lsusb -t` shows the link speed).
 
 ## Website
 `website/` is the static site at https://images.cloudcontest.org: the download

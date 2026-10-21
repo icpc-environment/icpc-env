@@ -1,0 +1,138 @@
+#!/bin/bash
+# Measure a usb drive's sequential and random read/write speed with fio
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: bench [options] DEVICE
+
+  DEVICE      whole usb drive, e.g. /dev/sdb. The write tests overwrite it
+
+Options:
+  --read-only        only run the read tests, which leave the drive as it is
+  --write-size GIB   how much the sequential write test writes (default 8),
+                     enough to get past the fast cache many drives start with
+  --yes              don't ask before the write tests
+  --log FILE         append results to FILE (default tmp/usb-bench.tsv)
+  --max-size GIB     refuse drives bigger than this (default 128)
+  --any-transport    allow drives that aren't on usb, e.g. loop devices for testing
+EOF
+  exit "${1:-1}"
+}
+
+READ_ONLY=0
+WRITE_GIB=8
+YES=0
+LOG="$(dirname "$(realpath "$0")")/../../tmp/usb-bench.tsv"
+MAX_GIB=128
+ANY_TRANSPORT=0
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --read-only) READ_ONLY=1 ;;
+    --write-size) WRITE_GIB=$2; shift ;;
+    --yes) YES=1 ;;
+    --log) LOG=$2; shift ;;
+    --max-size) MAX_GIB=$2; shift ;;
+    --any-transport) ANY_TRANSPORT=1 ;;
+    -h|--help) usage 0 ;;
+    -*) echo "Unknown option $1"; usage ;;
+    *) ARGS+=("$1") ;;
+  esac
+  shift
+done
+[[ ${#ARGS[@]} -eq 1 ]] || usage
+DEVICE=$(realpath "${ARGS[0]}")
+
+# shellcheck source-path=SCRIPTDIR source=drive.sh
+source "$(dirname "$(realpath "$0")")/drive.sh"
+
+[[ $EUID -eq 0 ]] || fail "bench needs root"
+command -v fio >/dev/null || fail "bench needs fio (pacman -S fio, apt install fio)"
+[[ -b "$DEVICE" ]] || fail "$DEVICE is not a block device"
+check_drive
+
+SERIAL=$(udevadm info --query=property --value --property=ID_SERIAL_SHORT "$DEVICE" 2>/dev/null || true)
+# The usb device the drive hangs off, for its port (e.g. 2-10) and link speed
+USB=$(readlink -f "/sys/block/$(basename "$DEVICE")/device")
+while [[ $USB != / && ! -f $USB/speed ]]; do USB=$(dirname "$USB"); done
+if [[ -f $USB/speed ]]; then
+  PORT=$(basename "$USB")
+  LINK="$(cat "$USB/speed")M"
+else
+  PORT=-
+  LINK=-
+fi
+
+echo "$DEVICE: ${MODEL:-unknown model}, serial ...${SERIAL: -8}, port $PORT at $LINK, $((SIZE / 1000000000)) GB"
+if [[ $READ_ONLY -eq 0 && $YES -eq 0 ]]; then
+  read -r -p "The write tests overwrite $DEVICE. Type yes to continue (or rerun with --read-only): " answer
+  [[ $answer == yes ]] || fail "not confirmed"
+fi
+unmount_drive
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+# One request at a time: usb-storage drives don't queue more than that anyway
+run() {
+  local name=$1; shift
+  fio --name="$name" --filename="$DEVICE" --direct=1 --ioengine=libaio --iodepth=1 \
+    --output-format=json --output="$WORK/$name.json" "$@" >/dev/null
+}
+
+result() {
+  python3 -I - "$WORK/$1.json" "$2" "$3" <<'EOF'
+import json, sys
+job = json.load(open(sys.argv[1]))["jobs"][0][sys.argv[2]]
+print(f"{job['bw_bytes'] / 1e6:.1f}" if sys.argv[3] == "mbps" else f"{job['iops']:.0f}")
+EOF
+}
+
+echo "Sequential read (4 GiB, 1 MiB blocks)"
+run seqread --rw=read --bs=1M --size=4G --runtime=120 --readonly
+SEQ_READ=$(result seqread read mbps)
+echo "Random read (4 KiB blocks, 30s)"
+run randread --rw=randread --bs=4k --size=4G --runtime=30 --time_based --readonly
+RAND_READ=$(result randread read iops)
+
+SEQ_WRITE=- WRITE_START=- WRITE_END=- RAND_WRITE=-
+if [[ $READ_ONLY -eq 0 ]]; then
+  echo "Sequential write ($WRITE_GIB GiB, 1 MiB blocks, at most 15 minutes)"
+  run seqwrite --rw=write --bs=1M --size="${WRITE_GIB}G" --runtime=900 \
+    --write_bw_log="$WORK/seqwrite" --log_avg_msec=1000
+  SEQ_WRITE=$(result seqwrite write mbps)
+  # From the per-second log: the first 10s, before any cache fills, and the
+  # last third, once the drive has settled to what it can keep up
+  read -r WRITE_START WRITE_END < <(python3 -I - "$WORK"/seqwrite_bw.*.log <<'EOF'
+import sys
+kib = [int(line.split(",")[1]) for line in open(sys.argv[1]) if line.strip()]
+mb = lambda xs: f"{sum(xs) / len(xs) * 1024 / 1e6:.1f}" if xs else "-"
+print(mb(kib[:10]), mb(kib[len(kib) * 2 // 3:]))
+EOF
+)
+  echo "Random write (4 KiB blocks, 30s)"
+  run randwrite --rw=randwrite --bs=4k --size=4G --runtime=30 --time_based
+  RAND_WRITE=$(result randwrite write iops)
+fi
+
+cat <<EOF
+
+$DEVICE: ${MODEL:-unknown model} ...${SERIAL: -8} on port $PORT ($LINK)
+  sequential read    $SEQ_READ MB/s
+  sequential write   $SEQ_WRITE MB/s (first 10s $WRITE_START MB/s, last third $WRITE_END MB/s)
+  random 4K read     $RAND_READ IOPS
+  random 4K write    $RAND_WRITE IOPS
+EOF
+
+mkdir -p "$(dirname "$LOG")"
+if [[ ! -s "$LOG" ]]; then
+  printf 'date\tmodel\tserial\tport\tlink\tseq_read_MBps\tseq_write_MBps\twrite_first10s_MBps\twrite_last_third_MBps\trand_read_iops\trand_write_iops\n' > "$LOG"
+fi
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%F %T')" "${MODEL:-unknown}" "$SERIAL" \
+  "$PORT" "$LINK" "$SEQ_READ" "$SEQ_WRITE" "$WRITE_START" "$WRITE_END" "$RAND_READ" "$RAND_WRITE" >> "$LOG"
+[[ -z "${SUDO_UID:-}" ]] || chown "$SUDO_UID:$SUDO_GID" "$LOG"
+echo "Added to $LOG"
+if [[ $READ_ONLY -eq 0 ]]; then
+  echo "$DEVICE now holds test data; write the image to it again before using it"
+fi
