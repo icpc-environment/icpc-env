@@ -102,6 +102,23 @@ Both refuse drives that aren't on usb, are mounted somewhere other than
 it back in to write it again. While the station runs it keeps the desktop
 from automounting usb drives.
 
+## Website
+`website/` is the static site at https://images.cloudcontest.org: the download
+page and the user guide, plain html and screenshots. It's served straight out of
+the `icpc-environment` r2 bucket. R2 itself doesn't serve `foo/index.html` for
+`foo/`; a URL rewrite rule on the cloudcontest.org zone does, so the links work
+either way.
+
+```bash
+just website serve              # preview at http://localhost:8000
+just website publish --dryrun   # list what would be uploaded
+just website publish            # upload it, using the key in .env-r2
+```
+
+Publishing only uploads; it never deletes from the bucket, so remove a page
+that's gone with `aws s3 rm`. The images themselves live under `images/` in the
+same bucket and aren't touched by publishing.
+
 ## Customization of the Image
 One of our goals with this image is for it to be easily customized. To achieve this
 the image is configured using Ansible. Ansible is kicked off with the `main.yml`
