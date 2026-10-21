@@ -94,7 +94,7 @@
       [Desktop Entry]
       Type=Application
       Name=ICPC Setup
-      Exec=xfce4-terminal --maximize --hold --execute bash -c "/icpc/scripts/venv/bin/python3 /icpc/scripts/icpc_setup"
+      Exec=xfce4-terminal --maximize --minimize --hold --execute bash -c "/icpc/scripts/venv/bin/python3 /icpc/scripts/icpc_setup"
       Terminal=false
       StartupNotify=false
       NoDisplay=true

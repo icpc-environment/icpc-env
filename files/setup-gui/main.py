@@ -288,6 +288,22 @@ pinned = machine_config.get("config_contest") or None
 configuration = {}
 
 
+def show_terminal():
+  """Bring back the (minimized) terminal the wizard runs in, for the self test's report"""
+  ancestors, pid = set(), os.getpid()
+  while pid > 1:
+    ancestors.add(pid)
+    try:
+      pid = int(Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[1])
+    except (OSError, ValueError, IndexError):
+      break
+  p = subprocess.run(["wmctrl", "-lp"], capture_output=True, text=True)
+  for line in p.stdout.splitlines():
+    fields = line.split()
+    if len(fields) > 2 and fields[2].isdigit() and int(fields[2]) in ancestors:
+      subprocess.run(["wmctrl", "-i", "-a", fields[0]])
+
+
 def online():
   """Whether the configuration server can be reached"""
   try:
@@ -645,6 +661,7 @@ def main():
   if ret != 0:
       sg.popup(f"Some of the configuration couldn't be applied:\n\n{err.decode()}", title="Configuration Error")
 
+  show_terminal()
   # Clear the screen
   print(chr(27) + "[H" + chr(27) + "[J")
 
