@@ -1,0 +1,133 @@
+
+<!-- Latest compiled and minified CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+<div class="container">
+  <div class="row">
+    <div class="col">
+      <h1>ICPC Contest Environment Initial Set up</h1>
+      <p>When you first boot the flash drive, you will trigger the set up wizard.
+            This document walks through the configuration options available.</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <img src="setup-annotated.png" style="max-width: 800px" class="screenshot float-end p-3">
+      <p>
+        When the system first boots up you should see a screen like the following.
+      </p>
+      <p>
+        The general procedure for configuring the system is as follows:
+        <ol>
+          <li value="0">(if necessary) Configure the network</li>
+          <li>Choose the site</li>
+          <li>Configure the team</li>
+          <li>Configure the printers</li>
+          <li>Configure additional options (Autostart/Print test page)</li>
+          <li>Apply the configuration</li>
+        </ol>
+        Detailed instructions are present below.
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <h3>Team Configuration</h3>
+      <p>Choose your site from the dropdown. This will fetch the team information for the selected site from the network (and potentially erase any existing team information you may have changed)</p>
+      <p>
+        Next select a team from the list.
+        This will populate the Team ID, Team Name, Affiliation, and Note fields below.
+      </p>
+      <p>Make any changes necessary to the information to ensure it is correct. This information is what will show up on the team desktop background, and at the top of any printouts.<p>
+      <!--
+      <div class="alert alert-warning" role="alert">
+        <b>Note:</b> The information in the text boxes, not the selected item in the list, is what will be used when you click Apply.
+      </div>
+      -->
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <h3>Printer Configuration</h3>
+      <p>
+        Select any printers you want to add to this machine from the list on the left. If the printer you want to add is missing from the list,
+        you can enter the URI for it on the right (often <code>ipp://PRINTERIP</code> and the <code>everywhere</code> driver should work with most printers made in the last 10 years).
+        After entering the URI and the driver, make sure to click the "Add Printer" button to add it to the list on the left.
+      </p>
+      <p>
+      Additional drivers you might try if <code>everywhere</code> doesn't work for you include <code>ps</code> or <code>pcl</code>.
+      </p>
+      <!--
+      <div class="alert alert-warning" role="alert">
+      <b>Note:</b> Make sure all printers you want installed on this machine are selected in the list, otherwise they will not be installed on this machine.
+      You can select multiple printers by holding ctrl and clicking on each printer.
+      </div>
+      -->
+      <div class="alert alert-info" role="alert">
+      If your printer configuration is not present for your site and you do not want to enter it every time, contact Keith Johnson (kj@ubergeek42.com) to have the list of printers for your site updated.
+      </div>
+      <img src="printing-annotated.png" class="screenshot img-fluid center-block">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <h3>Optional Configuration</h3>
+      <p>There are a few system options you can configure as well:</p>
+      <ul>
+        <li><b>Autostart Firefox on login</b> - Enabling this will cause Firefox to open to the Kattis contest page (which shows the contest clock countdown) automatically when it starts up. If you would rather see the desktop background instead, uncheck this.</li>
+        <li><b>Print Test Page?</b> - Enabling this will print a test page from this machine after the configuration is applied and complete. This is recommended (and for your runners to deliver the page to each workstation), so that after all machines are configured you can walk around and verify that every machine has a test page present at it, indicating that the printers are configured properly.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <h3>Network Configuration</h3>
+      <p>
+        This configuration wizard pulls in some dynamic configuration data from the internet, so it is important to have the network configured correctly.
+      </p>
+      <p>
+        In the top right of the screen, there is an icon to configure the network. If your hardware is detected automatically, you will likely see a wifi icon instead,
+        and clicking on it will show you a list of networks you can connect to.
+
+        If you need more advanced configuration, click the "Edit Connections" button in the menu that appears, then the + icon at the bottom to create a new connection and configure all the details.
+      </p>
+      <div class="alert alert-warning d-flex align-items-center" role="alert">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" class="bi bi-wifi flex-shrink-0 me-2" width="48px" height="48px">
+            <path d="M15.384 6.115a.485.485 0 0 0-.047-.736A12.44 12.44 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.52.52 0 0 0 .668.05A11.45 11.45 0 0 1 8 4c2.507 0 4.827.802 6.716 2.164.205.148.49.13.668-.049"></path>
+            <path d="M13.229 8.271a.482.482 0 0 0-.063-.745A9.46 9.46 0 0 0 8 6c-1.905 0-3.68.56-5.166 1.526a.48.48 0 0 0-.063.745.525.525 0 0 0 .652.065A8.46 8.46 0 0 1 8 7a8.46 8.46 0 0 1 4.576 1.336c.206.132.48.108.653-.065m-2.183 2.183c.226-.226.185-.605-.1-.75A6.5 6.5 0 0 0 8 9c-1.06 0-2.062.254-2.946.704-.285.145-.326.524-.1.75l.015.015c.16.16.407.19.611.09A5.5 5.5 0 0 1 8 10c.868 0 1.69.201 2.42.56.203.1.45.07.61-.091zM9.06 12.44c.196-.196.198-.52-.04-.66A2 2 0 0 0 8 11.5a2 2 0 0 0-1.02.28c-.238.14-.236.464-.04.66l.706.706a.5.5 0 0 0 .707 0l.707-.707z"></path>
+          </svg>
+        <div><b>Captive Portals:</b>
+        After your connection is configured you can open a web browser by clicking the icon at the bottom center of the screen to authenticate with any captive portals the network may have.
+        It may help to try navigating to <code>http://neverssl.com</code> to force any captive portals to show up.
+        <br>
+        Be aware that the team user will not be able to access any sites other than than the contest, including any captive portals. If the captive portal requires reauthentication after a period of time (e.g. airport wifi that times out after 1hr) teams may lose their network during the contest.
+        </div>
+      </div>
+      <p>After your network is online, click the "Refresh data from the internet" button at the bottom of the screen, then continue with the setup.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <h3>Finishing setup</h3>
+      <img src="setup-selftest.png" style="max-width: 800px" class="screenshot float-end p-3">
+      <p>
+        Once you have everything configured correctly, click the "Apply Configuration and Exit". This will first ask you to confirm the changes you are about to make, and then apply them to the machine.
+        You will then see the self-test run, and prompt you to press enter to continue.
+      </p>
+      <img src="confirm-dialog.png" class="screenshot center-block">
+
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+    </div>
+  </div>
+
+
+</body>

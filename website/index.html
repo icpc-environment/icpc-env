@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICPC Contest Image</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="container my-4">
+
+<h1 id="icpc-contest-image">ICPC Contest Image</h1>
+<p>All contestants will use a customized linux environment based on the current Ubuntu Long Term Support (LTS) release. This environment is optimized for booting off a usb flash drive, so no modifications to the computer hardware are required.</p>
+<p>This is similar to the World Finals contest environment which is also conducted in a linux environment.</p>
+
+<h1 id="installation">Installation</h1>
+<p>Installation is as simple as imaging a flash drive. Instructions for both Linux and Windows are provided.</p>
+<div class="row">
+  <div class="col-md-6">
+    <h2>Linux</h2>
+    <ul>
+      <li>Download one of the compressed image files below</li>
+      <li>Decompress the image: <code>gunzip ??.img.gz</code></li>
+      <li>Use dd to image a flash drive: <code>dd if=??.img of=/dev/sdx bs=1M status=progress oflag=direct</code>
+        <ul>
+          <li>Make sure to replace /dev/sdx with your actual flash drive</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="col-md-6">
+    <h2>Windows</h2>
+    <ul>
+      <li>Download one of the compressed image files below</li>
+      <li>Decompress the image using a tool such as <a href="https://www.7-zip.org">7zip</a></li>
+      <li>Use <a href="https://www.alexpage.de/usb-image-tool/">USB Image Tool</a> to write the image to a flash drive</li>
+    </ul>
+  </div>
+</div>
+
+<h1 id="testing">Testing</h1>
+<p>Once you have imaged your flash drive, it can be used in any x86-64 computer capable of booting from a usb drive. UEFI boot or regular BIOS booting are both supported. The hard drive of the system will not be changed and is inaccessible to the contestants.</p>
+<p>No password is needed to log in as the <code>contestant</code> user. The password for the <code>icpcadmin</code> account on the 'generic' image is <code>icpcadmin</code>, and this user has root (sudo) privileges.</p>
+<p>On the regular images this password will be distributed by your contest manager.</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Size</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- One row per published image, e.g.
+    <tr>
+      <td><a href="images/generic-2026-10-21_image-amd64.img.gz">generic-2026-10-21_image-amd64.img.gz</a></td>
+      <td>8.3G</td>
+      <td>ICPC Generic Contest Environment<br><code>icpcadmin</code> account password is <code>icpcadmin</code></td>
+    </tr>
+    -->
+  </tbody>
+</table>
+
+<hr>
+<h1 id="for-contestants">For Contestants</h1>
+<h2 id="software-and-versions">Software and Versions</h2>
+<p>The environment is loaded with the programming languages and compilers that are used by the ICPC World Finals as well as some of the more popular IDEs and editors. See below for a list of available software and tools.</p>
+<div class="row">
+  <div class="col-md-4">
+    <h3>Compilers</h3>
+    <table class="table table-sm table-striped w-auto">
+      <thead>
+        <tr><th>Language</th><th>Version</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>c</td><td>13.3.0-6ubuntu2~24.04</td></tr>
+        <tr><td>c++</td><td>13.3.0-6ubuntu2~24.04</td></tr>
+        <tr><td>c (14)</td><td>14.2.0-4ubuntu2~24.04</td></tr>
+        <tr><td>c++ (14)</td><td>14.2.0-4ubuntu2~24.04</td></tr>
+        <tr><td>java</td><td>21.0.8+9-Ubuntu-0ubuntu124.04.1</td></tr>
+        <tr><td>python3</td><td>3.12.3</td></tr>
+        <tr><td>pypy3</td><td>7.3.18 (Python 3.11.11)</td></tr>
+        <tr><td>kotlin</td><td>2.1.21</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col-md-4">
+    <h3>IDEs/Tools</h3>
+    <table class="table table-sm table-striped w-auto">
+      <thead>
+        <tr><th>Tool Name</th><th>Version</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Eclipse</td><td>2025-09 (4.37.0)</td></tr>
+        <tr><td>Eclipse PyDev</td><td>13.1.0.202509210817</td></tr>
+        <tr><td>Eclipse CDT</td><td>12.2.0.202509030008</td></tr>
+        <tr><td>(G)Vim</td><td>9.1</td></tr>
+        <tr><td>emacs</td><td>29.3</td></tr>
+        <tr><td>gedit</td><td>46.2</td></tr>
+        <tr><td>GNU Make</td><td>4.3</td></tr>
+        <tr><td>Geany</td><td>2.0</td></tr>
+        <tr><td>neovim</td><td>0.9.5</td></tr>
+        <tr><td>IntelliJ IDEA</td><td>2025.2.4 (Community)</td></tr>
+        <tr><td>PyCharm Community</td><td>2025.2.4 (Community)</td></tr>
+        <tr><td>CLion</td><td>2025.2.3</td></tr>
+        <tr><td>Visual Studio Code</td><td>1.105.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<h3 id="after-the-contest">After The Contest</h3>
+<p>This contest image is designed to provide contestants with easy access to their work after the contest is over. Contestants can take the drive with them and boot it on their own machines to recreate the contest environment exactly. They can also copy files into the folder <code>/mnt/usbdrive</code> (or <code>/home/contestant/usbdrive</code>), which is a Fat32 compatible filesystem. In this way they can simply plug the flash drive in to any Windows/OSX/Linux machine and view the files directly.</p>
+
+<hr>
+<h1 id="for-admins">For Admins</h1>
+<h2 id="guide">User Manual</h2>
+<p>There is a user manual that you should read: <a href="guide/index.html">User Manual</a></p>
+
+<h2 id="image-configuration">Image configuration</h2>
+<p>Each workstation must be configured for each team with a few simple settings. The first time the environment boots it will run through a few prompts to set everything up. Just follow the prompts and everything will be configured. After configuration the system will run a self-test. Green is good, red is bad, but there are some cases where red is ok (e.g. days before the contest kattis may not load, so it'll be red; or if you choose not to configure printers)</p>
+
+<h2 id="resetting-after-the-practice-round">Resetting after the practice round</h2>
+<p>After the practice round, it is important to reset all team workstations before the real contest begins. This is a simple process. Log the contestant user out on each workstation. Then log in as the <code>Clear Team Account</code> (teamreset) user using the same password as for the <code>icpcadmin</code> user. This will remove all files from the contestant user and reboot the machine. It will preserve the team id/name and printer ip address settings.</p>
+
+<h2 id="misc-notes">Misc Notes</h2>
+<p>Each contest machine joins a private vpn network on boot. This allows the contest technical director access to any machine remotely to apply updates/diagnose issues. If any issues are discovered during the practice round, it may be possible to push out a hotfix before the contest if attention is brought to the technical director in time.</p>
+
+<h2 id="other-tools">Other tools</h2>
+<p>Logging in as the <code>icpcadmin</code> user is sometimes beneficial if you need to adjust various things. It's a full linux machine so you can do basically whatever you'd need to do.</p>
+
+<h2 id="firewall-notes">Firewall notes</h2>
+<p>The firewall is configured to block the contestant user from accessing anything on the network except <code>localhost</code>. There is a squid proxy running that is configured by default and only allows access to certain restricted sites (e.g. kattis).</p>
+<p>All other users/accounts have unrestricted access to the network. This allows for printing with cups or troubleshooting issues without having to remember to turn the firewall off or back on.</p>
+
+</div>
+</body>
+</html>

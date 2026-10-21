@@ -1,0 +1,74 @@
+
+<style>
+div.col1, div.col2 {
+  float: left;
+  width: 500px;
+}
+div.col1 {
+    margin-right: 30px;
+}
+div.col2 {
+  margin-left: 30px;
+}
+.clearfix {
+  clear: both;
+}
+div.row {
+  width: 1060px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.row img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.row {
+  margin-bottom: 30px;
+  margin-top: 30px;
+}
+.row p {
+  text-align: center;
+}
+.bigtext {
+  font-size: 20px;
+}
+.row h1 {
+  text-align: center;
+}
+</style>
+<body>
+  <div class="row">
+    <h1>ICPC Contest Environment ICPC Admin Tasks</h1>
+  </div>
+  <div class="row">
+    <p>Sometimes you might need to perform administrative tasks on the system. You can do this from the special <code>icpcadmin</code> account</p>
+      <img src="teamdesktop.png" width=500px>
+  </div>
+
+  <div class="row">
+    <p>In the top left corner of the screen, click on "Applications", then select "Log Out" from the menu.</p>
+    <img src="teamdesktop-logout-menu.png" width=500px>
+  </div>
+
+  <div class="row">
+    <p>At the dialog, select "Log Out"</p>
+    <img src="teamdesktop-logout-prompt.png" width=500px>
+  </div>
+
+  <div class="row">
+    <p>On the login screen, make sure the user selected is "ICPC Admin". Then enter the system password(Ask your site director)</p>
+    <img src="loginscreen-icpcadmin.png" width=500px>
+  </div>
+
+  <div class="row">
+    <p>Once logged in you will be on the admin desktop. There are a few desktop shortcuts here to help make your life easier.</p>
+    <ul>
+      <li><b>Reconfigure System</b> - This runs the first boot setup wizard again, allowing you to change the team name, domjudge credentials, and printers</li>
+      <li><b>Factory Reset</b> - This will reset the state of the USB drive, so the next time it is booted it will go through the initial setup process again</li>
+      <li><b>Wipe Team Account</b> - This does the same thing as logging in to the Clear Team Account, without the forced reboot afterwards(A reboot is highly recommended to make sure temp directorys and memory are cleared as well)</li>
+      <li><b>Self Test</b> - This runs the self test that happens at the end of the first boot set up. Useful if you want to verify versions or the configuration of the system.</li>
+    </p>
+    <img src="icpcadmin-desktop.png" width=500px>
+  </div>
+</body>
