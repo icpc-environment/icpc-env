@@ -73,21 +73,34 @@ sudo dd if=output/generic-2026-09-01_image-amd64.img of=/dev/sdx bs=1M status=pr
 ## Writing usb drives
 `tools/usb` writes drives with partclone, which copies only the blocks each
 filesystem uses rather than the whole image, and checks each drive afterwards.
-It needs `partclone`, `e2fsprogs` and `dosfstools`. Every recipe uses the
-newest image in `output/` unless told otherwise.
+It needs `partclone`, `e2fsprogs` and `dosfstools`, plus [uv](https://docs.astral.sh/uv/)
+for the station. Every recipe uses the newest image in `output/` unless told otherwise.
 
 1. Split the image into the pieces that get written, in `output/<image>.img.d`
 ```bash
 just usb prepare
 ```
-1. Write a drive
+1. Write drives, either one at a time
 ```bash
 just usb write /dev/sdx
 ```
+or with a station that writes every usb drive as it's plugged in, side by side,
+one box per port showing how it's going (green when done, red if it failed)
+```bash
+just usb station
+```
 
-It refuses drives that aren't on usb, are mounted somewhere other than
+The station gives each port a box the first time a drive shows up in it. To
+have the boxes named after the ports (e.g. "Front left") and laid out from the
+start, run `just usb learn` once and plug a drive into each port in turn; it
+saves them in `tools/usb/ports.toml`. `just usb station --dry-run` shows what
+would happen without writing anything.
+
+Both refuse drives that aren't on usb, are mounted somewhere other than
 `/media`, hold this machine's root filesystem, or are bigger than 128 GiB
-(`--max-size` to change).
+(`--max-size` to change). A drive pulled out mid-write is marked failed; plug
+it back in to write it again. While the station runs it keeps the desktop
+from automounting usb drives.
 
 ## Customization of the Image
 One of our goals with this image is for it to be easily customized. To achieve this

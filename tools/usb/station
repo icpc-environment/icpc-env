@@ -1,0 +1,436 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "pyudev",
+#     "urwid",
+# ]
+# ///
+"""Write usb drives as they're plugged in, one write-usb per port at a time.
+
+Each port gets a box showing its write-usb output, coloured by how it went.
+Ports are named from a ports file (see --learn); without one, each port gets
+a box the first time a drive shows up in it.
+"""
+import argparse
+import itertools
+import math
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+from enum import Enum
+from pathlib import Path
+
+import pyudev
+import urwid
+
+HERE = Path(__file__).resolve().parent
+OUTPUT = HERE.parent.parent / "output"
+DEFAULT_PORTS = HERE / "ports.toml"
+UDEV_RULE = Path("/run/udev/rules.d/90-icpc-usb-station.rules")
+
+# Started after a drive appears, so its partitions and model show up first
+SETTLE_SECONDS = 2
+
+DRY_RUN_WRITER = """
+echo "Dry run: would write $2 to $1"
+for i in $(seq 0 5 100); do printf '\\r%3d%%' $i; sleep 0.2; done
+echo
+echo "SUCCESS: $1 not written (dry run)"
+"""
+
+
+class State(Enum):
+    PRESENT = "present"
+    WAITING = "waiting"
+    STARTING = "starting"
+    WRITING = "writing"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+ATTRS = {
+    State.PRESENT: "idle",
+    State.WAITING: "idle",
+    State.STARTING: "writing",
+    State.WRITING: "writing",
+    State.SUCCESS: "success",
+    State.FAILED: "failed",
+}
+
+
+class OutputTerminal(urwid.Terminal):
+    # Keys go to the station, not to write-usb, which never reads any
+    def selectable(self):
+        return False
+
+
+def usb_port(device):
+    """The usb port a drive is plugged into, as the sysfs path of its usb device.
+
+    udev's ID_PATH would be simpler but leaves out the bus, and a usb 3
+    controller puts its usb 2 and usb 3 ports on separate buses that reuse the
+    same port numbers.
+    """
+    if device.properties.get("ID_BUS") != "usb":
+        return None
+    usb = device.find_parent("usb", "usb_device")
+    return usb.device_path if usb else None
+
+
+def drive_label(device):
+    vendor = device.properties.get("ID_VENDOR", "").replace("_", " ")
+    model = device.properties.get("ID_MODEL", "").replace("_", " ")
+    size = device.attributes.asint("size") * 512 / 1e9
+    return f"{vendor} {model} ({size:.0f} GB)".strip()
+
+
+class Port:
+    def __init__(self, station, name):
+        self.station = station
+        self.name = name
+        self.state = State.WAITING
+        self.devname = None
+        self.started = None
+        self.finished = None
+        self.terminal = None
+        self.status_file = None
+        self.alarm = None
+
+        self.message = urwid.Text("")
+        self.body = urwid.WidgetPlaceholder(urwid.Filler(self.message, valign="top"))
+        self.box = urwid.LineBox(self.body, title=name, title_align="left")
+        self.widget = urwid.AttrMap(self.box, "idle")
+        self.show(State.WAITING, "Waiting for a drive")
+
+    def show(self, state, message=None):
+        self.state = state
+        self.widget.set_attr_map({None: ATTRS[state]})
+        if message is not None:
+            self.message.set_text(message)
+            self.body.original_widget = urwid.Filler(self.message, valign="top")
+        self.update_title()
+        self.station.update_status()
+
+    def update_title(self):
+        title = self.name
+        if self.devname:
+            title += f" {self.devname}"
+        if self.state in (State.WRITING, State.SUCCESS, State.FAILED):
+            elapsed = int((self.finished or time.time()) - self.started)
+            title += f" - {self.state.value.upper()} {elapsed // 60}m{elapsed % 60:02d}s"
+        self.box.set_title(title)
+
+    def already_present(self, device):
+        self.devname = device.device_node
+        self.show(State.PRESENT, f"{drive_label(device)} was already plugged in.\n"
+                                 "Unplug it and plug it back in to write it.")
+
+    def inserted(self, device):
+        if self.state not in (State.WAITING, State.SUCCESS, State.FAILED):
+            return
+        self.devname = device.device_node
+        self.started = self.finished = None
+        self.show(State.STARTING, f"{drive_label(device)}\nStarting in {SETTLE_SECONDS}s...")
+        self.alarm = self.station.loop.set_alarm_in(SETTLE_SECONDS, lambda *_: self.start())
+
+    def start(self):
+        self.alarm = None
+        fd, self.status_file = tempfile.mkstemp(prefix="usb-station-")
+        os.close(fd)
+        os.unlink(self.status_file)
+        env = dict(os.environ, STATUS_FILE=self.status_file)
+        command = ["/bin/bash", "-c", '"$@"; echo $? > "$STATUS_FILE"', "bash",
+                   *self.station.writer, self.devname, str(self.station.image_dir)]
+        self.terminal = OutputTerminal(command, env=env, main_loop=self.station.loop.event_loop)
+        urwid.connect_signal(self.terminal, "closed", lambda *_: self.closed())
+        self.body.original_widget = self.terminal
+        self.started = time.time()
+        self.show(State.WRITING)
+
+    def closed(self):
+        self.finished = time.time()
+        try:
+            code = int(Path(self.status_file).read_text())
+            Path(self.status_file).unlink()
+        except (OSError, ValueError):
+            code = None
+        # The finished output stays up, under a title saying how it went
+        self.show(State.SUCCESS if code == 0 else State.FAILED)
+        self.terminal = None
+        self.station.bell()
+
+    def removed(self):
+        if self.alarm:
+            self.station.loop.remove_alarm(self.alarm)
+            self.alarm = None
+        if self.state == State.WRITING:
+            self.terminal.terminate()
+            self.finished = time.time()
+            self.devname = None
+            self.show(State.FAILED, "Unplugged while writing, this drive is not usable.\n"
+                                    "Plug it back in to write it again.")
+            return
+        self.devname = None
+        self.show(State.WAITING, "Waiting for a drive")
+
+    def abort(self):
+        if self.terminal:
+            self.terminal.terminate()
+
+
+class Station:
+    def __init__(self, args):
+        self.image_dir = args.image_dir
+        self.columns = args.columns
+        self.loop_devices = args.loop_devices
+        if args.dry_run:
+            self.writer = ["/bin/bash", "-c", DRY_RUN_WRITER, "dry-run"]
+        else:
+            self.writer = [str(HERE / "write-usb")]
+            if args.no_verify:
+                self.writer.append("--no-verify")
+            if args.max_size:
+                self.writer += ["--max-size", str(args.max_size)]
+            if args.loop_devices:
+                self.writer.append("--any-transport")
+
+        self.paths = {}  # usb_port() -> port name
+        self.ports = {}  # port name -> Port
+        self.fixed_ports = args.ports_file.exists()
+        self.loop = None
+        self.quit_armed = False
+
+        self.status = urwid.Text("")
+        self.notice = urwid.Text("")
+        self.grid = urwid.WidgetPlaceholder(urwid.SolidFill(" "))
+        footer = urwid.AttrMap(urwid.Pile([self.notice, self.status]), "status")
+        self.frame = urwid.Frame(self.grid, footer=footer)
+
+        if self.fixed_ports:
+            for name, paths in load_ports(args.ports_file).items():
+                self.add_port(name, paths)
+        else:
+            self.note("No ports file, so each port gets a box the first time a drive is plugged into it")
+
+    def add_port(self, name, paths):
+        self.ports[name] = Port(self, name)
+        for path in paths:
+            self.paths[path] = name
+        self.layout()
+
+    def layout(self):
+        ports = [p.widget for p in self.ports.values()]
+        if not ports:
+            self.grid.original_widget = urwid.Filler(
+                urwid.Text("Plug a drive in to start", align="center"))
+            return
+        columns = self.columns or math.ceil(math.sqrt(len(ports)))
+        rows = [urwid.Columns(ports[i:i + columns]) for i in range(0, len(ports), columns)]
+        # Keep a short last row the same width per box as the others
+        missing = columns - len(ports) % columns
+        if missing != columns:
+            rows[-1] = urwid.Columns(ports[-(len(ports) % columns):] + [urwid.SolidFill(" ")] * missing)
+        self.grid.original_widget = urwid.Pile(rows)
+
+    def note(self, text):
+        self.notice.set_text(text)
+
+    def update_status(self):
+        counts = {s: sum(p.state == s for p in self.ports.values()) for s in State}
+        writing = counts[State.WRITING] + counts[State.STARTING]
+        self.status.set_text(
+            f"{self.image_dir.name} | writing {writing}, done {counts[State.SUCCESS]}, "
+            f"failed {counts[State.FAILED]}, empty {counts[State.WAITING]} | q to quit")
+
+    def bell(self):
+        sys.stdout.write("\a")
+        sys.stdout.flush()
+
+    def port_for(self, device):
+        """The Port a drive is plugged into, if it's one the station writes"""
+        if self.loop_devices:
+            if device.sys_name.startswith("loop"):
+                path = device.device_node
+            else:
+                return None
+        else:
+            path = usb_port(device)
+            if not path:
+                return None
+
+        if path not in self.paths:
+            if self.fixed_ports:
+                self.note(f"{drive_label(device)} is on a port not in the ports file: {path}")
+                return None
+            self.add_port(f"Port {len(self.ports) + 1}", [path])
+        return self.ports[self.paths[path]]
+
+    def on_udev(self):
+        for device in iter(lambda: self.monitor.poll(timeout=0), None):
+            # Loop devices and card readers report media coming and going as a
+            # change in size rather than add and remove
+            size = device.attributes.asint("size") if device.action != "remove" else 0
+            if device.action == "remove" or (device.action == "change" and size == 0):
+                port = self.port_for_known(device)
+                if port:
+                    port.removed()
+            elif device.action in ("add", "change") and size > 0:
+                port = self.port_for(device)
+                if port and (device.action == "add" or port.state == State.WAITING):
+                    port.inserted(device)
+
+    def port_for_known(self, device):
+        for port in self.ports.values():
+            if port.devname == device.device_node:
+                return port
+        return None
+
+    def on_key(self, key):
+        if key not in ("q", "Q"):
+            return
+        busy = [p for p in self.ports.values() if p.state in (State.STARTING, State.WRITING)]
+        if busy and not self.quit_armed:
+            self.quit_armed = True
+            self.note(f"{len(busy)} drives are still being written, press q again to stop them and quit")
+            self.loop.set_alarm_in(5, lambda *_: setattr(self, "quit_armed", False))
+            return
+        for port in self.ports.values():
+            port.abort()
+        raise urwid.ExitMainLoop()
+
+    def tick(self, *_):
+        for port in self.ports.values():
+            if port.state == State.WRITING:
+                port.update_title()
+        self.loop.set_alarm_in(1, self.tick)
+
+    def run(self):
+        palette = [
+            ("idle", "default", "default"),
+            ("writing", "light blue", "default"),
+            ("success", "light green", "default"),
+            ("failed", "light red", "default"),
+            ("status", "white", "dark blue"),
+        ]
+        context = pyudev.Context()
+        self.monitor = pyudev.Monitor.from_netlink(context)
+        self.monitor.filter_by(subsystem="block", device_type="disk")
+        self.monitor.start()
+
+        self.loop = urwid.MainLoop(self.frame, palette, unhandled_input=self.on_key, handle_mouse=False)
+        self.loop.watch_file(self.monitor.fileno(), self.on_udev)
+
+        for device in context.list_devices(subsystem="block", DEVTYPE="disk"):
+            if device.attributes.asint("size") > 0:
+                port = self.port_for(device)
+                if port:
+                    port.already_present(device)
+        self.layout()
+        self.update_status()
+        self.tick()
+        self.loop.run()
+
+
+def load_ports(path):
+    return tomllib.loads(path.read_text()).get("ports", {})
+
+
+def save_ports(path, ports):
+    def quote(s):
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    lines = ["# usb ports for tools/usb/station, from `just usb learn`", "[ports]"]
+    for name, paths in ports.items():
+        lines.append(f"{quote(name)} = [{', '.join(quote(p) for p in paths)}]")
+    path.write_text("\n".join(lines) + "\n")
+    if "SUDO_UID" in os.environ:
+        os.chown(path, int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
+
+
+def learn(path):
+    """Name ports by plugging a drive into each in turn"""
+    ports = load_ports(path) if path.exists() else {}
+    context = pyudev.Context()
+    monitor = pyudev.Monitor.from_netlink(context)
+    monitor.filter_by(subsystem="block", device_type="disk")
+    print(f"Saving ports to {path}")
+    print("A usb 2 drive in a usb 3 port shows up as a different port, so name each port")
+    print("with both kinds of drive if you have both. Ctrl-C when done.\n")
+    try:
+        for n in itertools.count(len(ports) + 1):
+            print("Plug a drive into a port...")
+            for device in iter(monitor.poll, None):
+                if device.action == "add" and usb_port(device):
+                    break
+            port = usb_port(device)
+            known = [name for name, paths in ports.items() if port in paths]
+            print(f"  {drive_label(device)} at {port}")
+            if known:
+                print(f"  That's {known[0]} already")
+            else:
+                name = input(f"  Name for this port [Port {n}]: ").strip() or f"Port {n}"
+                ports.setdefault(name, []).append(port)
+                save_ports(path, ports)
+                print(f"  Saved as {name}")
+            print("Unplug it.\n")
+            devname = device.device_node
+            for device in iter(monitor.poll, None):
+                if device.action == "remove" and device.device_node == devname:
+                    break
+    except (KeyboardInterrupt, EOFError):
+        print()
+    print(f"{len(ports)} ports in {path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("image_dir", type=Path, nargs="?",
+                        help="output of tools/usb/prepare (default: the newest in output/)")
+    parser.add_argument("--ports-file", type=Path, default=DEFAULT_PORTS,
+                        help=f"port names (default {DEFAULT_PORTS.relative_to(HERE.parent.parent)})")
+    parser.add_argument("--learn", action="store_true", help="name ports by plugging a drive into each")
+    parser.add_argument("--columns", type=int, help="boxes per row (default about square)")
+    parser.add_argument("--dry-run", action="store_true", help="show what would happen without writing drives")
+    parser.add_argument("--no-verify", action="store_true", help="pass --no-verify to write-usb")
+    parser.add_argument("--max-size", type=int, metavar="GIB", help="pass --max-size to write-usb")
+    parser.add_argument("--loop-devices", action="store_true",
+                        help="write loop devices as they're attached instead of usb drives, for testing")
+    args = parser.parse_args()
+
+    if os.geteuid() != 0:
+        sys.exit("station needs root to write drives")
+    if args.learn:
+        learn(args.ports_file)
+        return
+    if not args.image_dir:
+        prepared = sorted(OUTPUT.glob("*_image-amd64.img.d"), key=lambda d: d.stat().st_mtime)
+        if not prepared:
+            sys.exit("Nothing prepared in output/, run tools/usb/prepare first")
+        args.image_dir = prepared[-1]
+    if not (args.image_dir / "manifest.json").exists():
+        sys.exit(f"{args.image_dir} has no manifest.json, run tools/usb/prepare first")
+    args.image_dir = args.image_dir.resolve()
+
+    # So closing the window still runs the cleanup below
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, lambda *_: sys.exit(1))
+
+    # Keeps the desktop from automounting drives while they're being written
+    if not args.dry_run:
+        UDEV_RULE.parent.mkdir(parents=True, exist_ok=True)
+        UDEV_RULE.write_text('SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{UDISKS_IGNORE}="1", ENV{UDISKS_AUTO}="0"\n')
+        subprocess.run(["udevadm", "control", "--reload"], check=False)
+    try:
+        Station(args).run()
+    finally:
+        if UDEV_RULE.exists():
+            UDEV_RULE.unlink()
+            subprocess.run(["udevadm", "control", "--reload"], check=False)
+
+
+if __name__ == "__main__":
+    main()

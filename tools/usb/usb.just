@@ -5,6 +5,8 @@
 set working-directory := '../..'
 set positional-arguments
 
+station := 'sudo env "PATH=$PATH" uv run --script tools/usb/station'
+
 [private]
 default:
     @just --list usb
@@ -16,3 +18,11 @@ prepare *args:
 # Write one drive, e.g. `just usb write /dev/sdb`
 write device *args:
     sudo tools/usb/write-usb --confirm "$@"
+
+# Write every drive plugged into this machine, as they're plugged in
+station *args:
+    {{station}} "$@"
+
+# Name this machine's usb ports for the station, by plugging a drive into each
+learn:
+    {{station}} --learn
