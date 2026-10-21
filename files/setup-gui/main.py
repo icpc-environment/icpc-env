@@ -553,7 +553,7 @@ def main():
   if configuration["print_test_page"]:
       # remove the color codes from the self-test report so the printout isn't so ugly
       (ret, out, err) = run_cmd(["bash", "-c", "cat /icpc/self_test_report | sed -e 's/\\x1b\\[[0-9;]*[A-Za-z]//g; s/\\x1b[()][0-9A-Za-z]//g' | sponge /icpc/self_test_report"], ignore_errors=True)
-      (ret, out, err) = run_cmd(["su", "-", "contestant", "-c", "/icpc/scripts/printfile /icpc/self_test_report"])
+      (ret, out, err) = run_cmd(["su", "-", "contestant", "-c", "/icpc/scripts/printfile --portrait -1 /icpc/self_test_report"])
       print("Test page sent to printer...")
 
   # Remove the self-test report
