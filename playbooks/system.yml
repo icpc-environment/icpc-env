@@ -7,7 +7,6 @@
       - htop
       - btop        # a modern resource monitor
       - iotop
-      - sysstat
       # misc admin tools
       - util-linux-extra  # for hwclock
       - net-tools   # for ifconfig/old tools
@@ -55,6 +54,9 @@
       - apport
       - avahi-daemon
       - ufw
+      # its sar collector writes to the USB every 10 min; node-exporter
+      # already ships the same metrics to the management server
+      - sysstat
     state: absent
 
 - name: Cleanup command-not-found dir
@@ -163,6 +165,24 @@
     mode: "0644"
     owner: root
     group: root
+
+- name: Mask stock timers we don't use (they only churn the USB)
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+    enabled: false
+  with_items:
+    - man-db.timer                   # rebuilds the man cache
+    - fwupd-refresh.timer            # downloads firmware metadata
+    - dpkg-db-backup.timer           # daily tarball of the dpkg db
+    - motd-news.timer                # fetches news for the login banner
+    - update-notifier-download.timer
+    - update-notifier-motd.timer
+    - apt-daily.timer                # already neutered, but stop it firing
+    - apt-daily-upgrade.timer
+    - e2scrub_all.timer              # expects LVM; there is none
+    - xfs_scrub_all.timer            # there is no xfs
+    - ua-timer.timer                 # Ubuntu Pro
 
 # TODO: tune these things
 # - name: Delete some .desktop shortcuts (so they don't show up in the applications menu)
