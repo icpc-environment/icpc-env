@@ -11,6 +11,7 @@
 #added by the print server, not here.
 
 import os
+import re
 import subprocess
 import sys
 
@@ -45,9 +46,18 @@ while args:
 if not files:
     sys.exit("usage: printfile [-P printer] [--output=file] [--portrait] [-1|-2] file [...]")
 
-lpr = ["/usr/bin/lpr"]
+# lp, unlike lpr, says which job it queued
+lp = ["/usr/bin/lp"]
 if printer is not None:
-    lpr += ["-P", printer]
+    lp += ["-d", printer]
+
+
+def pages(rendered):
+    """paps' header says "%%Pages: (atend)", and its trailer has the count"""
+    counts = re.findall(rb"^%%Pages: (\d+)$", rendered, re.MULTILINE)
+    n = counts[-1].decode() if counts else "?"
+    return n + (" page" if n == "1" else " pages")
+
 
 for path in files:
     # Invalid UTF-8 would make paps silently drop the line it's on
@@ -57,9 +67,14 @@ for path in files:
                             input=text.encode(), stdout=subprocess.PIPE, check=True).stdout
     paps = ["/usr/bin/paps", "--markup"] + options
 
+    rendered = subprocess.run(paps, input=markup, stdout=subprocess.PIPE, check=True).stdout
+
     if output is not None:
         with open(output, "ab") as handle:
-            subprocess.run(paps, input=markup, stdout=handle, check=True)
+            handle.write(rendered)
+        print(f"{path}: {pages(rendered)} written to {output}")
     else:
-        rendered = subprocess.run(paps, input=markup, stdout=subprocess.PIPE, check=True)
-        subprocess.run(lpr + ["-T", os.path.basename(path)], input=rendered.stdout, check=True)
+        queued = subprocess.run(lp + ["-t", os.path.basename(path)], input=rendered,
+                                stdout=subprocess.PIPE, check=True).stdout.decode()
+        job = re.search(r"request id is (\S+)", queued)
+        print(f"{path}: {pages(rendered)} sent to the printer" + (f", job {job.group(1)}" if job else ""))
