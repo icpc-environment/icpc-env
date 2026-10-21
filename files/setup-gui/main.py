@@ -307,7 +307,8 @@ def show_terminal():
 def online():
   """Whether the configuration server can be reached"""
   try:
-    with urllib.request.urlopen(f"{config_url}/contests.json", timeout=5) as response:
+    request = urllib.request.Request(f"{config_url}/contests.json", headers={"User-Agent": "icpc-setup"})
+    with urllib.request.urlopen(request, timeout=5) as response:
       response.read(1)
     return True
   except Exception:
