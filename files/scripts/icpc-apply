@@ -428,7 +428,9 @@ def fetch_wallpaper(url):
     """Download wallpaper_url to /icpc/wallpaper.png, keeping the last one if that fails"""
     new = ICPC / "wallpaper.png.new"
     try:
-        with urllib.request.urlopen(url, timeout=15) as response:
+        # Cloudflare refuses urllib's own User-Agent
+        request = urllib.request.Request(url, headers={"User-Agent": "icpc-apply"})
+        with urllib.request.urlopen(request, timeout=15) as response:
             new.write_bytes(response.read())
     except (OSError, ValueError) as e:
         if WALLPAPER.exists():
