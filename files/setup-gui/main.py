@@ -288,16 +288,57 @@ pinned = machine_config.get("config_contest") or None
 configuration = {}
 
 
+def online():
+  """Whether the configuration server can be reached"""
+  try:
+    with urllib.request.urlopen(f"{config_url}/contests.json", timeout=5) as response:
+      response.read(1)
+    return True
+  except Exception:
+    return False
+
+
+def launch(cmd):
+  try:
+    Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+  except OSError as e:
+    sg.popup(f"Couldn't start {cmd[0]}: {e}", title="Error")
+
+
+def review_text(values, window):
+  """Everything Apply will set up, for the summary page"""
+  printers = [str(Printer(p)) for p in values['configured_printers']]
+  extra = f" [{values['team_extra']}]" if values['team_extra'] else ""
+  config = with_choices(with_site(machine_config, configuration.get("data", {})), window)
+  return f"""{'Contest:':<18}{values['contest']}
+{'Site:':<18}{values['site']}
+{'Team:':<18}{values['team_id']} - {values['team_name']} ({values['team_affiliation']}){extra}
+{'Printers:':<18}{(chr(10) + ' ' * 18).join(printers) if printers else "none"}
+{'Test page:':<18}{"print one" if values['print_test_page'] else "don't print"}
+
+{summary_text(config)}
+"""
+
+
 def mainwindow():
   # sg.theme('DarkBlue3') # this is the default anyway
   sg.theme('Default1') # this is the default anyway
 
-  # TODO: add a button to open firefox to http://neverssl.com for captive portal activation
-  # TODO: add information about how to configure wifi (click network icon top right, do the obvious thing, etc)
+  offline_page = [
+    [sg.Text('No Internet Connection', font=('Helvetica', 14))],
+    [sg.Text(f"""This machine can't reach {config_url}, where it gets its contest's settings.
 
-  # Define the layout of the window
-  layout = [
-    [sg.Text('ICPC Contest Setup', font=('Helvetica', 16), justification='center')],
+To connect it:
+  - With a network cable, plug it in and press Try Again.
+  - For Wi-Fi, click the network icon at the top right of the screen and pick your network,
+    or press Open Network Settings to set one up.
+  - If the network needs you to log in on a web page first, press Open Login Page.""")],
+    [sg.Text("", key='offline_status', text_color='darkred')],
+    [sg.Button('Open Network Settings', key='network_settings'), sg.Button('Open Login Page', key='captive_portal'),
+     sg.Button('Try Again', key='retry'), sg.Push(), sg.Button('Continue Without Internet', key='offline')],
+  ]
+
+  config_page = [
     [sg.Text("Please answer the following questions to finalize the configuration of your environment.\nYou can re-run this setup tool later by executing '/icpc/scripts/icpc_setup -f' as root.")],
     [
       sg.Frame('Configuration Data', [
@@ -315,14 +356,9 @@ def mainwindow():
       ]),
     ],
     [
-      sg.Frame("This machine's settings (from the site's configuration, and the options above)", [
-        [sg.Multiline("", key='settings_summary', size=(100, 7), font=("courier", 10), disabled=True, expand_x=True)],
-      ], expand_x=True)
-    ],
-    [
       sg.Frame('Team Identification', [
          [sg.Text('Select your team from the list below to pre-populate the fields')],
-        [sg.Listbox([], size=(60,6), font=("courier",11), key="team", horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, expand_x=True, enable_events=True)],
+        [sg.Listbox([], size=(60,10), font=("courier",11), key="team", horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_SINGLE, expand_x=True, enable_events=True)],
         [sg.HorizontalSeparator()],
         [sg.Text('Team Information (This is what will be used, modify if necessary)')],
         [sg.Text('Team ID', size=(10,1)), sg.InputText(key='team_id', size=(50,1))],
@@ -335,7 +371,7 @@ def mainwindow():
       sg.Frame('Printer configuration', [
         [sg.Column([
           [sg.Text("Select printers to install (hold ctrl to select multiple)")],
-          [sg.Listbox([], size=(50,5), select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED, key="configured_printers", expand_y=True, enable_events=True)],
+          [sg.Listbox([], size=(50,8), select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED, key="configured_printers", expand_y=True, enable_events=True)],
         ]),
         sg.Column([
           [sg.Text('Enter your printer IP/hostname as a valid cups uri. E.g. ipp://10.1.2.3:631')],
@@ -347,22 +383,59 @@ def mainwindow():
         ])]
       ])
     ],
-    [
-
-    ],
-    [sg.Button('Refresh data from internet (will clear/reset data)', key='reload'), sg.Push(),sg.Button('Apply Configuration and Exit', key="apply")]
+    [sg.Button('Refresh data from internet (will clear/reset data)', key='reload'), sg.Push(), sg.Button('Next', key='next')]
   ]
 
-  # Create the window
+  review_page = [
+    [sg.Text('Check this is right, then press Apply', font=('Helvetica', 14))],
+    [sg.Multiline("", key='review', size=(110, 30), font=("courier", 10), disabled=True, expand_x=True)],
+    [sg.Button('Back', key='back'), sg.Push(), sg.Button('Apply Configuration and Exit', key='apply')],
+  ]
+
+  pages = ['offline_page', 'config_page', 'review_page']
+  layout = [
+    [sg.Text('ICPC Contest Setup', font=('Helvetica', 16), justification='center')],
+    [sg.pin(sg.Column(offline_page, key='offline_page', visible=False)),
+     sg.pin(sg.Column(config_page, key='config_page', visible=False)),
+     sg.pin(sg.Column(review_page, key='review_page', visible=False, expand_x=True), expand_x=True)],
+  ]
+
   window = sg.Window('ICPC Contest Setup', layout, finalize=True, use_default_focus=False)
-  # Trigger an event to reload the information on startup
-  window.write_event_value('reload', "reload")
+
+  def show(page):
+    for p in pages:
+      window[p].update(visible=p == page)
+    # The window resizes to the page, but stays where the last one put it
+    window.refresh()
+    window.move_to_center()
+
+  def start():
+    show('config_page')
+    # Load the contests, sites and teams
+    window.write_event_value('reload', "reload")
+
+  if online():
+    start()
+  else:
+    show('offline_page')
 
   # Event loop to process events and get values from inputs
   while True:
-    window['settings_summary'].update(summary_text(with_choices(with_site(machine_config, configuration.get("data", {})), window)))
-
     event, values = window.read()
+
+    if event == 'network_settings':
+      launch(["nm-connection-editor"])
+    if event == 'captive_portal':
+      launch(["firefox", "http://neverssl.com"])
+    if event == 'retry':
+      if online():
+        start()
+      else:
+        window['offline_status'].update(f"Still can't reach {config_url} ({datetime.now().strftime('%H:%M:%S')})")
+    if event == 'offline':
+      start()
+    if event == 'back':
+      show('config_page')
     # print(f"event: {event}")
     # pprint(values)
 
@@ -464,7 +537,7 @@ def mainwindow():
       window['team_extra'].update(values['team'][0]['extra'])
     if event == sg.WINDOW_CLOSED:
       break
-    if event == 'apply':
+    if event == 'next':
       # Some basic validation:
       invalid_fields = []
       for k in ['contest', 'site', 'team_id', 'team_name', 'team_affiliation']:
@@ -490,27 +563,11 @@ def mainwindow():
                                      + "\n\nApply without them?", title="Printers Not Selected") != "Yes":
         continue
 
-      ret = sg.popup_yes_no(f"""
-Contest: {values['contest']}
-Site: {values['site']}
-Team: {values['team_id']} - {values['team_name']} ({values['team_affiliation']})
-
-Printers:
-{chr(10).join([str(Printer(p)) for p in values['configured_printers']])}
-
-Print test page: {"Yes" if values['print_test_page'] else "No"}
-Autostart Firefox: {"Yes" if values['autostart_firefox'] else "No"}
-Paper size: {"Letter" if values['letter'] else "A4"}{f"""
-Backups: {"Yes" if values['backup'] else "No"}""" if HAS_BACKUPS else ""}
-
-Is this correct?
-    """, title="Confirm Configuration")
-
-      if ret == "Yes":
-        window.close()
-        return values
-      else:
-        continue
+      window['review'].update(review_text(values, window))
+      show('review_page')
+    if event == 'apply':
+      window.close()
+      return values
 
   window.close()
 
