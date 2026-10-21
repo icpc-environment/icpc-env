@@ -171,32 +171,6 @@ SUBMIT_CLIENTS = {
 }
 
 
-KATTISRC = Path("/usr/local/etc/kattisrc")
-# The contest's https://<host>[:port], which ends up in an ini file
-KATTIS_URL_RE = r"https://[A-Za-z0-9.-]+(:[0-9]+)?/?"
-
-
-def apply_kattisrc(client, base_url):
-    """The Kattis CLI reads its URLs from here, and a team's login from ~/.kattisrc"""
-    if client != "kattis" or not base_url:
-        KATTISRC.unlink(missing_ok=True)
-        return
-    if not re.fullmatch(KATTIS_URL_RE, base_url):
-        errors.append(f"submit.base_url {base_url!r} isn't a Kattis https://<host> URL")
-        KATTISRC.unlink(missing_ok=True)
-        return
-    url = base_url.rstrip("/")
-    KATTISRC.parent.mkdir(parents=True, exist_ok=True)
-    KATTISRC.write_text(f"""{GENERATED}
-[kattis]
-hostname: {url.split("://", 1)[1]}
-loginurl: {url}/login
-submissionurl: {url}/submit
-submissionsurl: {url}/submissions
-""")
-    KATTISRC.chmod(0o644)
-
-
 def apply_submit(submit):
     client = submit.get("client")
     if client:
@@ -216,7 +190,6 @@ export SUBMITBASEURL={env_value(base_url)}
 export SUBMITCREDENTIALS=yes
 export SUBMITOMITEXTRAHELP=yes
 """)
-    apply_kattisrc(client, base_url)
 
 
 def apply_management(mgmt, pull_url, pull_url_changed, start):
