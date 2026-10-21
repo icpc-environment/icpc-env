@@ -252,6 +252,36 @@ class Printer(dict):
 machine_config = icpcconfig.load()
 
 # Load list of contests from the internet
+# Images built with backups (playbooks/management/backup.yml) have the app
+HAS_BACKUPS = Path("/icpc/scripts/icpc_backup_app").exists()
+
+
+def with_site(config, data):
+  """config with a site's settings applied, as saving it will"""
+  config = json.loads(json.dumps(config))
+  image_backup = config.get("backup") or {}
+  # The site's settings replace the image's whole...
+  config.update({k: data[k] for k in SITE_SETTINGS if k in data})
+  # ...except backup, where a site only turns backups on or off: the notice's
+  # contact and retention are the image's
+  if isinstance(data.get("backup"), dict):
+    config["backup"] = {**image_backup, **data["backup"]}
+  return config
+
+
+def with_choices(config, window):
+  """config with the wizard's own choices applied"""
+  config = dict(config, papersize="letter" if window['letter'].get() else "a4",
+                autostart_firefox=bool(window['autostart_firefox'].get()))
+  if HAS_BACKUPS:
+    config["backup"] = dict(config.get("backup") or {}, enabled=bool(window['backup'].get()))
+  return config
+
+
+def summary_text(config):
+  return "\n".join(f"{label + ':':<18}{text}" for label, text in icpcconfig.summary(config))
+
+
 config_url = machine_config["config_url"]
 # The contestforge contest this image was built for, if any; the only one it offers
 pinned = machine_config.get("config_contest") or None
@@ -275,13 +305,19 @@ def mainwindow():
         [sg.Text('Site', size=10), sg.Combo(["default"], size=(40,1), expand_x=True, key='site', readonly=True, enable_events=True)],
       ]),
       sg.Frame('System Options', [
-        [sg.Checkbox('Autostart Firefox on login', key='autostart_firefox', default=configuration["autostart_firefox"], tooltip='This will launch Firefox on login to the desktop (i.e. when the machine boots)')],
+        [sg.Checkbox('Autostart Firefox on login', key='autostart_firefox', default=configuration["autostart_firefox"], enable_events=True, tooltip='This will launch Firefox on login to the desktop (i.e. when the machine boots)')],
+        [sg.Checkbox('Back up to the management server', key='backup', default=configuration["backup"], enable_events=True, visible=HAS_BACKUPS, tooltip="Back up the team's files and printouts, and log which windows and programs they use")],
         [sg.Checkbox('Print Test Page?', key='print_test_page', default=True)],
       ]),
       sg.Frame('Paper Size:', [
-          [sg.Radio('Letter', 'PAPERSIZE', key='letter', default=configuration["papersize"] != "a4")],
-          [sg.Radio('A4', 'PAPERSIZE', key='a4', default=configuration["papersize"] == "a4")]
-      ], visible=False),
+          [sg.Radio('Letter', 'PAPERSIZE', key='letter', default=configuration["papersize"] != "a4", enable_events=True)],
+          [sg.Radio('A4', 'PAPERSIZE', key='a4', default=configuration["papersize"] == "a4", enable_events=True)]
+      ]),
+    ],
+    [
+      sg.Frame("This machine's settings (from the site's configuration, and the options above)", [
+        [sg.Multiline("", key='settings_summary', size=(100, 10), font=("courier", 10), disabled=True, expand_x=True)],
+      ], expand_x=True)
     ],
     [
       sg.Frame('Team Identification', [
@@ -324,6 +360,7 @@ def mainwindow():
 
   # Event loop to process events and get values from inputs
   while True:
+    window['settings_summary'].update(summary_text(with_choices(with_site(machine_config, configuration.get("data", {})), window)))
 
     event, values = window.read()
     # print(f"event: {event}")
@@ -385,10 +422,13 @@ def mainwindow():
       configuration["data"], configuration["encrypted"] = data or {}, encrypted
       data = configuration["data"]
 
-      if "autostart_firefox" in data:
-        window['autostart_firefox'].update(bool(data["autostart_firefox"]))
-      if data.get("papersize") in ("letter", "a4"):
-        window[data["papersize"]].update(True)
+      # What the site sets, or else what the machine had, never a previous site's
+      window['autostart_firefox'].update(bool(data.get("autostart_firefox", configuration["autostart_firefox"])))
+      papersize = data.get("papersize") if data.get("papersize") in ("letter", "a4") else configuration["papersize"]
+      window[papersize].update(True)
+      if HAS_BACKUPS:
+        site_backup = data.get("backup") if isinstance(data.get("backup"), dict) else {}
+        window['backup'].update(bool(site_backup.get("enabled", configuration["backup"])))
 
       printers = [Printer({k: str(p.get(k) or "") for k in ("group", "uri", "driver", "note")}) for p in data.get("printers", [])]
       window['configured_printers'].update(values=printers, set_to_index=list(range(len(printers))))
@@ -460,6 +500,8 @@ Printers:
 
 Print test page: {"Yes" if values['print_test_page'] else "No"}
 Autostart Firefox: {"Yes" if values['autostart_firefox'] else "No"}
+Paper size: {"Letter" if values['letter'] else "A4"}{f"""
+Backups: {"Yes" if values['backup'] else "No"}""" if HAS_BACKUPS else ""}
 
 Is this correct?
     """, title="Confirm Configuration")
@@ -502,6 +544,7 @@ def main():
 
   configuration["autostart_firefox"] = machine_config.get("autostart_firefox", True)
   configuration["papersize"] = machine_config.get("papersize", "letter")
+  configuration["backup"] = bool((machine_config.get("backup") or {}).get("enabled"))
 
   values = None
   while True:
@@ -515,14 +558,11 @@ def main():
     break
 
   configuration['print_test_page'] = values['print_test_page']
-  # The site's settings replace the image's whole; printers and team are picked below
+  # Printers and team are picked below
   data = configuration.get("data", {})
-  image_backup = machine_config.get("backup") or {}
-  machine_config.update({k: data[k] for k in SITE_SETTINGS if k in data})
-  # Except backup, where a site only turns backups on or off: the notice's
-  # contact and retention are the image's
-  if isinstance(data.get("backup"), dict):
-    machine_config["backup"] = {**image_backup, **data["backup"]}
+  machine_config.update(with_site(machine_config, data))
+  if HAS_BACKUPS:
+    machine_config["backup"] = dict(machine_config.get("backup") or {}, enabled=values['backup'])
   machine_config.update({
       "setup_contest": configuration['contest'],
       "site": configuration['site'],

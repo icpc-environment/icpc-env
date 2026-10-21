@@ -6,6 +6,10 @@
   "data": {
     "timezone": "America/Chicago",
     "papersize": "a4",
+    "autostart_firefox": false,
+    "backup": {
+      "enabled": false
+    },
     "submit": {
       "client": "domjudge",
       "base_url": "https://domjudge.example.org/"

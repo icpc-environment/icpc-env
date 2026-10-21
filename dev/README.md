@@ -37,7 +37,8 @@ show its stamp (and cover page).
 
 To try the real wizard instead, `just vm sample-configs` serves `dev/sample-configs/` (the
 files contestforge publishes) inside the guest and points `config_url` at it. Then
-`rm /icpc/setup-complete` and reboot. Contest `generic` has a plain site, an encrypted
+`rm /icpc/setup-complete` and reboot. Contest `generic` has a plain site (A4, no Firefox
+autostart, backups off), an encrypted
 one (passphrase `sample-passphrase`; it also sets the admin password hash, to `icpcadmin`
 with a new salt, a management server and fleet, an enrollment token, and
 `dev/sample-user-ca` as the user CA with the site's principals) and a sysops site.
