@@ -40,7 +40,7 @@ SOCKETS = RUN / "sockets"
 DOWNLOADS = Path("/srv/backup-downloads")
 CSV_DIR = Path("/srv/contestweb/backups")
 
-FQDN_RE = re.compile(r"([a-z0-9][a-z0-9-]{0,62})\.([a-z][a-z0-9_-]{0,11})\.icpcnet\.internal")
+FQDN_RE = re.compile(r"([a-z0-9][a-z0-9-]{0,62})\.([a-z][a-z0-9_-]{0,62})\.icpcnet\.internal")
 ARCHIVE_RE = re.compile(r"r(\d+)-(\d{8}T\d{6}Z)")
 EXIT_DISABLED = 3
 DISABLED_RETRY = 3600
@@ -381,7 +381,7 @@ def cmd_daemon(args):
 
 
 def fleet_arg(fleet):
-    if not re.fullmatch(r"[a-z][a-z0-9_-]{0,11}", fleet):
+    if not re.fullmatch(r"[a-z][a-z0-9_-]{0,62}", fleet):
         raise SystemExit(f"not a fleet name: {fleet}")
     return fleet
 
