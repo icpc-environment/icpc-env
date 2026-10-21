@@ -3,7 +3,8 @@
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
 sets the allowed sites, hostname, admin ssh keys, wallpaper, Firefox policies
-and autostart, icpc-printer's stamp label, and printers. A section whose settings aren't in the config is
+and autostart, icpc-printer's stamp label, and printers, and runs the focus log
+and exec auditing only where backups are on. A section whose settings aren't in the config is
 left alone, so this is safe before setup, when there's no team or printers yet. Prints what
 failed and exits 1 if anything did, after trying the rest.
 
@@ -206,6 +207,36 @@ def apply_management(mgmt, pull_url, pull_url_changed, start):
                 run(["systemctl", "start", "--no-block", unit])
         else:
             run(["systemctl", "disable", "--quiet"] + (["--now"] if running else []) + [unit])
+
+
+# The focus log and auditd's record of every program the contestant runs
+# (playbooks/management/monitoring.yml), by the unit files they need
+MONITORING_UNITS = {
+    "auditd.service": Path("/usr/lib/systemd/system/auditd.service"),
+    "audit-rules.service": Path("/usr/lib/systemd/system/audit-rules.service"),
+    "icpc-focus-log.service": Path("/etc/systemd/system/icpc-focus-log.service"),
+}
+FOCUS_LOG = Path("/run/icpc-focus")
+
+
+def apply_monitoring(enabled, start):
+    """Watching what the team does only goes with backing their work up"""
+    units = [u for u, path in MONITORING_UNITS.items() if path.exists()]
+    if not units:
+        return
+    running = Path("/run/systemd/system").exists()
+    if enabled:
+        run(["systemctl", "enable", "--quiet", *units])
+        if running and start:
+            run(["systemctl", "start", "--no-block", *units])
+        return
+    # auditd stopping leaves its rules in the kernel, which then logs every match itself
+    if running and shutil.which("auditctl"):
+        run(["auditctl", "-D"])
+    run(["systemctl", "disable", "--quiet"] + (["--now"] if running else []) + units)
+    if FOCUS_LOG.is_dir():
+        for f in FOCUS_LOG.iterdir():
+            f.unlink(missing_ok=True)
 
 
 NGINX_SITES = Path("/etc/nginx/icpc-sites.conf")
@@ -529,6 +560,7 @@ def main(args):
     if "submit" in config:
         apply_submit(config["submit"])
     apply_management(mgmt, pull_url, pull_url_changed, start=not args)
+    apply_monitoring(bool((config.get("backup") or {}).get("enabled")), start=not args)
     if "reverseproxy_sites" in config:
         apply_reverseproxy(config["reverseproxy_sites"])
     if team:
