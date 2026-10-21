@@ -99,11 +99,12 @@
       ssh_principals: "{{ ssh_principals }}"
       firefox_policies: "{{ firefox_policies | default({}) }}"
 
-- name: Create printfile symlink(to match world finals image)
+- name: Keep pcpr as a legacy name for printfile
   ansible.builtin.file:
-    src: /icpc/scripts/pcpr
-    dest: /icpc/scripts/printfile
+    src: /icpc/scripts/printfile
+    dest: /icpc/scripts/pcpr
     state: link
+    force: true
 
 - name: Setup PATH variable
   ansible.builtin.copy:
@@ -151,8 +152,8 @@
       - imagemagick
       - cups
       - cups-bsd
-      - paps # UTF-8 clean replacement for enscript, used by files/scripts/pcpr
-      - highlight # syntax highlights for pcpr, as pango markup for paps
+      - paps # UTF-8 clean replacement for enscript, used by files/scripts/printfile
+      - highlight # syntax highlights for printfile, as pango markup for paps
       - jc # for json output from various commands (used by firstLogin.sh)
       - python3-typing-extensions # needed for firstboot script
 

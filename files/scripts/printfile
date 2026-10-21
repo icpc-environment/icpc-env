@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
-#usage: pcpr North.java
-#usage: pcpr --output=files.ps *.java
-#usage: pcpr -P printer *.cpp
-#usage: pcpr --portrait -1 North.hs     [ For those with difficulty with the small print.]
+#usage: printfile North.java
+#usage: printfile --output=files.ps *.java
+#usage: printfile -P printer *.cpp
+#usage: printfile --portrait -1 North.hs     [ For those with difficulty with the small print.]
 
 #This script prints contestant source, syntax highlighted: highlight turns it
 #into pango markup (bold keywords, italic comments), which paps renders. Both
@@ -43,7 +43,7 @@ while args:
         files.append(arg)
 
 if not files:
-    sys.exit("usage: pcpr [-P printer] [--output=file] [--portrait] [-1|-2] file [...]")
+    sys.exit("usage: printfile [-P printer] [--output=file] [--portrait] [-1|-2] file [...]")
 
 lpr = ["/usr/bin/lpr"]
 if printer is not None:
