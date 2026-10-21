@@ -307,6 +307,21 @@
       kotlin.languageServer.enabled: false
       kotlin.debugAdapter.enabled: false
 
+# fwcd.kotlin asks on first use whether to download them anyway, until this
+# says the question was answered
+- name: Make sure fwcd.kotlin's storage directory exists
+  ansible.builtin.file:
+    path: /etc/skel/.config/Code/User/globalStorage/fwcd.kotlin
+    state: directory
+    mode: "0755"
+  when: "'fwcd.kotlin' in vscode_extensions"
+- name: Mark fwcd.kotlin's first-use question as answered
+  ansible.builtin.copy:
+    dest: /etc/skel/.config/Code/User/globalStorage/fwcd.kotlin/config.json
+    content: '{"initialized": true}'
+    mode: "0644"
+  when: "'fwcd.kotlin' in vscode_extensions"
+
 - name: Put a shortcut to vscode on the desktop
   ansible.builtin.copy:
     dest: /etc/skel/Desktop/code.desktop
