@@ -9,11 +9,11 @@
       - borgbackup
       - socat
 
-- name: Let the contestant save backup settings and ask for a backup
+- name: Let the contestant save backup settings, ask for a backup and check it can
   ansible.builtin.copy:
     dest: /etc/sudoers.d/icpc-backup
     content: |
-      contestant ALL=(root) NOPASSWD: /icpc/scripts/icpc-backup settings, /icpc/scripts/icpc-backup request
+      contestant ALL=(root) NOPASSWD: /icpc/scripts/icpc-backup settings, /icpc/scripts/icpc-backup request, /icpc/scripts/icpc-backup status
     mode: "0440"
     validate: visudo -cf %s
 

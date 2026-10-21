@@ -10,6 +10,8 @@
       stdin), from the backup app via sudo.
   icpc-backup request
       Ask the management server for a backup now, from the backup app via sudo.
+  icpc-backup status
+      Whether backups can happen here and the VPN is up, for the backup app.
 
 borg runs as root over the contestant's home. That's safe against a contestant
 swapping a directory for a symlink to somewhere they can't read: borg opens
@@ -65,6 +67,11 @@ SETTINGS_MAX_INPUT = 4096
 EMAIL_RE = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+")
 REQUEST_INTERVAL = 10
 REQUEST_URL = "https://contestmanager.icpcnet.internal/backup/request"
+# wg_setup's interface to the management server. WireGuard drops a session
+# whose last handshake is older than VPN_STALE seconds; with its 25s
+# keepalive a working tunnel handshakes every 2 minutes
+VPN_INTERFACE = "contest"
+VPN_STALE = 180
 
 # The server passes these; anything else is refused before it gets near a shell
 REPO_RE = re.compile(r"/[A-Za-z0-9._/-]+")
@@ -76,6 +83,27 @@ EXIT_DISABLED = 3
 
 def enabled(config):
     return bool((config.get("backup") or {}).get("enabled"))
+
+
+def unavailable(config):
+    """Why this machine can't be backed up at all: "disabled" (by the image or
+    the site), "no-vpn" (no management server to back up to), or None"""
+    if not enabled(config):
+        return "disabled"
+    management = config.get("management") or {}
+    if not (management.get("server") and management.get("fleet") and management.get("vpn")):
+        return "no-vpn"
+    return None
+
+
+def vpn_handshake_age():
+    """Seconds since the VPN last handshook with the server, or None if it never has"""
+    p = subprocess.run(["wg", "show", VPN_INTERFACE, "latest-handshakes"], capture_output=True, text=True)
+    if p.returncode != 0:
+        return None
+    times = [int(f[1]) for f in (line.split() for line in p.stdout.splitlines())
+             if len(f) == 2 and f[1].isdigit() and int(f[1]) > 0]
+    return int(time.time()) - max(times) if times else None
 
 
 def reset_ts():
@@ -399,6 +427,19 @@ def cmd_request(args):
     return 0
 
 
+def cmd_status(args):
+    """For the backup app, which can't see the VPN as the contestant"""
+    if invoker() not in ("contestant", "root"):
+        raise SystemExit("must be run with sudo")
+    reason = unavailable(icpcconfig.load())
+    out = {"available": reason is None, "reason": reason}
+    if reason is None:
+        age = vpn_handshake_age()
+        out.update({"vpn_connected": age is not None and age < VPN_STALE, "vpn_handshake_age": age})
+    print(json.dumps(out))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -409,10 +450,12 @@ def main():
     run.add_argument("--ratelimit", type=int, required=True, help="KiB/s, 0 for no limit")
     sub.add_parser("settings")
     sub.add_parser("request")
+    sub.add_parser("status")
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise SystemExit("must be run as root")
-    return {"run": cmd_run, "settings": cmd_settings, "request": cmd_request}[args.command](args)
+    return {"run": cmd_run, "settings": cmd_settings, "request": cmd_request,
+            "status": cmd_status}[args.command](args)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ the contest, and a button to back up now. The work is done as root by
 import json
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +20,14 @@ STATUS = Path("/run/icpc-backup/status.json")
 MAX_EMAILS = 3
 # Bump whenever the notice's meaning changes; saved with the team's consent
 NOTICE_VERSION = 1
+# How often to check the VPN (through sudo, so not on every refresh)
+VPN_CHECK_INTERVAL = 30
+UNAVAILABLE = {
+    "disabled": "Backups aren't used at this contest site, so your files stay on this machine only.",
+    "no-vpn": "This machine isn't connected to a contest management server, so it can't be backed up.",
+}
+VPN_DOWN = ("Not connected to the contest's management server, so your files aren't being backed up. "
+            "Tell contest staff.")
 
 
 def notice(contact, retention_days):
@@ -66,12 +75,25 @@ def backup(*args, data=None):
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
+def check():
+    """icpc-backup's status: whether backups can happen here and the VPN is up"""
+    rc, out = backup("status")
+    try:
+        return json.loads(out) if rc == 0 else None
+    except ValueError:
+        return None
+
+
 def main():
     config = icpcconfig.load()
     settings = config.get("backup") or {}
     sg.theme("Default1")
-    if not settings.get("enabled"):
-        sg.popup("Backups aren't enabled on this machine.", title="Backups")
+    state = check()
+    if state is None:
+        sg.popup("Backups aren't set up on this machine. Tell contest staff.", title="Backups")
+        return
+    if not state["available"]:
+        sg.popup(UNAVAILABLE.get(state["reason"], "Backups aren't available here."), title="Backups")
         return
 
     saved = read_json(SETTINGS) or {}
@@ -88,11 +110,20 @@ def main():
         [sg.Checkbox("We agree to these addresses being stored and used as described above",
                      key="consent", default=bool(saved.get("consent")))],
         [sg.Button("Save"), sg.Button("Back up now"), sg.Button("Close")],
+        [sg.pin(sg.Text("", key="vpn", size=(80, 2), text_color="red", visible=False))],
         [sg.Text(status_text(), key="status", size=(80, 3))],
     ]
     window = sg.Window("Backups", layout, finalize=True)
+    checked = 0
+    requesting = False
 
     while True:
+        if time.time() - checked > VPN_CHECK_INTERVAL:
+            state = check() or {}
+            checked = time.time()
+            connected = state.get("vpn_connected", False)
+            window["vpn"].update(VPN_DOWN, visible=not connected)
+            window["Back up now"].update(disabled=requesting or not connected)
         event, values = window.read(timeout=5000)
         if event in (sg.WIN_CLOSED, "Close"):
             break
@@ -111,11 +142,14 @@ def main():
                 "emails": addresses, "consent": bool(values["consent"]), "notice_version": NOTICE_VERSION}))
             sg.popup("Saved." if rc == 0 else f"Couldn't save: {out}", title="Backups")
         if event == "Back up now":
+            requesting = True
             window["Back up now"].update(disabled=True)
             window.perform_long_operation(lambda: backup("request"), "requested")
         if event == "requested":
             rc, out = values["requested"]
-            window["Back up now"].update(disabled=False)
+            requesting = False
+            # Recheck the VPN, which also re-enables the button if it's up
+            checked = 0
             if rc != 0:
                 sg.popup(f"Couldn't ask for a backup: {out}", title="Backups")
         window["status"].update(status_text())
