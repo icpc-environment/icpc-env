@@ -278,10 +278,6 @@ def with_choices(config, window):
   return config
 
 
-def summary_text(config):
-  return "\n".join(f"{label + ':':<18}{text}" for label, text in icpcconfig.summary(config))
-
-
 config_url = machine_config["config_url"]
 # The contestforge contest this image was built for, if any; the only one it offers
 pinned = machine_config.get("config_contest") or None
@@ -322,19 +318,28 @@ def launch(cmd):
     sg.popup(f"Couldn't start {cmd[0]}: {e}", title="Error")
 
 
-def review_text(values, window):
-  """Everything Apply will set up, for the summary page"""
-  printers = [str(Printer(p)) for p in values['configured_printers']]
-  extra = f" [{values['team_extra']}]" if values['team_extra'] else ""
-  config = with_choices(with_site(machine_config, configuration.get("data", {})), window)
-  return f"""{'Contest:':<18}{values['contest']}
-{'Site:':<18}{values['site']}
-{'Team:':<18}{values['team_id']} - {values['team_name']} ({values['team_affiliation']}){extra}
-{'Printers:':<18}{(chr(10) + ' ' * 18).join(printers) if printers else "none"}
-{'Test page:':<18}{"print one" if values['print_test_page'] else "don't print"}
+# The summary page, by section; labels from icpcconfig.summary() and review_values()
+REVIEW_SECTIONS = [
+  ("This machine", ["Contest", "Site", "Team"]),
+  ("Printing", ["Printers", "Paper size", "Test page"]),
+  ("Contest environment", ["Timezone", "Submit client", "Firefox", "Allowed sites", "Language scripts", "Wallpaper"]),
+  ("Remote management", ["Management", "Backups", "Admin ssh"]),
+]
 
-{summary_text(config)}
-"""
+
+def review_values(values, window):
+  """Everything Apply will set up, for the summary page, by label"""
+  printers = [str(Printer(p)) for p in values['configured_printers']]
+  extra = f", {values['team_extra']}" if values['team_extra'] else ""
+  config = with_choices(with_site(machine_config, configuration.get("data", {})), window)
+  return {
+    "Contest": values['contest'],
+    "Site": values['site'],
+    "Team": f"{values['team_id']}: {values['team_name']} ({values['team_affiliation']}{extra})",
+    "Printers": "\n".join(printers) if printers else "none",
+    "Test page": "print one" if values['print_test_page'] else "don't print",
+    **dict(icpcconfig.summary(config)),
+  }
 
 
 def mainwindow():
@@ -403,9 +408,15 @@ To connect it:
     [sg.Button('Refresh data from internet (will clear/reset data)', key='reload'), sg.Push(), sg.Button('Next', key='next')]
   ]
 
+  review_rows = []
+  for section, labels in REVIEW_SECTIONS:
+    review_rows.append([sg.Text(section, font=('Helvetica', 12, 'bold'), pad=((5, 5), (12, 4)))])
+    review_rows += [[sg.Text(label, size=(16, 1), font=('Helvetica', 10, 'bold'), text_color='#444444', pad=((20, 5), 2)),
+                     sg.Text("", key=f"review:{label}", size=(85, None), font=('Helvetica', 10), pad=(5, 2))]
+                    for label in labels]
   review_page = [
     [sg.Text('Check this is right, then press Apply', font=('Helvetica', 14))],
-    [sg.Multiline("", key='review', size=(110, 30), font=("courier", 10), disabled=True, expand_x=True)],
+    [sg.Column(review_rows, pad=(0, 0))],
     [sg.Button('Back', key='back'), sg.Push(), sg.Button('Apply Configuration and Exit', key='apply')],
   ]
 
@@ -583,7 +594,9 @@ To connect it:
                                      + "\n\nApply without them?", title="Printers Not Selected") != "Yes":
         continue
 
-      window['review'].update(review_text(values, window))
+      for label, text in review_values(values, window).items():
+        if f"review:{label}" in window.AllKeysDict:
+          window[f"review:{label}"].update(text)
       show('review_page')
     if event == 'apply':
       window.close()
