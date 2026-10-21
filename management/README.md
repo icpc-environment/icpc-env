@@ -166,6 +166,12 @@ files, nothing over 1 MB, no build output) and icpc-printer's printouts. The
 machine holds no credentials, and borg's cache there is in tmpfs, so backups
 don't write to its drive.
 
+Each backup also sends s.py's log of which window had focus (kept in tmpfs on
+the machine, and wiped by a team reset) as a separate `focus-r<reset>-<time>`
+archive. `release` only exports the team's files, never these. To read one:
+`borg extract --stdout /srv/backups/<fleet>/<host>/repo::<archive>`
+(`borg list` the repo for names).
+
 Teams have a Backups app on their desktop: "Back up now", and up to three
 addresses to email a copy of their files to after the contest, behind a
 privacy notice (`remote_management_backup_contact` and

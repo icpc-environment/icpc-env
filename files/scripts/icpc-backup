@@ -34,6 +34,8 @@ import icpcconfig
 
 HOME = Path("/home/contestant")
 PRINTOUTS = Path("/var/lib/icpc-printer")
+# s.py's log of which window had focus, in tmpfs and wiped by a team reset
+FOCUS_LOG = Path("/run/icpc-focus")
 RESET_MARKER = Path("/icpc/team-reset-complete")
 # Kept across reboots, and wiped by a team reset
 SETTINGS = Path("/var/lib/icpc-backup/settings.json")
@@ -198,6 +200,32 @@ def patterns(skipped, executables, printouts_excluded):
     return "\n".join(lines) + "\n"
 
 
+def borg_create(args, env, archive, roots, options=()):
+    return subprocess.run(["nice", "-n", "19", "ionice", "-c", "3",
+                           "borg", "create", "--json", "--lock-wait", "30",
+                           "--upload-ratelimit", str(args.ratelimit),
+                           "--compression", "zstd,3",
+                           "--one-file-system", "--exclude-caches", *options,
+                           f"ssh://icpc-backup{args.repo}::{archive}", *roots],
+                          env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+
+def borg_error(p):
+    return (p.stderr.strip().splitlines() or [f"borg exited {p.returncode}"])[-1]
+
+
+def backup_focus_log(args, env, since):
+    """The focus log goes in an archive of its own, whose name a release
+    doesn't pick up, so it's never handed to the team with their files"""
+    if not FOCUS_LOG.is_dir():
+        return {"ok": False, "error": f"no {FOCUS_LOG}"}
+    archive = f"focus-r{since}-{args.archive_ts}"
+    p = borg_create(args, env, archive, [str(FOCUS_LOG)])
+    if p.returncode in (0, 1):
+        return {"ok": True, "archive": archive}
+    return {"ok": False, "archive": archive, "error": borg_error(p)}
+
+
 def cmd_run(args):
     for value, regex in [(args.repo, REPO_RE), (args.socket, SOCKET_RE), (args.archive_ts, TS_RE)]:
         if not regex.fullmatch(value):
@@ -231,14 +259,8 @@ def cmd_run(args):
                    BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK="yes",
                    BORG_RELOCATED_REPO_ACCESS_IS_OK="yes")
         try:
-            p = subprocess.run(["nice", "-n", "19", "ionice", "-c", "3",
-                                "borg", "create", "--json",
-                                "--upload-ratelimit", str(args.ratelimit),
-                                "--compression", "zstd,3",
-                                "--one-file-system", "--exclude-caches",
-                                "--patterns-from", pf.name,
-                                f"ssh://icpc-backup{args.repo}::{archive}", *roots],
-                               env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            p = borg_create(args, env, archive, roots, ["--patterns-from", pf.name])
+            focus_log = backup_focus_log(args, env, since)
         finally:
             # sshd leaves the forwarded socket behind
             Path(args.socket).unlink(missing_ok=True)
@@ -262,7 +284,7 @@ def cmd_run(args):
     if ok:
         status.update({"last_success": now, "last_error": None})
     else:
-        status["last_error"] = (p.stderr.strip().splitlines() or [f"borg exited {p.returncode}"])[-1]
+        status["last_error"] = borg_error(p)
     write_json(STATUS, status)
 
     team = config.get("team") or {}
@@ -283,6 +305,7 @@ def cmd_run(args):
         "skipped": skipped_list,
         "skipped_count": len(skipped),
         "stats": stats,
+        "focus_log": focus_log,
         "borg_rc": p.returncode,
         "borg_stderr": p.stderr[-2000:],
     }))
