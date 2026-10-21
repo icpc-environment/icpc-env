@@ -422,9 +422,12 @@ To connect it:
   def show(page):
     for p in pages:
       window[p].update(visible=p == page)
-    # The window resizes to the page, but stays where the last one put it
-    window.refresh()
-    window.move_to_center()
+    # The window resizes to the page, but stays where the last one put it.
+    # Its new size is only known once Tk has laid it out
+    window.TKroot.update_idletasks()
+    width, height = window.TKroot.winfo_reqwidth(), window.TKroot.winfo_reqheight()
+    screen_width, screen_height = window.get_screen_size()
+    window.move(max(0, (screen_width - width) // 2), max(0, (screen_height - height) // 2))
 
   def start():
     show('config_page')
