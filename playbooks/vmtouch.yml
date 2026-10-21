@@ -4,32 +4,32 @@
     pkg: vmtouch
     state: present
 
-- name: Copy vmtouch script to the system
+- name: Remove the old cache warming script
+  ansible.builtin.file:
+    path: /usr/local/bin/vmtouch
+    state: absent
+
+- name: Copy the cache warming script to the system
   ansible.builtin.copy:
-    dest: /usr/local/bin/vmtouch
+    dest: /usr/local/sbin/warm-fs-cache
     mode: "0755"
     content: |
       #!/bin/bash
-      # Load some useful things into the kernels cache
+      # Read what contestants start first into the page cache, so opening it doesn't wait on the usb drive.
+      # Only the parts each program reads at startup, not whole directories
       VMTOUCH="/usr/bin/vmtouch -ft"
 
-      $VMTOUCH /opt/eclipse # 251M
-      $VMTOUCH /usr/lib/jvm # 312M
-      $VMTOUCH /usr/include #  33M
+      # VS Code, opening a C++ file
+      $VMTOUCH /usr/share/code/{code,icudtl.dat,*.pak,*.bin,*.so*,locales/en-US.pak,bin}
+      $VMTOUCH /usr/share/code/resources/app/{out,node_modules.asar,*.json}
+      $VMTOUCH /opt/vscode/extensions/ms-vscode.cpptools-*/{bin,dist,package*.json}
+      # cpptools runs the compiler to find its include paths and defines
+      $VMTOUCH /usr/libexec/gcc/x86_64-linux-gnu/*/{cc1,cc1plus} /usr/include
 
-      # If we have more than 5 Gb of memory, cache some other stuff
-      phymem=$(awk '/MemTotal/{print $2}' /proc/meminfo)
-      if  [ "$phymem" -gt "5000000" ]; then
-          $VMTOUCH /lib         # 229M
-          $VMTOUCH /usr/lib     #   2G
-          $VMTOUCH /opt/intellij-idea-community # 968M
-      fi
+      # Firefox reads nearly all of it
+      $VMTOUCH /usr/lib/firefox
 
-      # Do these last to make sure they end up in memory
-      $VMTOUCH /icpc     # 250K
-      $VMTOUCH /bin      # 12M
-      $VMTOUCH /usr/bin  # 365M
-
+      $VMTOUCH /usr/bin/{bash,ls,gcc,g++,as,ld,make,gdb,python3} /icpc
 
 - name: Create a service to run it on boot
   ansible.builtin.copy:
@@ -38,9 +38,11 @@
       Description=Warm up file system cache
 
       [Service]
-      Type=oneshot
-      ExecStart=/usr/bin/nice -n 19 /usr/bin/find / -path /proc -prune -o -path /sys -prune
-      ExecStart=/usr/bin/nice -n 19 /icpc/scripts/vmtouch.sh
+      # exec rather than oneshot, so multi-user.target doesn't wait for it
+      Type=exec
+      ExecStart=/usr/local/sbin/warm-fs-cache
+      Nice=19
+      IOSchedulingClass=idle
 
       [Install]
       WantedBy=multi-user.target
