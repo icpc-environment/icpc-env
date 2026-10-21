@@ -213,6 +213,23 @@
     - xfce4
     - xdg-xubuntu/xfce4
 
+# One workspace, so a scroll on the desktop (or ctrl+alt+arrow) can't move to
+# an empty one and leave the team wondering where their windows went
+- name: Configure xfwm4
+  copy:
+    dest: /etc/xdg/{{ item }}/xfconf/xfce-perchannel-xml/xfwm4.xml
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <channel name="xfwm4" version="1.0">
+        <property name="general" type="empty">
+          <property name="workspace_count" type="int" value="1"/>
+          <property name="scroll_workspaces" type="bool" value="false"/>
+        </property>
+      </channel>
+  loop:
+    - xfce4
+    - xdg-xubuntu/xfce4
+
 - name: Configure xfce menus to hide a few things (like mail reader)
   copy:
     dest: /etc/skel/.config/menus/xfce-applications.menu
