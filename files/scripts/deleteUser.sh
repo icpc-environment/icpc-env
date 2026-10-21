@@ -26,6 +26,11 @@ find / -user contestant -delete
 # The next team mustn't be emailed this one's files, or see when it last backed up
 rm -rf /var/lib/icpc-backup /run/icpc-backup
 
+# Nor which windows this one had open
+systemctl stop icpc-focus-log
+rm -rf /run/icpc-focus
+systemctl start icpc-focus-log
+
 echo "Deleting contestant user"
 userdel contestant
 rm -rf /home/contestant

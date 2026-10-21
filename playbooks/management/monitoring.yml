@@ -165,8 +165,10 @@
 
       [Service]
       Environment=DISPLAY=:0 XAUTHORITY=/var/run/lightdm/root/:0
-      ExecStart=/usr/local/bin/s.py /var/log/icpc/focus.jsonl
-      LogsDirectory=icpc
+      ExecStart=/usr/local/bin/s.py /run/icpc-focus/focus.jsonl
+      RuntimeDirectory=icpc-focus
+      RuntimeDirectoryMode=0700
+      RuntimeDirectoryPreserve=yes
       Restart=always
       RestartSec=30
       Nice=19
