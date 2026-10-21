@@ -293,13 +293,19 @@
     mode: '0644'
     owner: root
     group: root
-    content: |
-      {
-        "chat.disableAIFeatures": true,
-        "github.completions.enabled": false,
-        "editor.inlineSuggest.enabled": false,
-        "security.workspace.trust.enabled": false
-      }
+    content: "{{ settings | combine(kotlin_settings if 'fwcd.kotlin' in vscode_extensions else {}) | to_nice_json }}\n"
+  vars:
+    settings:
+      chat.disableAIFeatures: true
+      github.completions.enabled: false
+      editor.inlineSuggest.enabled: false
+      security.workspace.trust.enabled: false
+    # Otherwise fwcd.kotlin tries to download its language server and debug
+    # adapter from GitHub, which contest machines can't reach, when a Kotlin
+    # file is opened. It still highlights Kotlin without them
+    kotlin_settings:
+      kotlin.languageServer.enabled: false
+      kotlin.debugAdapter.enabled: false
 
 - name: Put a shortcut to vscode on the desktop
   ansible.builtin.copy:
