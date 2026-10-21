@@ -3,7 +3,7 @@
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
 sets the allowed sites, hostname, admin ssh keys, wallpaper, Firefox policies
-and autostart, and printers. A section whose settings aren't in the config is
+and autostart, icpc-printer's stamp label, and printers. A section whose settings aren't in the config is
 left alone, so this is safe before setup, when there's no team or printers yet. Prints what
 failed and exits 1 if anything did, after trying the rest.
 
@@ -31,6 +31,8 @@ TEAM_FILES = ["TEAMID", "TEAMNAME", "TEAMAFFILIATION"]
 ICPC_PRINTER = Path("/usr/bin/icpc-printer").exists()
 RESTRICTED = ["-u", "allow:icpc-printer", "-o", "printer-op-policy=icpc-restricted"] if ICPC_PRINTER else []
 ERROR_POLICY = ["-o", "printer-error-policy=abort-job"] if ICPC_PRINTER else []
+# The team as icpc-printer stamps it on every page (icpc-printer-setup's --stamp-label)
+STAMP_LABEL = Path("/etc/icpc/printer/stamp-label.pdf")
 
 errors = []
 
@@ -455,6 +457,14 @@ def managed_printers():
     return [n for n in names if n.startswith("Printer")]
 
 
+def apply_stamp_label(team):
+    if not team:
+        STAMP_LABEL.unlink(missing_ok=True)
+        return
+    label = f"{team['id']} - {team['name']}" + (f" ({team['affiliation']})" if team["affiliation"] else "")
+    run(["/usr/bin/icpc-stamp-label", str(STAMP_LABEL), label])
+
+
 def apply_printers(printers, papersize):
     for name in managed_printers():
         run(["lpadmin", "-x", name])
@@ -523,6 +533,8 @@ def main(args):
     if "autostart_firefox" in config:
         apply_firefox_autostart(config["autostart_firefox"])
     apply_wallpaper(config.get("wallpaper_url"), team)
+    if ICPC_PRINTER:
+        apply_stamp_label(team)
     if "printers" in config:
         apply_printers(config["printers"], config.get("papersize", "letter"))
 

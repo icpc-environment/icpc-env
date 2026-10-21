@@ -12,7 +12,7 @@ usage() {
 PAPER=${1,,}
 case "$PAPER" in letter|a4) ;; *) usage ;; esac
 
-ARGS="--listen-host localhost --paper-size $PAPER --cups-printer ContestPrinter"
+ARGS="--listen-host localhost --paper-size $PAPER --cups-printer ContestPrinter --stamp-label /etc/icpc/printer/stamp-label.pdf"
 COVERPAGE=/etc/icpc/printer/localhost-$PAPER.pdf
 [ -f "$COVERPAGE" ] && ARGS="$ARGS --coverpage $COVERPAGE"
 cat > /etc/default/icpc-printer <<EOF
