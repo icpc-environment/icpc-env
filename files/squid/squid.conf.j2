@@ -31,6 +31,10 @@ http_access deny all
 # show a block page
 deny_info ICPC_ERR_ACCESS_DENIED all
 
+# Don't record every URL the team visits: a steady write to the USB, and a
+# root-owned browsing history that would outlive the team reset
+access_log none
+
 coredump_dir /var/spool/squid
 
 # To make it quick to restart squid, otherwise it takes ~30s to stop

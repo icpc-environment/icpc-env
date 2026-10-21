@@ -37,6 +37,15 @@ systemctl stop icpc-focus-log
 rm -rf /run/icpc-focus
 systemctl start icpc-focus-log
 
+# Nor which sites it browsed: the proxy's logs and its record of which HTTPS
+# hosts it minted certificates for are both root-owned
+if [ -d /var/spool/squid/ssl_db ]; then
+    systemctl stop squid
+    rm -rf /var/log/squid/* /var/spool/squid/ssl_db
+    /usr/lib/squid/security_file_certgen -c -s /var/spool/squid/ssl_db -M 4MB
+    systemctl start squid
+fi
+
 echo "Deleting contestant user"
 userdel contestant
 rm -rf /home/contestant
