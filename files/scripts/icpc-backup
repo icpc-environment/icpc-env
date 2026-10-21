@@ -51,6 +51,8 @@ WARN_BYTES = 100 * 1024 * 1024
 # Build output and caches, by directory name
 EXCLUDED_DIRS = ["__pycache__", "node_modules", "target", "cmake-build-*"]
 EXCLUDED_FILES = ["*.o", "*.class", "*.pyc"]
+# Compiled programs, whatever they're called (a.out, F, sol): rebuilt from source
+ELF_MAGIC = b"\x7fELF"
 # How many skipped files to report; the count is always complete
 SKIPPED_LIST_MAX = 200
 
@@ -119,13 +121,29 @@ def excluded_file(name):
     return name.startswith(".") or any(Path(name).match(p) for p in EXCLUDED_FILES)
 
 
+def is_executable(path):
+    """Whether a file is an ELF binary. Opened without following symlinks; a
+    file swapped for one just changes which of the team's files are left out"""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOATIME)
+    except OSError:
+        return False
+    try:
+        return os.read(fd, len(ELF_MAGIC)) == ELF_MAGIC
+    except OSError:
+        return False
+    finally:
+        os.close(fd)
+
+
 def survey_home():
-    """What borg will pick up from the home directory, and the big files to
-    leave out. Only decides what to exclude: a file swapped in after this just
-    changes which of the team's own files get in"""
+    """What borg will pick up from the home directory, and the big files and
+    compiled programs to leave out. Only decides what to exclude: a file
+    swapped in after this just changes which of the team's own files get in"""
     files = 0
     size = 0
     skipped = []
+    executables = []
     dev = HOME.stat().st_dev
     def walked(root, d):
         path = os.path.join(root, d)
@@ -149,9 +167,12 @@ def survey_home():
             if st.st_size > MAX_FILE_SIZE:
                 skipped.append((path, st.st_size))
                 continue
+            if is_executable(path):
+                executables.append(path)
+                continue
             files += 1
             size += st.st_size
-    return files, size, skipped
+    return files, size, skipped, executables
 
 
 def old_printouts(since):
@@ -164,11 +185,12 @@ def old_printouts(since):
     return old
 
 
-def patterns(skipped, printouts_excluded):
+def patterns(skipped, executables, printouts_excluded):
     lines = [f"- sh:{HOME.relative_to('/')}/**/.*"]
     lines += [f"- sh:{HOME.relative_to('/')}/**/{d}" for d in EXCLUDED_DIRS]
     lines += [f"- sh:{HOME.relative_to('/')}/**/{f}" for f in EXCLUDED_FILES]
     lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p, _ in skipped]
+    lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p in executables]
     lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p in printouts_excluded]
     return "\n".join(lines) + "\n"
 
@@ -189,7 +211,7 @@ def cmd_run(args):
     write_json(STATUS, status)
 
     since = reset_ts()
-    files, size, skipped = survey_home()
+    files, size, skipped, executables = survey_home()
     roots = [str(HOME)]
     printouts_excluded = []
     if PRINTOUTS.is_dir():
@@ -198,7 +220,7 @@ def cmd_run(args):
 
     archive = f"r{since}-{args.archive_ts}"
     with tempfile.NamedTemporaryFile("w", dir=RUN, prefix="patterns.") as pf:
-        pf.write(patterns(skipped, printouts_excluded))
+        pf.write(patterns(skipped, executables, printouts_excluded))
         pf.flush()
         env = dict(os.environ,
                    BORG_BASE_DIR=str(BORG_BASE),
