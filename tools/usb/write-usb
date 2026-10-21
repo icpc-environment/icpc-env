@@ -126,14 +126,23 @@ unmount_drive
 ### Partition table and boot code
 
 # Old signatures left on the drive or inside the new partitions would make
-# blkid see two filesystems where partclone writes one
-sfdisk --quiet --wipe always --wipe-partitions always "$DEVICE" < "$IMAGE_DIR/$(manifest 'm["layout"]')"
+# blkid see two filesystems where partclone writes one. Without
+# --no-tell-kernel, sfdisk calls sync(), which waits for every other drive
+# being written to flush too; rereadpt below only touches this drive
+sfdisk --quiet --no-reread --no-tell-kernel --wipe always --wipe-partitions always \
+  "$DEVICE" < "$IMAGE_DIR/$(manifest 'm["layout"]')"
 # From the image's first MiB, only the MBR boot code and the gap after the GPT
 # entries: its GPT is sized for the image, sfdisk's for this drive
 HEAD="$IMAGE_DIR/$(manifest 'm["head"]')"
 dd if="$HEAD" of="$DEVICE" bs=440 count=1 conv=notrunc,fsync status=none
 dd if="$HEAD" of="$DEVICE" bs=512 skip=34 seek=34 conv=notrunc,fsync status=none
-udevadm settle
+# Fails while anything still has the old partitions open, e.g. udev probing them
+reread=0
+for _ in $(seq 20); do
+  blockdev --rereadpt "$DEVICE" 2>/dev/null && { reread=1; break; }
+  sleep 0.5
+done
+[[ $reread -eq 1 ]] || fail "the kernel wouldn't reread $DEVICE's partition table"
 
 mapfile -t PARTS < <(manifest '"\n".join("%d %s %s" % (p["number"], p["file"], p["tool"] or "raw") for p in m["partitions"])')
 
