@@ -7,7 +7,7 @@
       Type=Application
       Name=firstlogin
       Comment=Setup the team environment
-      Exec=firstLogin.sh
+      Exec=first-login
       StartupNotify=false
       Terminal=false
       Hidden=false

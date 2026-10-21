@@ -154,7 +154,7 @@
       - cups-bsd
       - paps # UTF-8 clean replacement for enscript, used by files/scripts/printfile
       - highlight # syntax highlights for printfile, as pango markup for paps
-      - jc # for json output from various commands (used by firstLogin.sh)
+      - jc # for json output from various commands (used by first-login)
       - python3-typing-extensions # needed for firstboot script
 
 #      # experimental programs to support showing a banner image to all contestants
