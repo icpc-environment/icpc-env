@@ -15,16 +15,17 @@
 <p>This is similar to the World Finals contest environment which is also conducted in a linux environment.</p>
 
 <h1 id="installation">Installation</h1>
-<p>Installation is as simple as imaging a flash drive. Instructions for both Linux and Windows are provided.</p>
+<p>Installation is as simple as imaging a flash drive. You'll need a 32GB or larger drive (USB 3.0 strongly recommended); everything on it will be erased. Instructions for both Linux and Windows are provided.</p>
 <div class="row">
   <div class="col-md-6">
     <h2>Linux</h2>
     <ul>
       <li>Download one of the compressed image files below</li>
-      <li>Decompress the image: <code>gunzip ??.img.gz</code></li>
-      <li>Use dd to image a flash drive: <code>dd if=??.img of=/dev/sdx bs=1M status=progress oflag=direct</code>
+      <li>Find your flash drive with <code>lsblk</code> (e.g. <code>/dev/sdx</code>), and unmount any of its partitions that were mounted automatically</li>
+      <li>Decompress the image straight onto the drive:
+        <pre class="mt-2"><code>gunzip -c ??.img.gz | sudo dd of=/dev/sdx bs=4M iflag=fullblock oflag=direct conv=fsync status=progress</code></pre>
         <ul>
-          <li>Make sure to replace /dev/sdx with your actual flash drive</li>
+          <li>Make sure to replace /dev/sdx with your actual flash drive (the whole drive, not a partition like /dev/sdx1)</li>
         </ul>
       </li>
     </ul>
@@ -33,8 +34,8 @@
     <h2>Windows</h2>
     <ul>
       <li>Download one of the compressed image files below</li>
-      <li>Decompress the image using a tool such as <a href="https://www.7-zip.org">7zip</a></li>
-      <li>Use <a href="https://www.alexpage.de/usb-image-tool/">USB Image Tool</a> to write the image to a flash drive</li>
+      <li>Open <a href="https://rufus.ie">Rufus</a>, select your flash drive, then click SELECT and choose the downloaded <code>.img.gz</code> file. There's no need to decompress it first</li>
+      <li>Click START to write the image to the drive</li>
     </ul>
   </div>
 </div>
