@@ -51,6 +51,8 @@ WARN_BYTES = 100 * 1024 * 1024
 # Build output and caches, by directory name
 EXCLUDED_DIRS = ["__pycache__", "node_modules", "target", "cmake-build-*"]
 EXCLUDED_FILES = ["*.o", "*.class", "*.pyc"]
+# What every account gets from /etc/skel, relative to the home directory
+SKEL_FILES = ["Desktop/*.desktop"]
 # Compiled programs, whatever they're called (a.out, F, sol): rebuilt from source
 ELF_MAGIC = b"\x7fELF"
 # How many skipped files to report; the count is always complete
@@ -189,6 +191,7 @@ def patterns(skipped, executables, printouts_excluded):
     lines = [f"- sh:{HOME.relative_to('/')}/**/.*"]
     lines += [f"- sh:{HOME.relative_to('/')}/**/{d}" for d in EXCLUDED_DIRS]
     lines += [f"- sh:{HOME.relative_to('/')}/**/{f}" for f in EXCLUDED_FILES]
+    lines += [f"- sh:{HOME.relative_to('/')}/{f}" for f in SKEL_FILES]
     lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p, _ in skipped]
     lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p in executables]
     lines += [f"- fm:{fm_escape(p.lstrip('/'))}" for p in printouts_excluded]
