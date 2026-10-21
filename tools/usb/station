@@ -159,7 +159,13 @@ class Port:
             Path(self.status_file).unlink()
         except (OSError, ValueError):
             code = None
-        # The finished output stays up, under a title saying how it went
+        # The finished output stays up, under a title saying how it went. As
+        # text rather than the terminal, which stops resizing once its process
+        # exits and then breaks the layout when the window changes size
+        rows = (b"".join(text for _, _, text in row).decode(errors="replace").rstrip()
+                for row in self.terminal.term.content())
+        self.message.set_text("\n".join(rows).strip("\n"))
+        self.body.original_widget = urwid.Filler(self.message, valign="bottom")
         self.show(State.SUCCESS if code == 0 else State.FAILED)
         self.terminal = None
         self.station.bell()
