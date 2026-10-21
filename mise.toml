@@ -1,4 +1,5 @@
 [tools]
+awscli = "2.38"
 just = "latest"
 python = "3.14"
 uv = "latest"
