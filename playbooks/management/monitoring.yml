@@ -169,6 +169,7 @@
       RuntimeDirectory=icpc-focus
       RuntimeDirectoryMode=0700
       RuntimeDirectoryPreserve=yes
+      UMask=0077
       Restart=always
       RestartSec=30
       Nice=19
