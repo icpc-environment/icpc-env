@@ -1,20 +1,20 @@
 ---
-- name: Configure firstLogin for setting the wallpaper properly
+- name: Configure first-login for setting the wallpaper properly
   ansible.builtin.copy:
     content: |
       [Desktop Entry]
       Encoding=UTF-8
       Type=Application
-      Name=firstlogin
+      Name=first-login
       Comment=Setup the team environment
       Exec=first-login
       StartupNotify=false
       Terminal=false
       Hidden=false
-    dest: /etc/skel/.config/autostart/firstLogin.desktop
+    dest: /etc/skel/.config/autostart/first-login.desktop
     mode: "0755"
 
-- name: Make sure the .firstLogin file exists to trigger firstLogin
+- name: Make sure the .first-login file exists to trigger first-login
   ansible.builtin.file:
-    path: /etc/skel/.firstLogin
+    path: /etc/skel/.first-login
     state: touch
