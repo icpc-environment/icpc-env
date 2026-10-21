@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2034
-# Checks for write-usb, sourced by it. Set DEVICE,
+# Checks shared by write-usb and bench, sourced by both. Set DEVICE,
 # MAX_GIB and ANY_TRANSPORT first; check_drive then sets TYPE, TRAN, SIZE
 # and MODEL.
 
@@ -27,9 +27,9 @@ unmount_drive() {
   done < <(mounts)
 }
 
-# Fails unless DEVICE is a whole usb drive that isn't in use
+# Fails unless DEVICE is a whole usb drive that nothing on this machine is using
 check_drive() {
-  local dev target
+  local dev target node pid
   TYPE=$(lsblk -dno TYPE "$DEVICE")
   TRAN=$(lsblk -dno TRAN "$DEVICE")
   SIZE=$(lsblk -dnbo SIZE "$DEVICE")
@@ -52,9 +52,24 @@ check_drive() {
 
   while read -r dev target; do
     if [[ $target != /media/* && $target != /run/media/* ]]; then
-      fail "$dev is mounted at $target, not writing a drive that's in use"
+      fail "$dev is mounted at $target, not touching a drive that's in use"
     fi
   done < <(mounts)
+
+  # e.g. the station writing it. udev opens a drive briefly to probe it when
+  # it's plugged in, so only what stays open counts
+  for _ in $(seq 10); do
+    pid=""
+    for node in $(lsblk -lnpo NAME "$DEVICE"); do
+      pid=$(find /proc/[0-9]*/fd -lname "$node" 2>/dev/null | head -1 | cut -d/ -f3)
+      [[ -z "$pid" ]] || break
+    done
+    [[ -n "$pid" ]] || break
+    sleep 0.5
+  done
+  if [[ -n "$pid" ]]; then
+    fail "$node is open in $(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | cut -c1-80)(pid $pid)"
+  fi
 
   (( SIZE <= MAX_GIB * 1024 * 1024 * 1024 )) \
     || fail "$DEVICE is $((SIZE / 1000000000)) GB, bigger than --max-size $MAX_GIB GiB"
