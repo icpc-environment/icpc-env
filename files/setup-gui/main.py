@@ -29,7 +29,8 @@ def make_safe_url(url: str) -> str:
     return url
 
 def read_url(url):
-    with urllib.request.urlopen(make_safe_url(url)) as response:
+    request = urllib.request.Request(make_safe_url(url), headers={"User-Agent": "icpc-setup"})
+    with urllib.request.urlopen(request) as response:
         return response.read()
 
 # url: Future of its content, for everything config_url serves that the wizard might ask for
