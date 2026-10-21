@@ -517,7 +517,12 @@ def main():
   configuration['print_test_page'] = values['print_test_page']
   # The site's settings replace the image's whole; printers and team are picked below
   data = configuration.get("data", {})
+  image_backup = machine_config.get("backup") or {}
   machine_config.update({k: data[k] for k in SITE_SETTINGS if k in data})
+  # Except backup, where a site only turns backups on or off: the notice's
+  # contact and retention are the image's
+  if isinstance(data.get("backup"), dict):
+    machine_config["backup"] = {**image_backup, **data["backup"]}
   machine_config.update({
       "setup_contest": configuration['contest'],
       "site": configuration['site'],
