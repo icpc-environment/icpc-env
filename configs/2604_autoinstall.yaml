@@ -57,12 +57,12 @@ autoinstall:
       # Docs on this section are found here: https://curtin.readthedocs.io/en/latest/topics/storage.html
       # This makes 4 partitions
       # 1 - bios_grub (space for grub stage2 to live)    1MiB
-      # 2 - EFI partition
+      # 2 - EFI partition (126M so it ends at 128MiB, which keeps everything after it 16MiB aligned)
       # 3 - ICPC fat32 partition (to make files easy to load after the contest ends without booting the usb drive)
       # 4 - linux root partition
       - {type: disk, id: disk0, grub_device: true, ptable: gpt, wipe: superblock-recursive}
       - {type: partition, device: disk0, number: 1, id: partition-bios, flag: bios_grub, size: 1M}
-      - {type: partition, device: disk0, number: 2, id: partition-efi, flag: boot, size: 128M}
+      - {type: partition, device: disk0, number: 2, id: partition-efi, flag: boot, size: 126M}
       - {type: partition, device: disk0, number: 3, id: partition-icpc, partition_type: EBD0A0A2-B9E5-4433-87C0-68B6B72699C7, name: icpc, size: 192M} # TAG:USB_PARTITION_ENABLED
       - {type: partition, device: disk0, number: 4, id: partition-root, flag: linux, size: -1}
       - {type: format, volume: partition-efi, id: format-efi, fstype: fat32, label: EFI}
