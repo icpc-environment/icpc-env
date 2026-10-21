@@ -162,10 +162,10 @@ for entry in "${PARTS[@]}"; do
   dev=$(part "$n")
   echo "Partition $n: $file"
   if [[ $tool == raw ]]; then
-    dd if="$IMAGE_DIR/$file" of="$dev" bs=1M conv=fsync status=none
+    dd if="$IMAGE_DIR/$file" of="$dev" bs=1M oflag=direct conv=fsync status=none
   else
     "$tool" --restore --source "$IMAGE_DIR/$file" --output "$dev" \
-      --logfile "$LOGDIR/p$n.log" --no_block_detail \
+      --logfile "$LOGDIR/p$n.log" --no_block_detail --write-direct-io \
       || { tail -20 "$LOGDIR/p$n.log" >&2; fail "$tool couldn't restore partition $n"; }
   fi
 done
