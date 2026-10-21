@@ -48,6 +48,10 @@ fi
 # Forget any team's backup settings
 rm -rf /var/lib/icpc-backup /run/icpc-backup
 
+# Drop journals written during the build: journald runs volatile at runtime,
+# so this directory is only ever stale build-time logs taking up space
+rm -rf /var/log/journal
+
 # Cleanup apt cache/unnecessary package
 apt-get autoremove --purge -y
 apt-get clean
