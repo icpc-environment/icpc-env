@@ -442,6 +442,12 @@ def mainwindow():
                  + "\n\n".join(configuration["refused"].values())
                  + "\n\nPick another site, or fix the problem and press Refresh.", title="Can't Apply")
         continue
+      selected = set(window['configured_printers'].get_indexes())
+      skipped = [p for i, p in enumerate(window['configured_printers'].get_list_values()) if i not in selected]
+      if skipped and sg.popup_yes_no("These printers aren't selected, so they won't be installed:\n\n"
+                                     + "\n".join(str(p) for p in skipped)
+                                     + "\n\nApply without them?", title="Printers Not Selected") != "Yes":
+        continue
 
       ret = sg.popup_yes_no(f"""
 Contest: {values['contest']}
