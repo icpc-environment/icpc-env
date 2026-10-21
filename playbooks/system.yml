@@ -114,15 +114,18 @@
       TTYPath=/dev/tty1
     dest: /etc/systemd/journald.conf
 
-- name: don't persist coredumps
-  ansible.builtin.copy:
-    content: |
-      [Coredump]
-      # a contestant could dump a chosen program's memory to disk, where it
-      # outlives the team reset (it isn't owned by the contestant user)
-      Storage=none
-      ProcessSizeMax=0
-    dest: /etc/systemd/coredump.conf
+- name: don't write coredumps
+  # systemd-coredump isn't installed and apport is removed, so the kernel's
+  # core_pattern governs cores directly. Pipe it to a no-op so nothing is
+  # written regardless of a process's RLIMIT_CORE: a contestant could
+  # otherwise dump a chosen program's memory to a file that outlives the
+  # team reset (it isn't owned by the contestant user).
+  ansible.posix.sysctl:
+    name: kernel.core_pattern
+    value: "|/bin/false"
+    sysctl_file: /etc/sysctl.d/50-icpc-no-coredumps.conf
+    state: present
+    reload: true
 
 - name: systemd disable status messages on console
   ansible.builtin.copy:
