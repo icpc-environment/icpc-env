@@ -111,5 +111,9 @@ Point a VNC viewer at `127.0.0.1:5910` to watch along.
   kernel console on ttyS0. For boot failures, `screenshot` is more useful.
 - `type` assumes a US keyboard layout in the guest.
 - On final images only icpcadmin can log in; `wait-ssh` notices and `gui`/`reboot` use it.
+  A final image keeps no plain keys, so icpcadmin needs a certificate its site trusts
+  (southeast: contestforge's CA with `node:*`). Put `VM_ADMIN_SSH_KEY=~/.ssh/icpc-mgmt`
+  in the repo's `.env` (gitignored) and `up` adds that key, and its `-cert.pub`, to
+  `admin` and the rest; a running VM picks it up after `down` and `up`.
   Their first-boot setup screen ignores the ACPI power button, so `down` waits out its
   timeout and then forces the VM off (`kill` skips the wait).

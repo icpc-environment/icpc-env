@@ -1,3 +1,6 @@
+# Local settings, e.g. VM_ADMIN_SSH_KEY (see dev/README.md); modules see them too
+set dotenv-load
+
 mod vm 'dev/vm.just'
 mod mgmt 'management/mgmt.just'
 mod usb 'tools/usb/usb.just'

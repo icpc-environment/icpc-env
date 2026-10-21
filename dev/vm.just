@@ -15,6 +15,9 @@ export VM_SSHPORT := env("VM_SSHPORT", "2322")
 export VM_VNC := env("VM_VNC", "10")
 export VM_MEM := env("VM_MEM", "6144")
 export VM_CPUS := env("VM_CPUS", "4")
+# Another key icpcadmin can log in with, for final images whose only way in is a
+# certificate (its -cert.pub is picked up beside it), e.g. ~/.ssh/icpc-mgmt
+export VM_ADMIN_SSH_KEY := env("VM_ADMIN_SSH_KEY", "")
 
 export VM_STATE := root / "tmp/vm" / VM_NAME
 export QMP_SOCK := VM_STATE / "qmp.sock"
@@ -68,6 +71,7 @@ up image="" timeout="600": && (wait-ssh timeout)
     Host vm-admin
       User icpcadmin
       IdentityFile {{source_directory()}}/icpcadmin-dev-key
+    ${VM_ADMIN_SSH_KEY:+  IdentityFile $VM_ADMIN_SSH_KEY}
     Host *
       HostName 127.0.0.1
       Port $VM_SSHPORT
