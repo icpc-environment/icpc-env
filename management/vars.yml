@@ -25,7 +25,7 @@ fleet_timeout: 5m
 # contestforge's signed list of fleets, which wg-fleet serves alongside the
 # static ones below. config_signers are the allowed_signers lines it must be
 # signed with, the same ones images are built with. null serves only these.
-fleets_url: "https://{{ external_hostname }}/configs/fleets.json"
+fleets_url: "https://configs.cloudcontest.org/v2/fleets.json"
 config_signers:
   - contestforge namespaces="contestforge" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4MLsZ9AwUhSpgtPkOG5LmVbYLVIiSb23pZXfOtRotM
 
@@ -33,12 +33,12 @@ config_signers:
 # expired) after its last client is gone
 removed_fleet_grace: 24h
 
-# The server also serves contestforge's published files (contests.json,
-# <contest>/tree.json, <site>/config.json, fleets.json and their .sig files)
-# from /srv/configs at https://<server>/configs/, for wg-fleet's fleets_url and
-# for images whose config_url points here (the default is
-# configs.cloudcontest.org). These keys may replace them, as user "configs",
-# which can only rsync into that directory:
+# contestforge publishes to configs.cloudcontest.org (R2). The server can also
+# serve its published files (contests.json, <contest>/tree.json,
+# <site>/config.json, fleets.json and their .sig files) from /srv/configs at
+# https://<server>/configs/, for a fleets_url or images' config_url pointed
+# here instead. These keys may replace them, as user "configs", which can only
+# rsync into that directory:
 #
 #   rsync -a --delete --delay-updates --exclude=.contestforge-cache \
 #     instance/deployments/ configs@<server>:

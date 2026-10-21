@@ -27,9 +27,8 @@ nginx serves https and ssh on port 443, for networks that only allow 443 out.
 3. `cp secret.yml.example secret.yml` and set the admin password, and any
    plain ssh keys for static fleets' users.
 4. Set `config_signers` in `vars.yml` to contestforge's allowed_signers line
-   (the one images are built with), and `configs_publisher_keys` to the ssh
-   key contestforge publishes with. Or `fleets_url: null` for static fleets
-   only.
+   (the one images are built with), and `fleets_url` to where contestforge
+   publishes `fleets.json`. Or `fleets_url: null` for static fleets only.
 5. `just mgmt deploy`
 6. Get the server's own key a certificate, so root can reach team machines:
    the deploy copies it to `secrets/mgmt/<server>/id_ed25519.pub`. In
@@ -71,11 +70,17 @@ from the inventory.
 
 ### Published files
 
-The server is also where wg-fleet's `fleets_url` points, and images'
-`config_url` can (by default it's `https://configs.cloudcontest.org/v2`):
-`https://<server>/configs/` serves `/srv/configs`. contestforge
-publishes there as user `configs`, whose keys (`configs_publisher_keys`) can
-only rsync into that directory:
+contestforge publishes to an R2 bucket served at
+`https://configs.cloudcontest.org/v2/`: images' `config_url` (the default)
+and wg-fleet's `fleets_url` both point there. Every file is signed, so the
+bucket isn't trusted; wg-fleet checks `fleets.json` against `config_signers`
+and keeps the last good copy if the bucket is unreachable.
+
+The server can serve the files itself instead, e.g. for a test server
+without the bucket: `https://<server>/configs/` serves `/srv/configs`, and
+`fleets_url: "https://{{ external_hostname }}/configs/fleets.json"` reads
+from there. contestforge publishes there as user `configs`, whose keys
+(`configs_publisher_keys`) can only rsync into that directory:
 
 ```
 just deploy   # in contestforge, writes instance/deployments
@@ -85,7 +90,7 @@ rsync -a --delete --delay-updates --exclude=.contestforge-cache \
 ```
 
 `published_configs_dir` copies a local directory there on every deploy
-instead, e.g. for a test server.
+instead.
 
 ## Using it
 
