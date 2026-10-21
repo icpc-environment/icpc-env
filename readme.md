@@ -66,7 +66,7 @@ powers it off. Take a walk, this step takes some time(~30 minutes)
 1. Take the newly minted image and copy it to a usb drive (or hard drive) (as root)
 ```
 # WARNING: Make sure to replace /dev/sdx with your actual device
-sudo dd if=output/generic-2026-09-01_image-amd64.img of=/dev/sdx bs=1M status=progress oflag=direct conv=sparse
+sudo dd if=output/generic-2026-09-01_image-amd64.img of=/dev/sdx bs=1M status=progress oflag=direct
 ```
 
 ## Customization of the Image
