@@ -13,6 +13,7 @@ Ports are named from a ports file (see --learn); without one, each port gets
 a box the first time a drive shows up in it.
 """
 import argparse
+import fcntl
 import itertools
 import math
 import os
@@ -32,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 OUTPUT = HERE.parent.parent / "output"
 DEFAULT_PORTS = HERE / "ports.toml"
 UDEV_RULE = Path("/run/udev/rules.d/90-icpc-usb-station.rules")
+LOCK = Path("/run/lock/icpc-usb-station.lock")
 
 # Started after a drive appears, so its partitions and model show up first
 SETTLE_SECONDS = 2
@@ -420,6 +422,14 @@ def main():
     if not (args.image_dir / "manifest.json").exists():
         sys.exit(f"{args.image_dir} has no manifest.json, run tools/usb/prepare first")
     args.image_dir = args.image_dir.resolve()
+
+    # Two stations would both act on every drive plugged in, and the first to
+    # quit would take the udev rule below away from the other
+    lock = open(LOCK, "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit("Another station is already running; quit it first")
 
     # So closing the window still runs the cleanup below
     for sig in (signal.SIGTERM, signal.SIGHUP):
