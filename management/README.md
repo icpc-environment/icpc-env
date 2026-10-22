@@ -172,10 +172,13 @@ archive. `release` only exports the team's files, never these. To read one:
 `borg extract --stdout /srv/backups/<fleet>/<host>/repo::<archive>`
 (`borg list` the repo for names).
 
-Teams have a Backups app on their desktop: "Back up now", and up to three
-addresses to email a copy of their files to after the contest, behind a
-privacy notice (`remote_management_backup_contact` and
-`remote_management_backup_retention_days` in the image's vars).
+Images built with `remote_management_backup_app` give teams a Backups app on
+their desktop: "Back up now", and up to three addresses to email a copy of
+their files to after the contest, behind a privacy notice
+(`remote_management_backup_contact` and
+`remote_management_backup_retention_days` in the image's vars). Without it,
+teams don't see backups at all, and you send them their links from your own
+list of addresses.
 
 ```
 backup-admin status [fleet]     # when each machine last backed up, what it left out

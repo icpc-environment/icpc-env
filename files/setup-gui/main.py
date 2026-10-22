@@ -252,8 +252,8 @@ class Printer(dict):
 machine_config = icpcconfig.load()
 
 # Load list of contests from the internet
-# Images built with backups (playbooks/management/backup.yml) have the app
-HAS_BACKUPS = Path("/icpc/scripts/icpc_backup_app").exists()
+# Images built with backups (playbooks/management/backup.yml) have borg
+HAS_BACKUPS = Path("/usr/bin/borg").exists()
 
 
 def with_site(config, data):

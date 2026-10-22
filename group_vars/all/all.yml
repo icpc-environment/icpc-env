@@ -95,11 +95,14 @@ remote_management_vpn_enabled: true
 # Whether to run ansible-pull to apply any last minute changes on system boot.
 remote_management_lastminute_enabled: true
 
-# Let the management server back up the team's work (see management/README.md),
-# and give teams an app to ask for a copy by email after the contest. Baked
-# into config.json as backup.enabled, which a site's config can turn off (but
-# not on, without borg and the app this installs).
+# Let the management server back up the team's work (see management/README.md).
+# Baked into config.json as backup.enabled, which a site's config can turn off
+# (but not on, without the borg this installs).
 remote_management_backup_enabled: true
+# Give teams a Backups app on their desktop, to back up now and ask for a copy
+# of their files by email after the contest. Without it backups still happen;
+# send teams their links from your own list of addresses
+remote_management_backup_app: false
 # Who teams can contact about their data, shown in the backup app's privacy notice
 remote_management_backup_contact: ""
 # How many days after release the download links and email addresses are kept,
