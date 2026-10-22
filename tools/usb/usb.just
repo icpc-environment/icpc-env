@@ -30,3 +30,7 @@ learn:
 # Measure a drive's sequential and random read/write speed (overwrites it unless --read-only)
 bench device *args:
     sudo tools/usb/bench "$@"
+
+# Check whether drives hold the image, without changing them, as they're plugged in (--read-all to read back everything)
+check *args:
+    {{station}} --check "$@"

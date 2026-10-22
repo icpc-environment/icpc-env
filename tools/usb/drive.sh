@@ -1,11 +1,17 @@
 # shellcheck shell=bash disable=SC2034
-# Checks shared by write-usb and bench, sourced by both. Set DEVICE,
-# MAX_GIB and ANY_TRANSPORT first; check_drive then sets TYPE, TRAN, SIZE
-# and MODEL.
+# Helpers shared by write-usb, check-usb and bench, sourced by each. Set
+# DEVICE (and IMAGE_DIR for manifest), plus MAX_GIB and ANY_TRANSPORT for
+# check_drive, which then sets TYPE, TRAN, SIZE and MODEL.
 
 fail() {
   echo "FAILED: $*" >&2
   exit 1
+}
+
+# A value from the prepared image's manifest, e.g. manifest 'm["image"]'
+manifest() {
+  python3 -I -c 'import json, sys; m = json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' \
+    "$IMAGE_DIR/manifest.json" "$1"
 }
 
 # Partitions of /dev/sdb are /dev/sdb1, of /dev/loop0 and /dev/nvme0n1 are /dev/loop0p1 and /dev/nvme0n1p1

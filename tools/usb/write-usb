@@ -53,11 +53,6 @@ source "$(dirname "$(realpath "$0")")/drive.sh"
 [[ -f "$IMAGE_DIR/manifest.json" ]] || fail "$IMAGE_DIR has no manifest.json, run tools/usb/prepare first"
 [[ -b "$DEVICE" ]] || fail "$DEVICE is not a block device"
 
-manifest() {
-  python3 -I -c 'import json, sys; m = json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' \
-    "$IMAGE_DIR/manifest.json" "$1"
-}
-
 ### Make sure this is a drive we should be wiping
 
 check_drive

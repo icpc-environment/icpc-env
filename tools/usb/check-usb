@@ -1,0 +1,103 @@
+#!/bin/bash
+# Check whether a usb drive holds an image prepared by tools/usb/prepare, without changing it
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: check-usb [options] DEVICE [IMAGE_DIR]
+
+  DEVICE      whole usb drive, e.g. /dev/sdb. Only read, never written
+  IMAGE_DIR   output of tools/usb/prepare (default: the newest in output/)
+
+Options:
+  --read-all        also read back everything the image wrote, to find
+                    flash that can no longer be read (minutes, not seconds)
+  --any-transport   allow drives that aren't on usb, e.g. loop devices for testing
+EOF
+  exit "${1:-1}"
+}
+
+READ_ALL=0
+ANY_TRANSPORT=0
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --read-all) READ_ALL=1 ;;
+    --any-transport) ANY_TRANSPORT=1 ;;
+    -h|--help) usage 0 ;;
+    -*) echo "Unknown option $1"; usage ;;
+    *) ARGS+=("$1") ;;
+  esac
+  shift
+done
+[[ ${#ARGS[@]} -eq 1 || ${#ARGS[@]} -eq 2 ]] || usage
+DEVICE=$(realpath "${ARGS[0]}")
+if [[ ${#ARGS[@]} -eq 2 ]]; then
+  IMAGE_DIR=$(realpath "${ARGS[1]}")
+else
+  IMAGE_DIR=$(ls -td "$(dirname "$0")"/../../output/*_image-amd64.img.d 2>/dev/null | head -1 || true)
+  [[ -n "$IMAGE_DIR" ]] || { echo "Nothing prepared in output/, run tools/usb/prepare first" >&2; exit 1; }
+  IMAGE_DIR=$(realpath "$IMAGE_DIR")
+fi
+
+# shellcheck source-path=SCRIPTDIR source=drive.sh
+source "$(dirname "$(realpath "$0")")/drive.sh"
+
+[[ $EUID -eq 0 ]] || fail "check-usb needs root"
+[[ -f "$IMAGE_DIR/manifest.json" ]] || fail "$IMAGE_DIR has no manifest.json, run tools/usb/prepare first"
+[[ -b "$DEVICE" ]] || fail "$DEVICE is not a block device"
+TYPE=$(lsblk -dno TYPE "$DEVICE")
+if [[ $ANY_TRANSPORT -eq 0 ]]; then
+  [[ $TYPE == disk ]] || fail "$DEVICE is a $TYPE, not a whole drive"
+  [[ "$(lsblk -dno TRAN "$DEVICE")" == usb ]] || fail "$DEVICE is not on usb"
+fi
+
+MODEL=$(lsblk -dno MODEL "$DEVICE" | xargs)
+echo "Checking $DEVICE (${MODEL:-unknown model}) against $(manifest 'm["image"]')"
+PROBLEMS=()
+
+# Partitions as start, size, type and GUID; the GUIDs come from the image,
+# so another image with the same layout still shows up as different
+partitions() {
+  grep -E '^[^ ]+ +: start=' | sed -E 's/^[^:]+: //; s/ +/ /g'
+}
+if [[ "$(sfdisk --dump "$DEVICE" 2>/dev/null | partitions)" == \
+      "$(partitions < "$IMAGE_DIR/$(manifest 'm["layout"]')")" ]]; then
+  echo "Partition table: matches the image"
+else
+  echo "Partition table: different from the image"
+  PROBLEMS+=("partition table")
+fi
+
+VERSION_PART=$(manifest '(m["version"] or {}).get("partition", "")')
+if [[ -n "$VERSION_PART" ]]; then
+  echo "Image /icpc/version: $(manifest 'm["version"]["text"].splitlines()[0]')"
+  dev=$(part "$VERSION_PART")
+  version=$(mktemp)
+  trap 'rm -f "$version"' EXIT
+  # debugfs reads the filesystem without mounting it, so nothing on the drive changes
+  if [[ -b "$dev" ]] && debugfs -R 'cat /icpc/version' "$dev" >"$version" 2>/dev/null && [[ -s "$version" ]]; then
+    echo "Drive /icpc/version: $(head -1 "$version")"
+    if [[ "$(sha256sum < "$version" | cut -d' ' -f1)" != "$(manifest 'm["version"]["sha256"]')" ]]; then
+      PROBLEMS+=("/icpc/version")
+    fi
+  else
+    echo "Drive /icpc/version: not found"
+    PROBLEMS+=("/icpc/version")
+  fi
+fi
+
+if [[ $READ_ALL -eq 1 ]]; then
+  END=$(( $(manifest 'm["min_device_bytes"]') - 33 * 512 ))
+  echo "Reading back all $((END / 1000000)) MB the image wrote"
+  if ! dd if="$DEVICE" of=/dev/null bs=4M iflag=direct,count_bytes count="$END" status=progress; then
+    PROBLEMS+=("unreadable data (see dmesg)")
+  fi
+fi
+
+if [[ ${#PROBLEMS[@]} -eq 0 ]]; then
+  echo "MATCHES: $DEVICE holds $(manifest 'm["image"]')"
+else
+  printf -v list '%s, ' "${PROBLEMS[@]}"
+  fail "$DEVICE doesn't match $(manifest 'm["image"]'): ${list%, }"
+fi

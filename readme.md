@@ -103,6 +103,16 @@ it back in to write it again. While the station runs it keeps the desktop
 from automounting usb drives. Both also refuse a drive something else has
 open, such as the station writing it.
 
+### Checking drives
+`just usb check` is the station without the writing: each drive plugged in
+(or already plugged in) gets its partition table and `/icpc/version` compared
+with the image's, and shows MATCHES or FAILED with the build it does have.
+Nothing on the drive changes, so it's safe on drives you're not sure about.
+`--read-all` also reads back everything the image wrote, which finds flash
+that can no longer be read but takes minutes per drive. For one drive,
+`sudo tools/usb/check-usb /dev/sdx`. Only one station, writing or checking,
+runs at a time.
+
 ### Comparing drives
 `just usb bench /dev/sdx` measures a drive's sequential and random (4 KiB)
 read and write speed with [fio](https://github.com/axboe/fio), and adds a line to

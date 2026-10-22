@@ -10,7 +10,8 @@
 
 Each port gets a box showing its write-usb output, coloured by how it went.
 Ports are named from a ports file (see --learn); without one, each port gets
-a box the first time a drive shows up in it.
+a box the first time a drive shows up in it. With --check it runs check-usb
+instead, to see whether drives hold the image without changing them.
 """
 import argparse
 import fcntl
@@ -124,7 +125,7 @@ class Port:
             title += f" {self.devname}"
         if self.state in (State.WRITING, State.SUCCESS, State.FAILED):
             elapsed = int((self.finished or time.time()) - self.started)
-            title += f" - {self.state.value.upper()} {elapsed // 60}m{elapsed % 60:02d}s"
+            title += f" - {self.station.labels[self.state]} {elapsed // 60}m{elapsed % 60:02d}s"
         self.box.set_title(title)
 
     def already_present(self, device):
@@ -180,8 +181,11 @@ class Port:
             self.terminal.terminate()
             self.finished = time.time()
             self.devname = None
-            self.show(State.FAILED, "Unplugged while writing, this drive is not usable.\n"
-                                    "Plug it back in to write it again.")
+            if self.station.checking:
+                self.show(State.FAILED, "Unplugged while checking.\nPlug it back in to check it again.")
+            else:
+                self.show(State.FAILED, "Unplugged while writing, this drive is not usable.\n"
+                                        "Plug it back in to write it again.")
             return
         self.devname = None
         self.show(State.WAITING, "Waiting for a drive")
@@ -196,7 +200,15 @@ class Station:
         self.image_dir = args.image_dir
         self.columns = args.columns
         self.loop_devices = args.loop_devices
-        if args.dry_run:
+        self.checking = args.check
+        if args.check:
+            self.writer = [str(HERE / "check-usb")]
+            if args.read_all:
+                self.writer.append("--read-all")
+            if args.loop_devices:
+                self.writer.append("--any-transport")
+            self.labels = {State.WRITING: "CHECKING", State.SUCCESS: "MATCHES", State.FAILED: "FAILED"}
+        elif args.dry_run:
             self.writer = ["/bin/bash", "-c", DRY_RUN_WRITER, "dry-run"]
         else:
             self.writer = [str(HERE / "write-usb")]
@@ -206,6 +218,8 @@ class Station:
                 self.writer += ["--max-size", str(args.max_size)]
             if args.loop_devices:
                 self.writer.append("--any-transport")
+        if not args.check:
+            self.labels = {State.WRITING: "WRITING", State.SUCCESS: "SUCCESS", State.FAILED: "FAILED"}
 
         self.paths = {}  # usb_port() -> port name
         self.ports = {}  # port name -> Port
@@ -250,10 +264,14 @@ class Station:
 
     def update_status(self):
         counts = {s: sum(p.state == s for p in self.ports.values()) for s in State}
-        writing = counts[State.WRITING] + counts[State.STARTING]
+        busy = counts[State.WRITING] + counts[State.STARTING]
+        if self.checking:
+            done = f"checking {busy}, match {counts[State.SUCCESS]}"
+        else:
+            done = f"writing {busy}, done {counts[State.SUCCESS]}"
         self.status.set_text(
-            f"{self.image_dir.name} | writing {writing}, done {counts[State.SUCCESS]}, "
-            f"failed {counts[State.FAILED]}, empty {counts[State.WAITING]} | q to quit")
+            f"{self.image_dir.name} | {done}, failed {counts[State.FAILED]}, "
+            f"empty {counts[State.WAITING]} | q to quit")
 
     def bell(self):
         sys.stdout.write("\a")
@@ -304,7 +322,8 @@ class Station:
         busy = [p for p in self.ports.values() if p.state in (State.STARTING, State.WRITING)]
         if busy and not self.quit_armed:
             self.quit_armed = True
-            self.note(f"{len(busy)} drives are still being written, press q again to stop them and quit")
+            doing = "checked" if self.checking else "written"
+            self.note(f"{len(busy)} drives are still being {doing}, press q again to stop them and quit")
             self.loop.set_alarm_in(5, lambda *_: setattr(self, "quit_armed", False))
             return
         for port in self.ports.values():
@@ -336,7 +355,11 @@ class Station:
         for device in context.list_devices(subsystem="block", DEVTYPE="disk"):
             if device.attributes.asint("size") > 0:
                 port = self.port_for(device)
-                if port:
+                # Checking doesn't change a drive, so there's no need to wait
+                # for it to be plugged in again
+                if port and self.checking:
+                    port.inserted(device)
+                elif port:
                     port.already_present(device)
         self.layout()
         self.update_status()
@@ -407,7 +430,15 @@ def main():
     parser.add_argument("--max-size", type=int, metavar="GIB", help="pass --max-size to write-usb")
     parser.add_argument("--loop-devices", action="store_true",
                         help="write loop devices as they're attached instead of usb drives, for testing")
+    parser.add_argument("--check", action="store_true",
+                        help="check whether drives hold the image instead of writing them")
+    parser.add_argument("--read-all", action="store_true",
+                        help="with --check, also read back everything the image wrote (minutes per drive)")
     args = parser.parse_args()
+    if args.read_all and not args.check:
+        parser.error("--read-all only goes with --check")
+    if args.check and (args.dry_run or args.no_verify or args.max_size):
+        parser.error("--dry-run, --no-verify and --max-size are for writing, not --check")
 
     if os.geteuid() != 0:
         sys.exit("station needs root to write drives")
@@ -435,7 +466,8 @@ def main():
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda *_: sys.exit(1))
 
-    # Keeps the desktop from automounting drives while they're being written
+    # Keeps the desktop from automounting drives, and so changing them, while
+    # they're being written or checked
     if not args.dry_run:
         UDEV_RULE.parent.mkdir(parents=True, exist_ok=True)
         UDEV_RULE.write_text('SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{UDISKS_IGNORE}="1", ENV{UDISKS_AUTO}="0"\n')
