@@ -461,6 +461,11 @@ class Station:
             return
         for port in self.ports.values():
             port.abort()
+        # Some terminals ignore the alternate screen urwid draws on, so it
+        # would stay up with the shell prompt on top; elsewhere this only
+        # clears the alternate screen on its way out
+        self.loop.screen.write("\x1b[2J\x1b[H")
+        self.loop.screen.flush()
         raise urwid.ExitMainLoop()
 
     def tick(self, *_):
