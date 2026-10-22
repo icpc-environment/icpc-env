@@ -85,10 +85,19 @@ def usb_port(device):
     return usb.device_path if usb else None
 
 
+def disk_size(device):
+    """A disk's size in bytes, 0 for no media, or for a drive unplugged
+    before its udev events get handled, whose sysfs entry is already gone"""
+    try:
+        return device.attributes.asint("size") * 512
+    except (KeyError, ValueError):
+        return 0
+
+
 def drive_label(device):
     vendor = device.properties.get("ID_VENDOR", "").replace("_", " ")
     model = device.properties.get("ID_MODEL", "").replace("_", " ")
-    size = device.attributes.asint("size") * 512 / 1e9
+    size = disk_size(device) / 1e9
     return f"{vendor} {model} ({size:.0f} GB)".strip()
 
 
@@ -298,17 +307,24 @@ class Station:
 
     def on_udev(self):
         for device in iter(lambda: self.monitor.poll(timeout=0), None):
-            # Loop devices and card readers report media coming and going as a
-            # change in size rather than add and remove
-            size = device.attributes.asint("size") if device.action != "remove" else 0
-            if device.action == "remove" or (device.action == "change" and size == 0):
-                port = self.port_for_known(device)
-                if port:
-                    port.removed()
-            elif device.action in ("add", "change") and size > 0:
-                port = self.port_for(device)
-                if port and (device.action == "add" or port.state == State.WAITING):
-                    port.inserted(device)
+            # Quitting here would take every write in progress with it
+            try:
+                self.on_device(device)
+            except Exception as e:
+                self.note(f"Couldn't handle {device.action} of {device.device_node}: {e!r}")
+
+    def on_device(self, device):
+        # Loop devices and card readers report media coming and going as a
+        # change in size rather than add and remove
+        size = disk_size(device) if device.action != "remove" else 0
+        if device.action == "remove" or (device.action == "change" and size == 0):
+            port = self.port_for_known(device)
+            if port:
+                port.removed()
+        elif device.action in ("add", "change") and size > 0:
+            port = self.port_for(device)
+            if port and (device.action == "add" or port.state == State.WAITING):
+                port.inserted(device)
 
     def port_for_known(self, device):
         for port in self.ports.values():
@@ -353,7 +369,7 @@ class Station:
         self.loop.watch_file(self.monitor.fileno(), self.on_udev)
 
         for device in context.list_devices(subsystem="block", DEVTYPE="disk"):
-            if device.attributes.asint("size") > 0:
+            if disk_size(device) > 0:
                 port = self.port_for(device)
                 # Checking doesn't change a drive, so there's no need to wait
                 # for it to be plugged in again
