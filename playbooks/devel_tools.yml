@@ -26,6 +26,12 @@
       - ripgrep        # a fast grep replacement
       - zoxide         # smarter cd replacement
       - fd-find        # a simple, fast and user-friendly alternative to 'find'
+      - lsd            # another modern ls replacement
+      - bat            # cat with syntax highlighting (installed as batcat)
+      - hyperfine      # benchmarks commands, e.g. a solution against an input
+      - entr           # reruns a command when files change, e.g. compile and test on save
+      - just           # simple command runner
+      - qalc           # command line Qalculate
       - kitty          # an alternative terminal emulator
       - ghostty        # another one - in universe as of 26.04
 
@@ -36,6 +42,13 @@
   ansible.builtin.file:
     src: /usr/bin/fdfind
     dest: /usr/local/bin/fd
+    state: link
+    force: true
+
+- name: Symlink bat to batcat, Debian's name for it
+  ansible.builtin.file:
+    src: /usr/bin/batcat
+    dest: /usr/local/bin/bat
     state: link
     force: true
 
