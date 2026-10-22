@@ -127,7 +127,7 @@ def pull(config, fqdn):
     local = SOCKETS / f"{name}.sock"
     remote = f"/home/icpcadmin/.icpc-backup-{name}.sock"
     SOCKETS.mkdir(mode=0o700, parents=True, exist_ok=True)
-    # fork: the machine connects once for the team's files, again for its focus log
+    # fork: the machine connects once for the team's files, again for each of its logs
     serve = subprocess.Popen(["socat", f"UNIX-LISTEN:{local},mode=600,fork",
                               f"EXEC:borg serve --append-only --restrict-to-repository {repo}"],
                              env=BORG_ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -308,7 +308,7 @@ class Scheduler:
             # The machine is the authority on the team and its email settings
             latest.update({k: result.get(k) for k in ("archive", "reset_ts", "contest", "site", "team", "settings",
                                                        "files", "bytes", "over_budget", "skipped", "skipped_count",
-                                                       "stats", "focus_log")})
+                                                       "stats", "focus_log", "exec_log")})
             latest["last_success"] = now_iso()
             latest["last_error"] = None
         elif rc == EXIT_DISABLED:
@@ -427,9 +427,10 @@ def cmd_status(args):
         team = latest.get("team") or {}
         teamname = f"{team.get('id') or '?'} {team.get('name') or ''}"[:34]
         emails = len((latest.get("settings") or {}).get("emails", []))
-        focus_error = (latest.get("focus_log") or {}).get("error")
+        log_errors = [f"{kind} log: {error}" for kind in ("focus", "exec")
+                      if (error := (latest.get(f"{kind}_log") or {}).get("error"))]
         problem = (latest.get("last_error") or ("over budget" if latest.get("over_budget") else "")
-                   or (f"focus log: {focus_error}" if focus_error else ""))
+                   or "; ".join(log_errors))
         if fqdn not in connected:
             problem = ("offline; " + problem).rstrip("; ")
         print(f"{hdir.parent.name + '/' + hdir.name:<36} {teamname:<34} {age(latest.get('last_success')):<10} "

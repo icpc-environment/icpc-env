@@ -38,6 +38,8 @@ HOME = Path("/home/contestant")
 PRINTOUTS = Path("/var/lib/icpc-printer")
 # s.py's log of which window had focus, in tmpfs and wiped by a team reset
 FOCUS_LOG = Path("/run/icpc-focus")
+# auditd's log, with every program the contestant ran, in tmpfs (monitoring.yml)
+EXEC_LOG = Path("/var/log/audit")
 RESET_MARKER = Path("/icpc/team-reset-complete")
 # Kept across reboots, and wiped by a team reset
 SETTINGS = Path("/var/lib/icpc-backup/settings.json")
@@ -242,13 +244,13 @@ def borg_error(p):
     return (p.stderr.strip().splitlines() or [f"borg exited {p.returncode}"])[-1]
 
 
-def backup_focus_log(args, env, since):
-    """The focus log goes in an archive of its own, whose name a release
-    doesn't pick up, so it's never handed to the team with their files"""
-    if not FOCUS_LOG.is_dir():
-        return {"ok": False, "error": f"no {FOCUS_LOG}"}
-    archive = f"focus-r{since}-{args.archive_ts}"
-    p = borg_create(args, env, archive, [str(FOCUS_LOG)])
+def backup_log(args, env, since, kind, path):
+    """Logs of what the team did each go in an archive of their own, whose name
+    a release doesn't pick up, so they're never handed to the team with their files"""
+    if not path.is_dir():
+        return {"ok": False, "error": f"no {path}"}
+    archive = f"{kind}-r{since}-{args.archive_ts}"
+    p = borg_create(args, env, archive, [str(path)])
     if p.returncode in (0, 1):
         return {"ok": True, "archive": archive}
     return {"ok": False, "archive": archive, "error": borg_error(p)}
@@ -288,7 +290,8 @@ def cmd_run(args):
                    BORG_RELOCATED_REPO_ACCESS_IS_OK="yes")
         try:
             p = borg_create(args, env, archive, roots, ["--patterns-from", pf.name])
-            focus_log = backup_focus_log(args, env, since)
+            focus_log = backup_log(args, env, since, "focus", FOCUS_LOG)
+            exec_log = backup_log(args, env, since, "exec", EXEC_LOG)
         finally:
             # sshd leaves the forwarded socket behind
             Path(args.socket).unlink(missing_ok=True)
@@ -334,6 +337,7 @@ def cmd_run(args):
         "skipped_count": len(skipped),
         "stats": stats,
         "focus_log": focus_log,
+        "exec_log": exec_log,
         "borg_rc": p.returncode,
         "borg_stderr": p.stderr[-2000:],
     }))
