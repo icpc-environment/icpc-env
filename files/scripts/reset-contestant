@@ -37,6 +37,13 @@ systemctl stop icpc-focus-log
 rm -rf /run/icpc-focus
 systemctl start icpc-focus-log
 
+# Nor which programs it ran. auditd can't be stopped by hand, but appends, so
+# its open log can be emptied under it
+if [ -d /var/log/audit ]; then
+    find /var/log/audit -name 'audit.log.*' -delete
+    [ -f /var/log/audit/audit.log ] && truncate -s 0 /var/log/audit/audit.log
+fi
+
 # Nor which sites it browsed: the proxy's logs and its record of which HTTPS
 # hosts it minted certificates for are both root-owned
 if [ -d /var/spool/squid/ssl_db ]; then
