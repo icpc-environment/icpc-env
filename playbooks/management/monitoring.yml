@@ -6,6 +6,14 @@
       - prometheus-node-exporter
       - moreutils # so we can use sponge when writing some custom metrics information
 
+# The collectors package recommends ipmitool, which recommends openipmi. These are desktops with no BMC
+- name: Remove ipmitool and openipmi
+  ansible.builtin.apt:
+    state: absent
+    pkg:
+      - ipmitool
+      - openipmi
+
 - name: Drop a configuration file for node exporter to disable systemd metrics (it's noisy/slowish)
   ansible.builtin.copy:
     dest: /etc/default/prometheus-node-exporter
