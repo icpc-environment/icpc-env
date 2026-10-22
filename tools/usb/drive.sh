@@ -61,7 +61,8 @@ check_drive() {
   for _ in $(seq 10); do
     pid=""
     for node in $(lsblk -lnpo NAME "$DEVICE"); do
-      pid=$(find /proc/[0-9]*/fd -lname "$node" 2>/dev/null | head -1 | cut -d/ -f3)
+      # find fails whenever a process exits mid-scan, which is no reason to stop
+      pid=$(find /proc/[0-9]*/fd -lname "$node" 2>/dev/null | head -1 | cut -d/ -f3 || true)
       [[ -z "$pid" ]] || break
     done
     [[ -n "$pid" ]] || break
