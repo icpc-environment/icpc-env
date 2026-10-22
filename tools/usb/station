@@ -81,19 +81,45 @@ class OutputTerminal(urwid.Terminal):
         return False
 
 
+def usb_device(device):
+    """The usb device a drive belongs to, or None if it isn't on usb"""
+    if device.properties.get("ID_BUS") != "usb":
+        return None
+    return device.find_parent("usb", "usb_device")
+
+
+def usb3_twin(usb):
+    """For a usb device on the usb 2 half of a port that also has usb 3, the
+    sysfs path a usb 3 device in the same socket has, else None"""
+    peer = Path(usb.sys_path) / "port/peer"
+    try:
+        if usb.attributes.asint("speed") >= 5000 or not peer.exists():
+            return None
+    except (KeyError, ValueError):
+        return None
+    # e.g. .../usb2/2-3/2-3.4/2-3.4:1.0/2-3.4-port4 -> .../usb2/2-3/2-3.4/2-3.4.4,
+    # or .../usb2/2-0:1.0/usb2-port9 -> .../usb2/2-9 for the controller's own ports
+    peer = peer.resolve()
+    hub = peer.parent.parent
+    number = peer.name.rsplit("port", 1)[1]
+    name = f"{hub.name[3:]}-{number}" if hub.name.startswith("usb") else f"{hub.name}.{number}"
+    return "/" + str((hub / name).relative_to("/sys"))
+
+
 def usb_port(device):
     """The usb port a drive is plugged into, as the sysfs path of its usb device.
 
     udev's ID_PATH would be simpler but leaves out the bus, and a usb 3
     controller puts its usb 2 and usb 3 ports on separate buses that reuse the
-    same port numbers.
+    same port numbers. A drive that came up on the usb 2 half of a usb 3 port
+    counts as being in that port.
     """
-    if device.properties.get("ID_BUS") != "usb":
-        return None
-    usb = device.find_parent("usb", "usb_device")
+    usb = usb_device(device)
     # Not `if usb`: a pyudev Device's truthiness goes through its deprecated
     # mapping interface and prints a warning over the screen
-    return usb.device_path if usb is not None else None
+    if usb is None:
+        return None
+    return usb3_twin(usb) or usb.device_path
 
 
 def disk_size(device):
@@ -109,7 +135,11 @@ def drive_label(device):
     vendor = device.properties.get("ID_VENDOR", "").replace("_", " ")
     model = device.properties.get("ID_MODEL", "").replace("_", " ")
     size = disk_size(device) / 1e9
-    return f"{vendor} {model} ({size:.0f} GB)".strip()
+    label = f"{vendor} {model} ({size:.0f} GB)".strip()
+    usb = usb_device(device)
+    if usb is not None and usb3_twin(usb):
+        label += ", on usb 2 in a usb 3 port (replug it for usb 3)"
+    return label
 
 
 class Port:
