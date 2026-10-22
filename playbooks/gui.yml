@@ -113,7 +113,9 @@
       - firefox   # Web browser (from ppa, not snap)
       - alacarte  # Menu editor
       - mupdf     # Lighweight pdf viewer
+      - atril     # pdf viewer with the usual toolbar, search and zoom
       - mate-calc # GUI calculator
+      - qalculate-gtk # calculator with arbitrary precision, base conversion and units
       - engrampa  # archive manager
       - orca      # Screen reader (recommends bring the espeak-ng voice)
       - pavucontrol # Audio mixer, opened from the panel's volume plugin
@@ -121,7 +123,6 @@
   # kalgebra - seems nice, basically a graphing calculator, but it ends up in some new education submenu
   # gnome-genius - way overkill/has it's own language thing. reminds me of r or ipython notebooks
   # gnome-calculator - sucks
-  # qalculate-gtk - has a bunch of extra advanced things, might be nice to leave in there, but maybe too fancy?
   # kcalc - # ok, but mate-calc is better
 
 - name: Have speech-dispatcher play through pipewire
