@@ -82,7 +82,9 @@ def usb_port(device):
     if device.properties.get("ID_BUS") != "usb":
         return None
     usb = device.find_parent("usb", "usb_device")
-    return usb.device_path if usb else None
+    # Not `if usb`: a pyudev Device's truthiness goes through its deprecated
+    # mapping interface and prints a warning over the screen
+    return usb.device_path if usb is not None else None
 
 
 def disk_size(device):
@@ -472,12 +474,15 @@ def main():
 
     # Two stations would both act on every drive plugged in, and the first to
     # quit would take the udev rule below away from the other
-    lock = open(LOCK, "w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        sys.exit("Another station is already running; quit it first")
+    with open(LOCK, "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            sys.exit("Another station is already running; quit it first")
+        run_station(args)
 
+
+def run_station(args):
     # So closing the window still runs the cleanup below
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda *_: sys.exit(1))
@@ -494,7 +499,6 @@ def main():
         if UDEV_RULE.exists():
             UDEV_RULE.unlink()
             subprocess.run(["udevadm", "control", "--reload"], check=False)
-
 
 if __name__ == "__main__":
     main()
