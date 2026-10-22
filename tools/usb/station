@@ -14,6 +14,7 @@ a box the first time a drive shows up in it. With --check it runs check-usb
 instead, to see whether drives hold the image without changing them.
 """
 import argparse
+import contextlib
 import fcntl
 import itertools
 import math
@@ -35,6 +36,14 @@ OUTPUT = HERE.parent.parent / "output"
 DEFAULT_PORTS = HERE / "ports.toml"
 UDEV_RULE = Path("/run/udev/rules.d/90-icpc-usb-station.rules")
 LOCK = Path("/run/lock/icpc-usb-station.lock")
+
+# A VIA VL811 hub (2109:8110 with 2109:2811) misses drives plugged in while
+# its usb 2 half is runtime suspended, which Linux does as soon as nothing
+# usb 2 is plugged into it: nothing gets logged and the drive never shows
+# up, on usb 3 or 2, until the hub is woken some other way
+HUB_RULE = 'SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{bDeviceClass}=="09", ATTR{power/control}="on"\n'
+# Automounting would change drives while they're being written or checked
+NO_AUTOMOUNT_RULE = 'SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{UDISKS_IGNORE}="1", ENV{UDISKS_AUTO}="0"\n'
 
 # Started after a drive appears, so its partitions and model show up first
 SETTLE_SECONDS = 2
@@ -400,6 +409,30 @@ def save_ports(path, ports):
         os.chown(path, int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
 
 
+@contextlib.contextmanager
+def udev_setup(no_automount):
+    """While running, usb hubs stay awake and, with no_automount, nothing
+    automounts usb drives; hubs go back to how they were afterwards"""
+    hubs = {}
+    for device in Path("/sys/bus/usb/devices").iterdir():
+        control = device / "power/control"
+        if (device / "bDeviceClass").exists() and (device / "bDeviceClass").read_text().strip() == "09":
+            hubs[control] = control.read_text().strip()
+            control.write_text("on")
+    UDEV_RULE.parent.mkdir(parents=True, exist_ok=True)
+    UDEV_RULE.write_text(HUB_RULE + (NO_AUTOMOUNT_RULE if no_automount else ""))
+    subprocess.run(["udevadm", "control", "--reload"], check=False)
+    try:
+        yield
+    finally:
+        UDEV_RULE.unlink(missing_ok=True)
+        subprocess.run(["udevadm", "control", "--reload"], check=False)
+        for control, value in hubs.items():
+            # Gone if the hub was unplugged or power cycled meanwhile
+            with contextlib.suppress(OSError):
+                control.write_text(value)
+
+
 def learn(path):
     """Name ports by plugging a drive into each in turn"""
     ports = load_ports(path) if path.exists() else {}
@@ -460,8 +493,13 @@ def main():
 
     if os.geteuid() != 0:
         sys.exit("station needs root to write drives")
+    # So closing the window still runs the cleanup in udev_setup
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, lambda *_: sys.exit(1))
+
     if args.learn:
-        learn(args.ports_file)
+        with udev_setup(no_automount=False):
+            learn(args.ports_file)
         return
     if not args.image_dir:
         prepared = sorted(OUTPUT.glob("*_image-amd64.img.d"), key=lambda d: d.stat().st_mtime)
@@ -483,22 +521,9 @@ def main():
 
 
 def run_station(args):
-    # So closing the window still runs the cleanup below
-    for sig in (signal.SIGTERM, signal.SIGHUP):
-        signal.signal(sig, lambda *_: sys.exit(1))
-
-    # Keeps the desktop from automounting drives, and so changing them, while
-    # they're being written or checked
-    if not args.dry_run:
-        UDEV_RULE.parent.mkdir(parents=True, exist_ok=True)
-        UDEV_RULE.write_text('SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{UDISKS_IGNORE}="1", ENV{UDISKS_AUTO}="0"\n')
-        subprocess.run(["udevadm", "control", "--reload"], check=False)
-    try:
+    with udev_setup(no_automount=not args.dry_run):
         Station(args).run()
-    finally:
-        if UDEV_RULE.exists():
-            UDEV_RULE.unlink()
-            subprocess.run(["udevadm", "control", "--reload"], check=False)
+
 
 if __name__ == "__main__":
     main()
