@@ -15,6 +15,9 @@
       - gdb            # Debugger
       - valgrind       # memory leak detector
       - meld           # side by side diff, e.g. of a program's output against the expected output
+      - clang          # second C/C++ compiler, for its error messages
+      - libclang-rt-dev # runtime for clang's -fsanitize=address,undefined
+      - clang-format   # code formatter
 
       # things inspired by omarchy
       - alacritty      # a fancy terminal app people might want/like
