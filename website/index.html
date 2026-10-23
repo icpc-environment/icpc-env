@@ -6,6 +6,10 @@
 <title>ICPC Contest Image</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<style>
+  /* Drop the download table's last-row border so it doesn't double up with the <hr> below */
+  #downloads tbody tr:last-child td { border-bottom: 0; }
+</style>
 </head>
 <body>
 <div class="container my-4">
@@ -45,7 +49,7 @@
 <p>No password is needed to log in as the <code>contestant</code> user. The password for the <code>icpcadmin</code> account on the 'generic' image is <code>icpcadmin</code>, and this user has root (sudo) privileges.</p>
 <p>On the regular images this password will be distributed by your contest manager.</p>
 
-<table class="table">
+<table class="table" id="downloads">
   <thead>
     <tr>
       <th>Name</th>
@@ -54,13 +58,26 @@
     </tr>
   </thead>
   <tbody>
-    <!-- One row per published image, e.g.
     <tr>
-      <td><a href="images/generic-2026-10-21_image-amd64.img.gz">generic-2026-10-21_image-amd64.img.gz</a></td>
+      <td><a href="images/southeast-2026-10-21_image-amd64.img.gz">southeast-2026-10-21_image-amd64.img.gz</a></td>
+      <td>8.3G</td>
+      <td>ICPC North America Southeast Regional</td>
+    </tr>
+    <tr>
+      <td><a href="images/midatlantic-2026-10-21_image-amd64.img.gz">midatlantic-2026-10-21_image-amd64.img.gz</a></td>
+      <td>8.3G</td>
+      <td>ICPC North America Mid-Atlantic Regional</td>
+    </tr>
+    <tr>
+      <td><a href="images/southcentral-2026-10-21_image-amd64.img.gz">southcentral-2026-10-21_image-amd64.img.gz</a></td>
+      <td>8.3G</td>
+      <td>ICPC North America South Central Regional</td>
+    </tr>
+    <tr>
+      <td><a href="images/generic-2026-10-22_image-amd64.img.gz">generic-2026-10-22_image-amd64.img.gz</a></td>
       <td>8.3G</td>
       <td>ICPC Generic Contest Environment<br><code>icpcadmin</code> account password is <code>icpcadmin</code></td>
     </tr>
-    -->
   </tbody>
 </table>
 
