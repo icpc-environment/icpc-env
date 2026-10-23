@@ -1,0 +1,33 @@
+#!/bin/bash
+# Back a team machine up now from the management server, and check its newest
+# archive has the given files (paths relative to /, e.g. home/contestant/x.cpp).
+#   dev/e2e/check-backup icpc-team-505.bigsouth2026-southeast.icpcnet.internal FILE-LIST
+# FILE-LIST is a file with one path per line, like a run's backup-expect.txt.
+set -uo pipefail
+cd "$(dirname "$0")/../.."
+fqdn=$1 list=$2
+host=${fqdn%%.*}; rest=${fqdn#*.}; fleet=${rest%%.*}
+repo=/srv/backups/$fleet/$host/repo
+
+newest() { just mgmt ssh "BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes borg --lock-wait 300 list --short $repo" | grep -vE '^(focus|exec)-' | tail -1; }
+before=$(newest)
+echo "backing up $fleet/$host now (newest archive so far: $before)"
+just mgmt ssh backup-admin now "$fqdn" 2>&1 | tail -3
+# `now` only queues the backup
+archive=$before
+for _ in $(seq 60); do
+  archive=$(newest)
+  [[ $archive != "$before" ]] && break
+  sleep 10
+done
+[[ $archive != "$before" ]] || { echo "no new archive after 10 minutes"; exit 1; }
+just mgmt ssh backup-admin status "$fleet" 2>&1 | grep -E "machine|/$host "
+echo "newest archive: $archive"
+contents=$(just mgmt ssh "BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes borg --lock-wait 300 list --format '{path}{NL}' $repo::$archive")
+ok=0 missing=0
+while read -r f; do
+  [[ -z $f ]] && continue
+  if grep -qxF "$f" <<<"$contents"; then ok=$((ok + 1)); else echo "  missing from the backup: $f"; missing=$((missing + 1)); fi
+done < "$list"
+echo "$ok of $((ok + missing)) source files are in $archive"
+(( missing == 0 ))

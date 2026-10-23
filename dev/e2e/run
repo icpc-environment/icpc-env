@@ -1,0 +1,82 @@
+#!/bin/bash
+# Run the e2e tests on a team machine or a `just vm` VM and fetch the results.
+#
+#   dev/e2e/run HOST [TEST...]       e.g. dev/e2e/run icpc-team-505.bigsouth2026-southeast.icpcnet.internal
+#   dev/e2e/run --vm [TEST...]       the running `just vm` VM ($VM_NAME, default agent)
+#   dev/e2e/run --list HOST          list the tests
+#
+# TEST may be a glob (vscode_*). Without TESTs every default test runs; print_*
+# and reset only run when named. Results land in tmp/e2e/<host>-<time>/.
+set -euo pipefail
+
+ROOT=$(realpath "$(dirname "$0")/../..")
+SSH=(ssh -o ControlPath=none -o ServerAliveInterval=10)
+SCP=(scp -q -o ControlPath=none)
+LIST=0
+if [[ ${1:-} == --list ]]; then LIST=1; shift; fi
+if [[ ${1:-} == --vm ]]; then
+  shift
+  cfg=$ROOT/tmp/vm/${VM_NAME:-agent}/ssh_config
+  [[ -f $cfg ]] || { echo "no VM config at $cfg; is the VM up?" >&2; exit 1; }
+  SSH+=(-F "$cfg"); SCP+=(-F "$cfg")
+  HOST=$(cat "$ROOT/tmp/vm/${VM_NAME:-agent}/sudo_host")
+  LABEL=vm-${VM_NAME:-agent}
+else
+  HOST=${1:?usage: run HOST|--vm [TEST...]}; shift
+  LABEL=${HOST%%.*}
+fi
+
+STAMP=$(date +%Y%m%d-%H%M%S)
+REMOTE_OUT=/var/tmp/icpc-e2e/$STAMP
+LOCAL_OUT=$ROOT/tmp/e2e/$LABEL-$STAMP
+
+tar -C "$ROOT/dev/e2e/guest" -czf - . | "${SSH[@]}" "$HOST" \
+  'sudo rm -rf /opt/icpc-e2e && sudo mkdir -p /opt/icpc-e2e && sudo tar -C /opt/icpc-e2e -xzf - && sudo chmod -R a+rX /opt/icpc-e2e'
+
+if (( LIST )); then
+  "${SSH[@]}" "$HOST" "cd /opt/icpc-e2e && sudo bash -c 'source lib.sh >/dev/null; declare -A TIMEOUT; for f in tests/*.sh; do source \$f; done; declare -F' | awk '{print \$3}' | sed -n 's/^t_//p; s/^x_/(explicit) /p'"
+  exit 0
+fi
+
+# Run runner.sh as a transient unit, follow its progress, fetch its results
+run_unit() {  # NAME REMOTE_DIR LOCAL_DIR TEST...
+  local unit=$1 rdir=$2 ldir=$3; shift 3
+  local args=""; (( $# )) && args=$(printf '%q ' "$@")
+  "${SSH[@]}" "$HOST" "sudo systemd-run --unit $unit -p KillMode=mixed /opt/icpc-e2e/runner.sh $rdir $args" >/dev/null
+  echo "running on $HOST as $unit"
+  # The reset test reboots the machine: keep reconnecting until the unit is gone
+  while true; do
+    "${SSH[@]}" "$HOST" "sudo journalctl -u $unit -f -o cat --no-pager & j=\$!; while systemctl is-active -q $unit; do sleep 2; done; sleep 1; kill \$j" 2>/dev/null \
+      | grep --line-buffered -E '^\[[0-9:]+\] ' || true
+    if "${SSH[@]}" -o ConnectTimeout=10 "$HOST" "! systemctl is-active -q $unit" 2>/dev/null; then break; fi
+    echo "(lost the connection, retrying)"; sleep 15
+  done
+  "${SSH[@]}" "$HOST" "systemctl show -p Result --value $unit 2>/dev/null | grep -qx success || sudo journalctl -u $unit -o cat --no-pager | grep -vE 'pam_unix|COMMAND=' | tail -5; sudo systemctl reset-failed $unit 2>/dev/null; true"
+  mkdir -p "$ldir"
+  "${SSH[@]}" "$HOST" "sudo tar -C $rdir -cf - ." | tar -C "$ldir" -xf -
+}
+
+run_unit "icpc-e2e-$STAMP" "$REMOTE_OUT" "$LOCAL_OUT" "$@"
+
+# After a reset, wait for the machine to come back with a desktop and check it
+if [[ " $* " == *" reset "* ]]; then
+  echo "waiting for $HOST to come back from the team reset"
+  sleep 30
+  until "${SSH[@]}" -o ConnectTimeout=10 "$HOST" 'pgrep -u contestant -x xfce4-session >/dev/null' 2>/dev/null; do sleep 10; done
+  run_unit "icpc-e2e-$STAMP-check" "$REMOTE_OUT-check" "$LOCAL_OUT/reset_check" reset_check
+  cat "$LOCAL_OUT/reset_check/results.tsv" >> "$LOCAL_OUT/results.tsv"
+fi
+
+if [[ $LABEL != vm-* && -s $LOCAL_OUT/backup-expect.txt && ${E2E_NO_BACKUP:-0} == 0 && " $* " != *" reset "* ]]; then
+  echo; echo "checking the management server's backup of $HOST"
+  if "$ROOT/dev/e2e/check-backup" "$HOST" "$LOCAL_OUT/backup-expect.txt" | tee "$LOCAL_OUT/backup-check.txt"; then
+    printf 'backup_server\tok\tthe source files the tests wrote are in the newest backup\n' >> "$LOCAL_OUT/results.tsv"
+  else
+    printf 'backup_server\tFAIL\tsee backup-check.txt\n' >> "$LOCAL_OUT/results.tsv"
+  fi
+fi
+echo
+column -t -s $'\t' "$LOCAL_OUT/results.tsv" | sed 's/^/  /'
+echo
+echo "$(grep -c $'\tok\t' "$LOCAL_OUT/results.tsv" || true) ok, $(grep -c $'\tFAIL\t' "$LOCAL_OUT/results.tsv" || true) failed; screenshots and logs in $LOCAL_OUT"
+! grep -q $'\tFAIL\t' "$LOCAL_OUT/results.tsv"

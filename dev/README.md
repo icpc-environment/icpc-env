@@ -126,3 +126,48 @@ extension (`remote-viewer vnc://127.0.0.1:5910`) plays it without any host backe
   `admin` and the rest; a running VM picks it up after `down` and `up`.
   Their first-boot setup screen ignores the ACPI power button, so `down` waits out its
   timeout and then forces the VM off (`kill` skips the wait).
+
+## `dev/e2e` - end-to-end tests on a team machine
+
+Drives a running image the way a team would: the IDEs' New Project wizards,
+building and debugging, the editors, Firefox, printing, a team reset. It runs
+on a real team machine or on a `just vm` VM, as root through ssh, and clicks
+and types on the contestant's desktop with XTEST.
+
+```sh
+dev/e2e/run icpc-team-505.bigsouth2026-southeast.icpcnet.internal   # every default test
+dev/e2e/run --vm 'vscode_*' clion                                   # some tests, on the just vm VM ($VM_NAME)
+dev/e2e/run HOST print            # prints about 5 pages: printfile 2-up and portrait, lp, gedit's print dialog
+dev/e2e/run HOST reset            # team reset with BootNext set; reboots, then checks what was wiped
+dev/e2e/run --list HOST
+```
+
+Results, screenshots and each test's log land in `tmp/e2e/<host>-<time>/`
+(`results.tsv` has one line per check). Each IDE test starts from the IDE
+settings the image ships (snapshotted on the machine's first run in
+`/var/tmp/icpc-e2e/`), so it sees what a new team sees: first-run dialogs and
+all. Programs the tests run write a marker file, which is how a test knows the
+build and run really happened. On a fleet machine, the run ends by having the
+management server back the machine up and checking the source files the tests
+wrote are in the newest archive (`dev/e2e/check-backup`).
+
+Tests live in `dev/e2e/guest/tests/`, one area per file. A function `t_name`
+is a default test and `x_name` only runs when named. They use the helpers in
+`guest/lib.sh` (`launch`, `wait_win`, `focus`, `key`, `typ`, `wclick`,
+`settle`, `shot`, `pass`/`fail`/`note`).
+
+Things to know when writing tests:
+
+- Clicks are laid out for a 1680x1050 screen (the N150 team machines). `just
+  vm up` boots at 1440x900; `just vm gui 'xrandr --output Virtual-1 --mode
+  1680x1050'` first. The VM goes back to 1440x900 after a reboot.
+- Send keys with `key` (`guest/keys.py`), not `xdotool key`: xdotool can pick
+  a keycode that carries a modifier, so its F9 arrives as Alt+F9 (xfwm's
+  "hide window").
+- xfwm keeps Ctrl+F1..F12 (switch workspace) and Alt+F7..F10 (move, resize,
+  hide, maximize window) for itself, so IDE shortcuts on those keys never reach
+  the IDE. The `ide_shortcuts` test lists them.
+- `win` matches titles with `wmctrl`, which sees minimized windows too; `focus`
+  before every burst of keys, since Firefox takes the focus back now and then.
+- Edit the guest files freely while a run is going (they're copied at the
+  start), but not `dev/e2e/run` itself: bash reads it as it goes.
