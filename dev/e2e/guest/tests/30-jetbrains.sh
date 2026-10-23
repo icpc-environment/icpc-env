@@ -161,7 +161,15 @@ t_pycharm() {
   if wait_for 180 has_win '^(PyCharm|WelcomeScreen.*)$' jetbrains-pycharm; then
     w=$(win '^PyCharm$' jetbrains-pycharm)
     if [[ -n $w ]]; then
-      settle 2 60; shot import; wclick "$w" 315 255; note "skipped PyCharm's Import Settings screen"
+      settle 2 60; shot import
+      # "Skip Import" sits under one button per IDE it can import from: VS Code, and JetBrains
+      # IDEs once one of them has run
+      local y
+      for y in 232 255; do
+        has_win '^PyCharm$' jetbrains-pycharm || break
+        wclick "$(win '^PyCharm$' jetbrains-pycharm)" 320 "$y"; sleep 4
+      done
+      note "skipped PyCharm's Import Settings screen"
     fi
   fi
   w=$(wait_win 180 '^WelcomeScreen' jetbrains-pycharm) || return

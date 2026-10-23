@@ -6,7 +6,8 @@ t_self_test() {
   printf '%s\n' "$out" > "$OUT/$CURRENT-output.txt"
   (( rc == 0 )) && pass "self_test exited 0" || fail "self_test exited $rc"
   local bad
-  bad=$(grep -iE 'fail|error|not active|inactive' <<<"$out" | grep -viE 'no errors|0 failed' | head -5)
+  # self_test prints each check as "description ... Pass/Fail", or a URL under a heading
+  bad=$(grep -E '(^|\s)Fail\s*$' <<<"$out" | sed 's/  */ /g' | head -5)
   [[ -z $bad ]] && pass "self_test reported nothing failing" || fail "self_test: $(tr '\n' ';' <<<"$bad")"
 }
 
