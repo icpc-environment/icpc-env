@@ -102,7 +102,9 @@ just vm ansible                             # full run from base-booted before c
 
 Point a VNC viewer at `127.0.0.1:5910` to watch along.
 
-The VM has a sound card (output only) whose audio goes nowhere by default.
+The VM has a sound card (output only) whose audio goes nowhere by default. The image
+only lets the contestant use it with `sound` set in config.json:
+`just vm admin 'sudo /icpc/scripts/icpc-config set sound all && sudo /icpc/scripts/icpc-apply'`.
 To hear it, set `VM_AUDIO=pipewire` (or `pa`) before `up`; on Arch that needs
 `qemu-audio-pipewire` (or `qemu-audio-pa`). Alternatively, a VNC client with QEMU's audio
 extension (`remote-viewer vnc://127.0.0.1:5910`) plays it without any host backend, or

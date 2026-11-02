@@ -3,10 +3,12 @@
 
 Writes the files other tools read (/icpc/TEAM, SITE, CONTEST, CONFIG, ...), and
 sets the allowed sites, hostname, admin ssh keys, wallpaper, Firefox policies
-and autostart, icpc-printer's stamp label, and printers, and runs the focus log
-and exec auditing only where backups are on. A section whose settings aren't in the config is
-left alone, so this is safe before setup, when there's no team or printers yet. Prints what
-failed and exits 1 if anything did, after trying the rest.
+and autostart, which sound cards contestants get, icpc-printer's stamp label,
+and printers, and runs the focus log and exec auditing only where backups are
+on. A section whose settings aren't in the config is left alone, so this is safe
+before setup, when there's no team or printers yet; sound is the exception, off
+unless the config turns it on. Prints what failed and exits 1 if anything did,
+after trying the rest.
 
 usage: icpc-apply [--no-start]
 
@@ -421,6 +423,44 @@ def apply_firefox_autostart(enabled):
     tmp.replace(FIREFOX_AUTOSTART)
 
 
+SOUND_RULES = Path("/etc/udev/rules.d/72-icpc-sound.rules")
+# After 70-uaccess.rules tags sound cards for the logged-in user, before
+# 73-seat-late.rules turns the tag into an ACL. "all" leaves them all tagged
+SOUND_RULES_LINES = {
+    "off": ['SUBSYSTEM=="sound", TAG-="uaccess"'],
+    "usb": ['SUBSYSTEM!="sound", GOTO="icpc_sound_end"',
+            'SUBSYSTEMS=="usb", GOTO="icpc_sound_end"',
+            'TAG-="uaccess"',
+            'LABEL="icpc_sound_end"'],
+}
+
+
+def apply_sound(mode, start):
+    """Which sound cards the contestant can use: none, USB ones only (headphone
+    adapters and headsets, not the speakers, line out or HDMI), or all"""
+    if mode not in ("off", "usb", "all"):
+        errors.append(f"sound {mode!r} isn't off, usb or all, turning sound off")
+        mode = "off"
+    text = "\n".join([GENERATED, *SOUND_RULES_LINES[mode]]) + "\n" if mode in SOUND_RULES_LINES else None
+    if text == (SOUND_RULES.read_text() if SOUND_RULES.exists() else None):
+        return
+    if text is None:
+        SOUND_RULES.unlink()
+    else:
+        SOUND_RULES.write_text(text)
+    if start:
+        run(["udevadm", "control", "--reload"])
+        run(["udevadm", "trigger", "--settle", "--subsystem-match=sound", "--action=change"])
+        # A change event only ever adds the logged-in user's ACL, so take it off
+        # the cards that lost the tag. Programs with a card open keep it until
+        # they close it, so the contestant should log in again
+        for node in Path("/dev/snd").glob("*C*"):
+            info = subprocess.run(["udevadm", "info", "-q", "property", "-n", str(node)],
+                                  capture_output=True, text=True).stdout
+            if ":uaccess:" not in next((line for line in info.splitlines() if line.startswith("CURRENT_TAGS=")), ""):
+                run(["setfacl", "-b", str(node)])
+
+
 WALLPAPER = ICPC / "wallpaper.png"
 
 
@@ -575,6 +615,7 @@ def main(args):
         apply_firefox_policies(config.get("firefox_policies", {}))
     if "autostart_firefox" in config:
         apply_firefox_autostart(config["autostart_firefox"])
+    apply_sound(config.get("sound", "off"), start=not args)
     apply_wallpaper(config.get("wallpaper_url"), team)
     if ICPC_PRINTER:
         apply_stamp_label(team)

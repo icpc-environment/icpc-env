@@ -212,7 +212,7 @@ Err:
     return (p.returncode, out, err)
 
 # What a site's config may set in /icpc/config.json; everything else the image decides
-SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", "submit",
+SITE_SETTINGS = ["timezone", "papersize", "wallpaper_url", "autostart_firefox", "sound", "submit",
                  "reverseproxy_sites", "firefox_policies", "language_scripts", "ssh_keys", "ansible_pull_url",
                  "management", "backup", "ssh_user_ca_keys", "ssh_principals", "ssh_host_ca_keys"]
 ADMIN_ACCOUNTS = ["icpcadmin", "teamreset"]
@@ -269,10 +269,16 @@ def with_site(config, data):
   return config
 
 
+def sound_setting(label):
+  """config.json's sound setting for the wizard's description of it"""
+  return next(k for k, v in icpcconfig.SOUND.items() if v == label)
+
+
 def with_choices(config, window):
   """config with the wizard's own choices applied"""
   config = dict(config, papersize="letter" if window['letter'].get() else "a4",
-                autostart_firefox=bool(window['autostart_firefox'].get()))
+                autostart_firefox=bool(window['autostart_firefox'].get()),
+                sound=sound_setting(window['sound'].get()))
   if HAS_BACKUPS:
     config["backup"] = dict(config.get("backup") or {}, enabled=bool(window['backup'].get()))
   return config
@@ -322,7 +328,7 @@ def launch(cmd):
 REVIEW_SECTIONS = [
   ("This machine", ["Contest", "Site", "Team"]),
   ("Printing", ["Printers", "Paper size", "Test page"]),
-  ("Contest environment", ["Timezone", "Submit client", "Firefox", "Allowed sites", "Language scripts", "Wallpaper"]),
+  ("Contest environment", ["Timezone", "Submit client", "Firefox", "Sound", "Allowed sites", "Language scripts", "Wallpaper"]),
   ("Remote management", ["Management", "Backups", "Admin ssh"]),
 ]
 
@@ -336,6 +342,7 @@ NEEDS_ATTENTION = {
   "Allowed sites": {"none"},
   "Language scripts": {"none"},
   "Admin ssh": {"0 keys, certificate login off"},
+  "Sound": {icpcconfig.SOUND["all"]},
   # Only where the image can back up at all
   "Backups": {"off"} if HAS_BACKUPS else set(),
 }
@@ -383,6 +390,7 @@ To connect it:
       ]),
       sg.Frame('System Options', [
         [sg.Checkbox('Autostart Firefox on login', key='autostart_firefox', default=configuration["autostart_firefox"], enable_events=True, tooltip='This will launch Firefox on login to the desktop (i.e. when the machine boots)')],
+        [sg.Text('Sound'), sg.Combo(list(icpcconfig.SOUND.values()), default_value=icpcconfig.SOUND[configuration["sound"]], key='sound', readonly=True, enable_events=True, tooltip="Which outputs the team can play sound on. USB only means headsets and USB headphone adapters, never the speakers")],
         [sg.Checkbox('Back up to the management server', key='backup', default=configuration["backup"], enable_events=True, visible=HAS_BACKUPS, tooltip="Back up the team's files and printouts, and log which windows and programs they use")],
         [sg.Checkbox('Print Test Page?', key='print_test_page', default=True)],
       ]),
@@ -541,6 +549,8 @@ To connect it:
 
       # What the site sets, or else what the machine had, never a previous site's
       window['autostart_firefox'].update(bool(data.get("autostart_firefox", configuration["autostart_firefox"])))
+      sound = data.get("sound") if data.get("sound") in icpcconfig.SOUND else configuration["sound"]
+      window['sound'].update(value=icpcconfig.SOUND[sound])
       papersize = data.get("papersize") if data.get("papersize") in ("letter", "a4") else configuration["papersize"]
       window[papersize].update(True)
       if HAS_BACKUPS:
@@ -648,6 +658,7 @@ def main():
     run_cmd(["xset", "s", "noblank"])
 
   configuration["autostart_firefox"] = machine_config.get("autostart_firefox", True)
+  configuration["sound"] = machine_config.get("sound") if machine_config.get("sound") in icpcconfig.SOUND else "off"
   configuration["papersize"] = machine_config.get("papersize", "letter")
   configuration["backup"] = bool((machine_config.get("backup") or {}).get("enabled"))
 
@@ -673,6 +684,7 @@ def main():
       "site": configuration['site'],
       "papersize": "letter" if values['letter'] else "a4",
       "autostart_firefox": values['autostart_firefox'],
+      "sound": sound_setting(values['sound']),
       "printers": [dict(p) for p in values['configured_printers']],
       "team": {
           "id": values['team_id'],

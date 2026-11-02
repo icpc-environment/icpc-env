@@ -38,6 +38,10 @@ def lookup(config, key):
     return value
 
 
+# config.json's sound setting, as the summary and the setup wizard describe it
+SOUND = {"off": "off", "usb": "USB headphones only", "all": "all outputs, speakers too"}
+
+
 DEFAULT_WALLPAPER = "file:///usr/share/backgrounds/icpc/wallpaper.png"
 
 
@@ -65,6 +69,7 @@ def summary(config):
     lines.append(("Allowed sites", ", ".join(sites) if sites else "none"))
     scripts = sorted(config.get("language_scripts") or {})
     lines.append(("Language scripts", ", ".join(scripts) if scripts else "none"))
+    lines.append(("Sound", SOUND.get(config.get("sound", "off"), "off")))
     wallpaper = config.get("wallpaper_url")
     lines.append(("Wallpaper", "default" if wallpaper in (None, DEFAULT_WALLPAPER) else wallpaper))
 
