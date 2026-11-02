@@ -5,3 +5,5 @@ if systemctl --user is-active -q orca.service; then
 else
   systemctl --user start orca.service
 fi
+# Update the panel indicator now rather than at its next poll
+xfce4-panel --plugin-event=genmon-13:refresh:bool:true

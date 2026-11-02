@@ -127,6 +127,7 @@
               <value type="int" value="10"/>
               <value type="int" value="5"/>
               <value type="int" value="4"/>
+              <value type="int" value="13"/>
               <value type="int" value="12"/>
               <value type="int" value="11"/>
               <value type="int" value="6"/>
@@ -192,6 +193,11 @@
           <property name="plugin-12" type="string" value="pulseaudio">
             <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
             <property name="enable-mpris" type="bool" value="false"/>
+          </property>
+          <property name="plugin-13" type="string" value="genmon">
+            <property name="command" type="string" value="orca-panel"/>
+            <property name="use-label" type="bool" value="false"/>
+            <property name="update-period" type="int" value="10000"/>
           </property>
         </property>
         <property name="configver" type="int" value="2"/>

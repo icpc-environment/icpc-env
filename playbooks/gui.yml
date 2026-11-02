@@ -238,6 +238,12 @@
       Categories=Settings;DesktopSettings;
     mode: "0644"
 
+- name: Copy the panel's screen reader indicator
+  ansible.builtin.copy:
+    src: files/orca-panel.sh
+    dest: /usr/local/bin/orca-panel
+    mode: 0755
+
 # xfce binds Alt+Super+S, GNOME's screen reader key, to plain `orca`
 - name: Make Alt+Super+S toggle the screen reader
   ansible.builtin.replace:
