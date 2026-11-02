@@ -116,6 +116,7 @@
       - mate-calc # GUI calculator
       - engrampa  # archive manager
       - orca      # Screen reader (recommends bring the espeak-ng voice)
+      - pavucontrol # Audio mixer, opened from the panel's volume plugin
 
   # kalgebra - seems nice, basically a graphing calculator, but it ends up in some new education submenu
   # gnome-genius - way overkill/has it's own language thing. reminds me of r or ipython notebooks
