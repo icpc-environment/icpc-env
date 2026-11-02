@@ -15,6 +15,9 @@ export VM_SSHPORT := env("VM_SSHPORT", "2322")
 export VM_VNC := env("VM_VNC", "10")
 export VM_MEM := env("VM_MEM", "6144")
 export VM_CPUS := env("VM_CPUS", "4")
+# QEMU audio backend for the guest's sound card, e.g. pipewire (on Arch that needs
+# qemu-audio-pipewire). none still lets a guest play, it just goes nowhere
+export VM_AUDIO := env("VM_AUDIO", "none")
 # Another key icpcadmin can log in with, for final images whose only way in is a
 # certificate (its -cert.pub is picked up beside it), e.g. ~/.ssh/icpc-mgmt
 export VM_ADMIN_SSH_KEY := env("VM_ADMIN_SSH_KEY", "")
@@ -95,7 +98,8 @@ up image="" timeout="600": && (wait-ssh timeout)
       -drive if=pflash,format=qcow2,unit=1,file="$VM_STATE/vars.qcow2",cache=unsafe \
       -drive file="$VM_STATE/disk.qcow2",index=0,media=disk,format=qcow2,cache=unsafe \
       -net user,hostfwd=tcp:127.0.0.1:"$VM_SSHPORT"-:22 -net nic \
-      -vnc 127.0.0.1:"$VM_VNC" -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet \
+      -audiodev "$VM_AUDIO",id=snd0 -device intel-hda -device hda-output,audiodev=snd0 \
+      -vnc 127.0.0.1:"$VM_VNC",audiodev=snd0 -device VGA,edid=on,xres=1440,yres=900 -usbdevice tablet \
       -qmp unix:"$QMP_SOCK",server=on,wait=off \
       -serial file:"$VM_STATE/serial.log" \
       --daemonize --pidfile "$VM_STATE/qemu.pid"
