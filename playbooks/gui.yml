@@ -224,6 +224,19 @@
     dest: /usr/local/bin/orca-toggle
     mode: 0755
 
+- name: Add a menu entry to turn the screen reader on and off
+  ansible.builtin.copy:
+    dest: /usr/share/applications/icpc-screen-reader.desktop
+    content: |
+      [Desktop Entry]
+      Type=Application
+      Name=Screen Reader On/Off
+      Comment=Start or stop the Orca screen reader (Alt+Super+S)
+      Exec=orca-toggle
+      Icon=orca
+      Categories=Settings;DesktopSettings;
+    mode: "0644"
+
 # xfce binds Alt+Super+S, GNOME's screen reader key, to plain `orca`
 - name: Make Alt+Super+S toggle the screen reader
   ansible.builtin.replace:
