@@ -123,6 +123,12 @@
   # qalculate-gtk - has a bunch of extra advanced things, might be nice to leave in there, but maybe too fancy?
   # kcalc - # ok, but mate-calc is better
 
+- name: Have speech-dispatcher play through pipewire
+  ansible.builtin.lineinfile:
+    path: /etc/speech-dispatcher/speechd.conf
+    regexp: '^#? ?AudioOutputMethod "pipewire"'
+    line: 'AudioOutputMethod "pipewire"'
+
 - name: Remove unneeded packages
   ansible.builtin.apt:
     state: absent
