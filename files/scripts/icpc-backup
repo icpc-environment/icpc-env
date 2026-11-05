@@ -232,7 +232,7 @@ def patterns(skipped, executables, printouts_excluded):
 
 def borg_create(args, env, archive, roots, options=()):
     return subprocess.run(["nice", "-n", "19", "ionice", "-c", "3",
-                           "borg", "create", "--json", "--lock-wait", "30",
+                           "borg", "create", "--lock-wait", "30",
                            "--upload-ratelimit", str(args.ratelimit),
                            "--compression", "zstd,3",
                            "--one-file-system", "--exclude-caches", *options,
@@ -298,12 +298,6 @@ def cmd_run(args):
 
     # 1 is a warning, e.g. a file that vanished while it was being read
     ok = p.returncode in (0, 1)
-    stats = {}
-    if ok:
-        try:
-            stats = json.loads(p.stdout).get("archive", {}).get("stats", {})
-        except ValueError:
-            pass
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     skipped_list = [{"path": str(Path(p).relative_to(HOME)), "size": s} for p, s in skipped[:SKIPPED_LIST_MAX]]
     over_budget = files > WARN_FILES or size > WARN_BYTES
@@ -335,7 +329,6 @@ def cmd_run(args):
         "over_budget": over_budget,
         "skipped": skipped_list,
         "skipped_count": len(skipped),
-        "stats": stats,
         "focus_log": focus_log,
         "exec_log": exec_log,
         "borg_rc": p.returncode,
