@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -512,6 +513,75 @@ def reload_desktops():
         run(["runuser", "-u", user, "--", "env"] + env + ["sh", "-c", RELOAD_BACKDROPS])
 
 
+def draw_team_wallpaper(source, dest, name, affiliation):
+    """Write dest: source with the team's name centred and its affiliation under it.
+    Pango falls back to other fonts for emoji and other scripts, and set_text draws
+    the name exactly as it is."""
+    # Here rather than at the top, so missing bindings fail this one step
+    import cairo
+    import gi
+    gi.require_version("Pango", "1.0")
+    gi.require_version("PangoCairo", "1.0")
+    from gi.repository import Pango, PangoCairo
+
+    # wallpaper_url can be any format identify accepts, whatever the file is called,
+    # but cairo only reads PNG
+    png = subprocess.run(["convert", str(source), "PNG32:-"], capture_output=True, check=True).stdout
+    surface = cairo.ImageSurface.create_from_png(BytesIO(png))
+    cr = cairo.Context(surface)
+    width, height = surface.get_width(), surface.get_height()
+    # Not the desktop's subpixel antialiasing, which leaves coloured fringes in an image
+    options = cairo.FontOptions()
+    options.set_antialias(cairo.ANTIALIAS_GRAY)
+    options.set_hint_metrics(cairo.HINT_METRICS_OFF)
+
+    def draw(text, size, offset):
+        if not text:
+            return
+        layout = PangoCairo.create_layout(cr)
+        PangoCairo.context_set_font_options(layout.get_context(), options)
+        layout.set_single_paragraph_mode(True)
+        font = Pango.FontDescription.from_string("Ubuntu Condensed")
+
+        def text_width():
+            font.set_absolute_size(size * Pango.SCALE)
+            layout.set_font_description(font)
+            return layout.get_extents()[1].width / Pango.SCALE
+
+        layout.set_text(text, -1)
+        # Too long for the screen: shrink to fit, then cut it off with ...
+        max_width = width * 0.9
+        if text_width() > max_width:
+            size = max(14, size * max_width / text_width())
+            if text_width() > max_width:
+                layout.set_width(int(max_width * Pango.SCALE))
+                layout.set_ellipsize(Pango.EllipsizeMode.END)
+        logical = layout.get_extents()[1]
+        x = (width - logical.width / Pango.SCALE) / 2 - logical.x / Pango.SCALE
+        # By the font's own metrics, so a taller fallback font doesn't move the line
+        metrics = layout.get_context().get_metrics(font)
+        y = (height + (metrics.get_ascent() - metrics.get_descent()) / Pango.SCALE) / 2 + offset \
+            - layout.get_baseline() / Pango.SCALE
+        # White with a dark outline
+        cr.move_to(x, y)
+        PangoCairo.layout_path(cr, layout)
+        cr.set_source_rgba(0, 0, 0, 0.8)
+        cr.set_line_width(2)
+        cr.stroke()
+        cr.move_to(x, y)
+        cr.set_source_rgb(1, 1, 1)
+        PangoCairo.show_layout(cr, layout)
+
+    draw(name, 50, 0)
+    draw(affiliation, 30, 60)
+
+    dest = Path(dest)
+    new = dest.with_name(dest.name + ".new")
+    surface.write_to_png(str(new))
+    new.chmod(0o644)
+    new.replace(dest)
+
+
 def apply_wallpaper(url, team):
     if url:
         fetch_wallpaper(url)
@@ -519,16 +589,10 @@ def apply_wallpaper(url, team):
     if not team:
         wallpaper.unlink(missing_ok=True)
     else:
-        run([
-            "convert", str(WALLPAPER),
-            "-gravity", "center", "-pointsize", "50", "-family", "Ubuntu",
-            "-stroke", "#000C", "-strokewidth", "2", "-annotate", "0", team["name"],
-            "-stroke", "none", "-fill", "white", "-annotate", "0", team["name"],
-            "-pointsize", "30",
-            "-stroke", "#000C", "-strokewidth", "2", "-annotate", "+0+60", team["affiliation"],
-            "-stroke", "none", "-fill", "white", "-annotate", "+0+60", team["affiliation"],
-            str(wallpaper),
-        ])
+        try:
+            draw_team_wallpaper(WALLPAPER, wallpaper, team["name"], team["affiliation"])
+        except Exception as e:
+            errors.append(f"Couldn't draw the team wallpaper: {e!r}")
     reload_desktops()
 
 
