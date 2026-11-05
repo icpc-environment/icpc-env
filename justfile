@@ -3,6 +3,7 @@ set dotenv-load
 
 mod vm 'dev/vm.just'
 mod mgmt 'management/mgmt.just'
+mod contest 'management/contest.just'
 mod usb 'tools/usb/usb.just'
 mod website 'website/website.just'
 

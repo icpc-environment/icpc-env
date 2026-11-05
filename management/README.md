@@ -245,3 +245,39 @@ ansible bigsouth2026-southeast -b -m file -a 'path=/icpc/trigger-ansible state=t
 
 The repos can be cloned without a password, since team machines pull them
 anonymously. Don't put secrets in them.
+
+### Contest day
+
+`just contest` lists the day-of recipes: `health` (the server), `connected`,
+`status` (a line per machine), `backups-online`, `printing`, `screenshots`,
+`registered`, and `run <fleet> <command>` for anything else. `<fleet>` can also
+be one machine, or `all`. Server times are UTC.
+
+Reading what they show:
+
+* A machine in a site fleet with a team hostname (`icpc-team-100`) got through
+  setup. Only in `generic`, or named `icpc-<hex>`, it hasn't. `--2` on a
+  hostname means another registration already had that name.
+* Machines drop out of `connected` and `clients.db` when they stop pinging, so
+  an empty list can just mean they're off. `backup-admin status` keeps every
+  machine that has ever backed up, marked offline, test machines included.
+
+Finding out who connected (`just contest registered "3 days ago"`, then `whois`
+the source IPs on your own machine):
+
+* Only registration shows a machine's real IP, in wg-fleet's journal and nginx's
+  access log. Pings and git pulls come over the VPN, so they show `fd00:`
+  addresses, and machines using wstunnel have a `127.0.0.1` wireguard endpoint.
+* History is limited: nginx keeps about two weeks of logs, and `clients.db`
+  only has machines connected now.
+* The `site` a machine registers with is what its admin chose, not proof of
+  where it is, so compare it with the source IP.
+
+On the server:
+
+* `wg show all dump` prints the interfaces' private keys. Use
+  `wg show all endpoints` and `wg show all latest-handshakes`.
+* There's no `sqlite3`. Read `/var/lib/wg-fleet/clients.db` with `python3`, and
+  select columns, since it holds host certificates.
+* Pass anything with quotes to `just mgmt ssh bash -s` on stdin, not as an
+  argument: ssh joins the arguments and the remote shell parses them again.
