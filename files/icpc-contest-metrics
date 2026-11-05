@@ -1,0 +1,14 @@
+#!/bin/bash
+# For node_exporter's textfile collector. Only writes when something
+# changed, as this runs every minute on the machine's drive.
+dest=/var/lib/prometheus/node-exporter/icpc_contest.prom
+rev() { sed -n 's/^Revision: //p' "$1" 2>/dev/null | head -1 | cut -c1-7; }
+# Printouts from before the last team reset stay on disk, and each job
+# leaves a -original.pdf beside the stamped one
+printouts=$(find /var/lib/icpc-printer -maxdepth 1 -name '*.pdf' ! -name '*-original.pdf' \
+  -newer /icpc/team-reset-complete 2>/dev/null | wc -l)
+out="icpc_version_info{image=\"$(rev /icpc/version)\",applied=\"$(rev /icpc/update-version)\"} 1
+icpc_printouts $printouts
+icpc_print_queue $(lpstat -o 2>/dev/null | wc -l)"
+[ "$out" = "$(cat "$dest" 2>/dev/null)" ] && exit 0
+printf '%s\n' "$out" > "$dest.tmp" && mv "$dest.tmp" "$dest"

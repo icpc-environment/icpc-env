@@ -152,6 +152,47 @@
     name: icpc-static-node-exporter.path
     enabled: true
 
+# revisions and printouts, which change too often for the path unit above
+- name: Install our icpc-contest-metrics script
+  ansible.builtin.copy:
+    src: files/icpc-contest-metrics
+    dest: /usr/local/bin/icpc-contest-metrics
+    mode: "0755"
+- name: Contest metrics exporter
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/icpc-contest-metrics.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Publish revisions and printouts to node_exporter
+
+      [Service]
+      Type=oneshot
+      Nice=19
+      IOSchedulingClass=idle
+      ExecStart=/usr/local/bin/icpc-contest-metrics
+
+- name: Contest metrics timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/icpc-contest-metrics.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Publish revisions and printouts to node_exporter
+
+      [Timer]
+      OnActiveSec=5s
+      OnUnitActiveSec=1min
+      AccuracySec=5s
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable icpc-contest-metrics.timer
+  ansible.builtin.service:
+    name: icpc-contest-metrics.timer
+    enabled: true
+
 - name: Install s.py script
   ansible.builtin.copy:
     src: files/s.py
