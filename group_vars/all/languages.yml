@@ -1,11 +1,11 @@
 ---
 # Simple wrapper scripts to install on the image, so that contestants have a consistent view of how to compile and run programs
 # that matches with how the contest control system will run it.
-# These scripts match open.kattis.com as of 2026-10-16
+# These scripts match open.kattis.com as of 2026-10-16, except that compilec also has -Wl,-u,_IO_wfile_doallocate like their compilecpp
 # The memory limits for runjava/runkotlin will need to be adjusted for your specific contest problem memory limit
 language_scripts:
-  compilec:       gcc-15 -g -O2 -std=gnu23 -static "$@" -lm
-  compilecpp:     g++-15 -g -O2 -std=gnu++23 -static -lrt -Wl,--whole-archive -lpthread -Wl,--no-whole-archive "$@"
+  compilec:       gcc-15 -g -O2 -std=gnu23 -static -Wl,-u,_IO_wfile_doallocate "$@" -lm
+  compilecpp:     g++-15 -g -O2 -std=gnu++23 -static -lrt -Wl,-u,_IO_wfile_doallocate -Wl,--whole-archive -lpthread -Wl,--no-whole-archive "$@"
   compilejava:    javac -encoding UTF-8 -sourcepath . -d . "$@"
   compilekotlin:  /usr/local/bin/kotlinc -d . "$@"
   compilepython3: pypy3 -m py_compile "$@"
