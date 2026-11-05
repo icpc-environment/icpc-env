@@ -73,7 +73,9 @@ backup_timeout_minutes: 15
 # Per machine; a site's uplink is shared with judging
 backup_upload_ratelimit_kib: 256
 # How many machines are backed up at once, across all fleets
-backup_concurrency: 8
+backup_concurrency: 32
+# How many of those at one site, so a slow uplink isn't hit by all its machines at once
+backup_site_concurrency: 4
 # How long download links (and the addresses they were for) last after
 # release. Images show this as remote_management_backup_retention_days
 backup_download_days: 30

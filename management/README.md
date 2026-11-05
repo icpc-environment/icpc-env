@@ -204,6 +204,10 @@ At the end of the contest:
 3. Links, and the addresses, are deleted `backup_download_days` after release.
    `backup-admin purge <fleet> --yes` deletes the fleet's backups once you're done.
 
+At most `backup_concurrency` machines back up at once, shared out evenly across
+sites and at most `backup_site_concurrency` at one site, so a site's uplink
+isn't hit by all its machines together. Machines without a site count by fleet.
+
 Each fleet's interval (0 for only when asked) and upload rate limit can be
 overridden in `backup_fleets`. The `backups` Prometheus job has each
 machine's `icpc_backup_last_success_timestamp_seconds`.

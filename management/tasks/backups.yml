@@ -27,6 +27,7 @@
       interval: "{{ (backup_interval_minutes * 60) | int }}"
       upload_ratelimit_kib: "{{ backup_upload_ratelimit_kib | int }}"
       concurrency: "{{ backup_concurrency | int }}"
+      site_concurrency: "{{ backup_site_concurrency | int }}"
       timeout: "{{ (backup_timeout_minutes * 60) | int }}"
       download_days: "{{ backup_download_days | int }}"
       fleets: "{{ backup_fleets }}"

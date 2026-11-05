@@ -23,17 +23,20 @@ import random
 import re
 import secrets
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 CONFIG = Path("/etc/icpc-backup.json")
 HOSTS_FILE = Path("/run/wg_fleet_hosts")
+CLIENTS_DB = Path("/var/lib/wg-fleet/clients.db")
 RUN = Path("/run/icpc-backup")
 SPOOL = RUN / "requests"
 SOCKETS = RUN / "sockets"
@@ -52,7 +55,7 @@ BORG_ENV = dict(os.environ, BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK="yes",
 
 def load_config():
     config = json.loads(CONFIG.read_text())
-    for key in ("interval", "upload_ratelimit_kib", "concurrency", "timeout", "download_days",
+    for key in ("interval", "upload_ratelimit_kib", "concurrency", "site_concurrency", "timeout", "download_days",
                 "request_port", "metrics_port"):
         config[key] = int(config[key])
     return config
@@ -93,6 +96,20 @@ def connected_hosts():
             if FQDN_RE.fullmatch(name):
                 hosts[name] = fields[0]
     return hosts
+
+
+def connected_sites():
+    """{(fleet, host): site} for machines that registered with a site, or None
+    if wg-fleet's database can't be read right now"""
+    try:
+        db = sqlite3.connect(f"file:{CLIENTS_DB}?mode=ro", uri=True, timeout=1)
+        try:
+            return {(fleet, host): site for fleet, host, site in
+                    db.execute("SELECT fleet_id, hostname, site FROM clients WHERE site IS NOT NULL")}
+        finally:
+            db.close()
+    except sqlite3.Error:
+        return None
 
 
 def host_dir(config, fqdn):
@@ -202,13 +219,17 @@ class Scheduler:
         self.lock = threading.Lock()
         self.hosts = {}
         self.addresses = {}
+        self.sites = {}
         self.state = {}
         self.running = 0
 
     def refresh_hosts(self):
         hosts = connected_hosts()
+        sites = connected_sites()
         with self.lock:
             self.hosts = hosts
+            if sites is not None:
+                self.sites = sites
             self.addresses = {ipaddress.ip_address(a): h for h, a in hosts.items() if self._valid_ip(a)}
             for fqdn in hosts:
                 if fqdn not in self.state:
@@ -224,6 +245,11 @@ class Scheduler:
             return True
         except ValueError:
             return False
+
+    def site(self, fqdn):
+        """What a machine's backups are shared out by; its fleet until it has a site"""
+        host, fleet = FQDN_RE.fullmatch(fqdn).groups()
+        return self.sites.get((fleet, host), fleet)
 
     def interval(self, fqdn):
         return fleet_interval(self.config, FQDN_RE.fullmatch(fqdn).group(2))
@@ -254,13 +280,26 @@ class Scheduler:
                 self.request(f.name)
 
     def start_due(self):
+        """Oldest first within a site, sharing the slots out across sites, and
+        never more than site_concurrency at one site, whose uplink may be slow"""
         now = time.time()
         with self.lock:
-            due = sorted((st["due"], fqdn) for fqdn, st in self.state.items()
-                         if fqdn in self.hosts and not st["running"] and st["due"] is not None and st["due"] <= now)
-            for _, fqdn in due:
-                if self.running >= self.config["concurrency"]:
+            due = {}
+            running = Counter()
+            for fqdn, st in self.state.items():
+                if st["running"]:
+                    running[self.site(fqdn)] += 1
+                elif fqdn in self.hosts and st["due"] is not None and st["due"] <= now:
+                    due.setdefault(self.site(fqdn), []).append((st["due"], fqdn))
+            for queue in due.values():
+                queue.sort(reverse=True)
+            while self.running < self.config["concurrency"]:
+                sites = [s for s, queue in due.items() if queue and running[s] < self.config["site_concurrency"]]
+                if not sites:
                     break
+                site = min(sites, key=lambda s: (running[s], due[s][-1][0]))
+                _, fqdn = due[site].pop()
+                running[site] += 1
                 self.state[fqdn]["running"] = True
                 self.running += 1
                 threading.Thread(target=self.run, args=(fqdn,), daemon=True).start()
