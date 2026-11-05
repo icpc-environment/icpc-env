@@ -82,4 +82,5 @@ backup_download_days: 30
 #
 #   backup_fleets:
 #     wf2026: { interval_minutes: 10, upload_ratelimit_kib: 1024 }
-backup_fleets: {}
+backup_fleets:
+  generic: { interval_minutes: 0 }
