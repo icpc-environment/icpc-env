@@ -138,3 +138,41 @@
   become_user: grafana
   when: grafana_login.status == 401
   no_log: true
+
+- name: Install fleet-heads
+  copy:
+    src: files/fleet-heads
+    dest: /usr/local/sbin/fleet-heads
+    mode: "0755"
+- name: Install fleet-heads.service
+  copy:
+    dest: /etc/systemd/system/fleet-heads.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Publish the latest revision in each fleet's last-minute repo
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/fleet-heads
+- name: Install fleet-heads.timer
+  copy:
+    dest: /etc/systemd/system/fleet-heads.timer
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Publish the latest revision in each fleet's last-minute repo
+
+      [Timer]
+      OnActiveSec=5s
+      OnUnitActiveSec=1min
+      AccuracySec=5s
+
+      [Install]
+      WantedBy=timers.target
+- name: Start fleet-heads.timer
+  systemd:
+    name: fleet-heads.timer
+    state: started
+    enabled: true
+    daemon_reload: true

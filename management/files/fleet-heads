@@ -1,0 +1,12 @@
+#!/bin/bash
+# The latest revision in each fleet's last-minute repo, for node_exporter's
+# textfile collector. Team machines publish the revision they applied, and the
+# dashboard compares them.
+dest=/var/lib/prometheus/node-exporter/icpc_fleet_heads.prom
+for repo in /srv/git/*.git; do
+  fleet=$(basename "$repo" .git)
+  head=$(git --git-dir="$repo" -c safe.directory="$repo" rev-parse HEAD 2>/dev/null) || continue
+  echo "icpc_fleet_head_info{fleet=\"$fleet\",revision=\"${head:0:7}\"} 1"
+done > "$dest.tmp"
+chmod 644 "$dest.tmp"
+mv "$dest.tmp" "$dest"
