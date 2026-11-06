@@ -142,7 +142,8 @@ Machines that stop pinging wg-fleet for `fleet_timeout` are dropped.
 Everything at `https://<server>/` needs the `admin` login from `secret.yml`.
 
 * `/`: wg-fleet's dashboard of fleets and connected clients
-* `/grafana/`: Grafana (same admin password), with Prometheus as its datasource
+* `/grafana/`: Grafana (same admin password), with Prometheus as its datasource.
+  Its home page is the Contest overview dashboard (see Contest day)
 * `/prometheus/`: Prometheus
 * `/contestweb/`: anything written to `/srv/contestweb`
 
@@ -252,6 +253,15 @@ anonymously. Don't put secrets in them.
 `status` (a line per machine), `backups-online`, `printing`, `screenshots`,
 `registered`, and `run <fleet> <command>` for anything else. `<fleet>` can also
 be one machine, or `all`. Server times are UTC.
+
+Grafana's Contest overview (`files/grafana/contest-overview.json`) shows the same
+things by fleet and site. Set "Up longer than" to the time since you asked sites to
+reboot, and machines that didn't are the ones over it. Image and applied revisions,
+printouts since the last team reset and queued print jobs come from
+`icpc-contest-metrics`. Images from before it was added get it from their fleet's
+last-minute `local.yml`, so they only report them once they've applied that (Not
+reporting details). Edits saved in Grafana last until that file
+changes, so export them over it to keep them.
 
 Reading what they show:
 

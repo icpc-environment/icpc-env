@@ -45,6 +45,7 @@
       GF_SERVER_DOMAIN={{external_hostname}}
       GF_SERVER_ROOT_URL=https://{{external_hostname}}/grafana/
       GF_SERVER_SERVE_FROM_SUB_PATH=true
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/contest-overview.json
     dest: /etc/default/grafana-server
     owner: root
     group: grafana
@@ -63,6 +64,7 @@
         type: prometheus
         access: proxy
         url: http://127.0.0.1:9090/prometheus
+        uid: PROM
         isDefault: true
         version: 1
         editable: false
@@ -138,6 +140,29 @@
   become_user: grafana
   when: grafana_login.status == 401
   no_log: true
+
+# Contest overview dashboard. Edits saved in grafana stay until this file
+# changes; export them back over it to keep them.
+- name: Install grafana dashboards
+  copy:
+    src: files/grafana/
+    dest: /var/lib/grafana/dashboards/
+    owner: grafana
+    group: grafana
+    mode: u=rwX,go=rX
+- name: Provision grafana dashboards
+  copy:
+    dest: /etc/grafana/provisioning/dashboards/contest.yml
+    content: |
+      apiVersion: 1
+      providers:
+        - name: contest
+          type: file
+          allowUiUpdates: true
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards
+  notify: Restart grafana
 
 - name: Install fleet-heads
   copy:

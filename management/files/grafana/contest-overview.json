@@ -1,0 +1,4058 @@
+{
+ "uid": "contest-overview",
+ "title": "Contest overview",
+ "tags": [
+  "contest"
+ ],
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "graphTooltip": 1,
+ "refresh": "30s",
+ "time": {
+  "from": "now-3h",
+  "to": "now"
+ },
+ "timezone": "browser",
+ "annotations": {
+  "list": []
+ },
+ "links": [],
+ "liveNow": false,
+ "fiscalYearStartMonth": 0,
+ "templating": {
+  "list": [
+   {
+    "name": "fleet",
+    "label": "Fleet",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PROM"
+    },
+    "definition": "label_values(up{job=\"node_exporter\"},fleet)",
+    "query": {
+     "query": "label_values(up{job=\"node_exporter\"},fleet)",
+     "refId": "v",
+     "qryType": 1
+    },
+    "refresh": 2,
+    "sort": 1,
+    "multi": true,
+    "includeAll": true,
+    "allValue": ".*",
+    "current": {
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "hide": 0,
+    "skipUrlSync": false,
+    "options": []
+   },
+   {
+    "name": "site",
+    "label": "Site",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "PROM"
+    },
+    "definition": "label_values(up{job=\"node_exporter\",fleet=~\"$fleet\"},site)",
+    "query": {
+     "query": "label_values(up{job=\"node_exporter\",fleet=~\"$fleet\"},site)",
+     "refId": "v",
+     "qryType": 1
+    },
+    "refresh": 2,
+    "sort": 1,
+    "multi": true,
+    "includeAll": true,
+    "allValue": ".*",
+    "current": {
+     "text": [
+      "All"
+     ],
+     "value": [
+      "$__all"
+     ]
+    },
+    "hide": 0,
+    "skipUrlSync": false,
+    "options": []
+   },
+   {
+    "name": "uptime_limit",
+    "label": "Up longer than",
+    "type": "custom",
+    "hide": 0,
+    "multi": false,
+    "includeAll": false,
+    "skipUrlSync": false,
+    "query": "1h : 3600,2h : 7200,4h : 14400,8h : 28800,12h : 43200,24h : 86400",
+    "options": [
+     {
+      "text": "1h",
+      "value": "3600",
+      "selected": false
+     },
+     {
+      "text": "2h",
+      "value": "7200",
+      "selected": false
+     },
+     {
+      "text": "4h",
+      "value": "14400",
+      "selected": true
+     },
+     {
+      "text": "8h",
+      "value": "28800",
+      "selected": false
+     },
+     {
+      "text": "12h",
+      "value": "43200",
+      "selected": false
+     },
+     {
+      "text": "24h",
+      "value": "86400",
+      "selected": false
+     }
+    ],
+    "current": {
+     "text": "4h",
+     "value": "14400"
+    }
+   },
+   {
+    "name": "backup_limit",
+    "label": "Backup older than",
+    "type": "custom",
+    "hide": 0,
+    "multi": false,
+    "includeAll": false,
+    "skipUrlSync": false,
+    "query": "5m : 300,10m : 600,15m : 900,20m : 1200,30m : 1800,1h : 3600",
+    "options": [
+     {
+      "text": "5m",
+      "value": "300",
+      "selected": false
+     },
+     {
+      "text": "10m",
+      "value": "600",
+      "selected": false
+     },
+     {
+      "text": "15m",
+      "value": "900",
+      "selected": true
+     },
+     {
+      "text": "20m",
+      "value": "1200",
+      "selected": false
+     },
+     {
+      "text": "30m",
+      "value": "1800",
+      "selected": false
+     },
+     {
+      "text": "1h",
+      "value": "3600",
+      "selected": false
+     }
+    ],
+    "current": {
+     "text": "15m",
+     "value": "900"
+    }
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "stat",
+   "title": "Online",
+   "description": "Connected to wg-fleet and answering scrapes",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "text",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "No scrapes",
+   "description": "Connected to wg-fleet, but Prometheus can't scrape them",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 0,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 0) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "On battery",
+   "description": "Laptops discharging right now, most likely unplugged. Several at one site can mean a power problem",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 7,
+    "y": 0,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"})) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Battery critical",
+   "description": "Laptops discharging with 15% or less left, or whose battery reports Critical. Plugged-in laptops aren't counted, even when low",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 10,
+    "y": 0,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((((max by (fleet,site,hostname,instance)(node_power_supply_capacity{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\"}) <= 15) or (max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",capacity_level=\"Critical\"}) * 0)) and on(instance) max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"}))) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "Dropped off",
+   "description": "Seen in the last 2 hours and not connected now, not counting the generic fleet",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 14,
+    "y": 0,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(max by (fleet,site,hostname)(max by (fleet,site,hostname,instance)(max_over_time(timestamp(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet!=\"generic\"})[2h:1m])) unless on(instance) up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} unless on(fleet,hostname) up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Rebooted (30 min)",
+   "description": "Booted in the last 30 minutes",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 17,
+    "y": 0,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((time() - node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) < 1800) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 7,
+   "type": "stat",
+   "title": "Up over $uptime_limit",
+   "description": "Machines that haven't rebooted within the limit chosen above",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 21,
+    "y": 0,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((time() - node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) > $uptime_limit) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 8,
+   "type": "stat",
+   "title": "Backups over $backup_limit",
+   "description": "Connected machines whose last backup is older than the limit chosen above, or that have none yet",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 3,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(((max by (fleet,site,hostname,instance)((time() - label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * on(fleet,hostname) group_left(site,instance) clamp_min(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"},1)) > $backup_limit) or (max by (fleet,site,hostname,instance)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet!=\"generic\"} unless on(fleet,hostname) label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * 0 - 1))) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 9,
+   "type": "stat",
+   "title": "Printouts",
+   "description": "Since each machine's last team reset, including machines switched off in the last 6 hours. Updates every minute",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 3,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "sum(max by (fleet,site,hostname)(last_over_time(icpc_printouts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}[6h]))) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "text",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 10,
+   "type": "stat",
+   "title": "Print queue",
+   "description": "Jobs waiting in CUPS. A number that doesn't go down means a stuck printer. Updates every minute",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 7,
+    "y": 3,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "sum(icpc_print_queue{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 11,
+   "type": "stat",
+   "title": "Behind on ansible",
+   "description": "Connected machines that haven't applied the latest revision in their fleet's repo, or aren't reporting one. They pick it up at their next boot or with just contest trigger-ansible",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 10,
+    "y": 3,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1 unless on(instance) (icpc_version_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} and on(fleet,applied) label_replace(icpc_fleet_head_info,\"applied\",\"$1\",\"revision\",\"(.*)\")))) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 12,
+   "type": "stat",
+   "title": "In setup",
+   "description": "In the generic fleet or still named icpc-<hex>",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 14,
+    "y": 3,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet=\"generic\"} or up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",hostname=~\"icpc-[0-9a-f]{6}\"})) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 13,
+   "type": "stat",
+   "title": "Clock off 5s+",
+   "description": "Machine's clock compared with the server's",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 17,
+    "y": 3,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count(abs(node_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} - timestamp(node_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})) > 5) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 14,
+   "type": "stat",
+   "title": "Low disk",
+   "description": "Under 10% free on /",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 21,
+    "y": 3,
+    "w": 3,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((100 * node_filesystem_avail_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",mountpoint=\"/\"}) < 10) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 15,
+   "type": "row",
+   "title": "Sites",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 6
+   },
+   "panels": []
+  },
+  {
+   "id": 16,
+   "type": "table",
+   "title": "Sites at a glance",
+   "description": "Peak is the most machines seen online at once in the last 24 hours, so Missing is how many of those aren't online now.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 24,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) - ((label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(count by (site)((time() - node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) > $uptime_limit),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(count by (site)(((max by (fleet,site,hostname,instance)((time() - label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * on(fleet,hostname) group_left(site,instance) clamp_min(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"},1)) > $backup_limit) or (max by (fleet,site,hostname,instance)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet!=\"generic\"} unless on(fleet,hostname) label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * 0 - 1))),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "label_replace(max by (site)(max by (fleet,site,hostname,instance)((time() - label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * on(fleet,hostname) group_left(site,instance) clamp_min(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"},1))),\"site\",\"(none)\",\"site\",\"^$\")",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(sum by (site)(max by (fleet,site,hostname)(last_over_time(icpc_printouts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}[6h]))),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(sum by (site)(icpc_print_queue{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "label_replace(avg by (site)(node_load1{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}),\"site\",\"(none)\",\"site\",\"^$\")",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "(label_replace(count by (site)(max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"})),\"site\",\"(none)\",\"site\",\"^$\")) or ((max by (site)(label_replace(label_replace(max_over_time(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1)[24h:5m]),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"history\",\"\",\"\") or label_replace(label_replace(count by (site)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1),\"site\",\"(none)\",\"site\",\"^$\"),\"from\",\"now\",\"\",\"\"))) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "joinByField",
+     "options": {
+      "byField": "site",
+      "mode": "outer"
+     }
+    },
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "site",
+        "Value #A",
+        "Value #B",
+        "Value #C",
+        "Value #J",
+        "Value #D",
+        "Value #E",
+        "Value #F",
+        "Value #G",
+        "Value #H",
+        "Value #I"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "site": 0,
+       "Value #A": 1,
+       "Value #B": 2,
+       "Value #C": 3,
+       "Value #J": 4,
+       "Value #D": 5,
+       "Value #E": 6,
+       "Value #F": 7,
+       "Value #G": 8,
+       "Value #H": 9,
+       "Value #I": 10
+      },
+      "renameByName": {
+       "site": "Site",
+       "Value #A": "Online",
+       "Value #B": "Peak (24h)",
+       "Value #C": "Missing",
+       "Value #J": "On battery",
+       "Value #D": "Up too long",
+       "Value #E": "Backup too old",
+       "Value #F": "Oldest backup",
+       "Value #G": "Printouts",
+       "Value #H": "Queued",
+       "Value #I": "Avg load"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Site"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 330
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Missing"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "On battery"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "green",
+           "value": null
+          },
+          {
+           "color": "red",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Up too long"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Backup too old"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Queued"
+      },
+      "properties": [
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Oldest backup"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 900
+          },
+          {
+           "color": "red",
+           "value": 1800
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Avg load"
+      },
+      "properties": [
+       {
+        "id": "decimals",
+        "value": 1
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Missing",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 17,
+   "type": "row",
+   "title": "Needs a look",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 16
+   },
+   "panels": []
+  },
+  {
+   "id": 18,
+   "type": "table",
+   "title": "Rebooted in 30 minutes",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 17,
+    "w": 5,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (fleet,site,hostname,instance)((time() - node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})) < 1800",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "hostname",
+        "Value"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "hostname": 0,
+       "Value": 1
+      },
+      "renameByName": {
+       "hostname": "Machine",
+       "fleet": "Fleet",
+       "site": "Site",
+       "Value": "Uptime"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Uptime"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 110
+       },
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Uptime",
+      "desc": false
+     }
+    ]
+   }
+  },
+  {
+   "id": 19,
+   "type": "table",
+   "title": "Backup older than $backup_limit",
+   "description": "Connected machines only: anything switched off is under Dropped off. Backups run every 13.5 to 16.5 minutes per machine, so at the 15m limit a few healthy machines pass through this list.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 5,
+    "y": 17,
+    "w": 6,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "label_replace(((max by (fleet,site,hostname,instance)((time() - label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * on(fleet,hostname) group_left(site,instance) clamp_min(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"},1)) > $backup_limit) or (max by (fleet,site,hostname,instance)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet!=\"generic\"} unless on(fleet,hostname) label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * 0 - 1)),\"site\",\"$1\",\"site\",\".*?/(.*)\")",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "hostname",
+        "site",
+        "Value"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "hostname": 0,
+       "site": 1,
+       "Value": 2
+      },
+      "renameByName": {
+       "hostname": "Machine",
+       "fleet": "Fleet",
+       "site": "Site",
+       "Value": "Age"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machine"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Site"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Age"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 80
+       },
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 900
+          },
+          {
+           "color": "red",
+           "value": 1800
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       },
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "-1": {
+            "text": "none yet",
+            "color": "red"
+           }
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Age",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 20,
+   "type": "table",
+   "title": "Dropped off in the last 2 hours",
+   "description": "Includes machines switched off at the end of the contest: check Last backup is after the contest ended.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 11,
+    "y": 17,
+    "w": 7,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "label_replace(label_join(max by (fleet,site,hostname)(max by (fleet,site,hostname,instance)(max_over_time(timestamp(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",fleet!=\"generic\"})[2h:1m])) unless on(instance) up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} unless on(fleet,hostname) up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) * 1000,\"machine\",\".\",\"hostname\",\"fleet\"),\"site\",\"$1\",\"site\",\".*?/(.*)\")",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (machine)(label_join(max by (fleet,hostname)(label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * 1000,\"machine\",\".\",\"hostname\",\"fleet\"))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "joinByField",
+     "options": {
+      "byField": "machine",
+      "mode": "outer"
+     }
+    },
+    {
+     "id": "filterByValue",
+     "options": {
+      "type": "include",
+      "match": "all",
+      "filters": [
+       {
+        "fieldName": "Value #A",
+        "config": {
+         "id": "isNotNull",
+         "options": {}
+        }
+       }
+      ]
+     }
+    },
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "hostname",
+        "site",
+        "Value #A",
+        "Value #B"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "hostname": 0,
+       "site": 1,
+       "Value #A": 2,
+       "Value #B": 3
+      },
+      "renameByName": {
+       "hostname": "Machine",
+       "fleet": "Fleet",
+       "site": "Site",
+       "Value #A": "Last seen",
+       "Value #B": "Last backup"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machine"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Site"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Last seen"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 105
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Last backup"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 105
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Last seen",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 21,
+   "type": "table",
+   "title": "On battery",
+   "description": "Laptops discharging right now, lowest first.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 17,
+    "w": 6,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "label_replace((max by (fleet,site,hostname,instance)(node_power_supply_capacity{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\"}) and on(instance) max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"})) or (max by (fleet,site,hostname,instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"}) * 0 - 1),\"site\",\"$1\",\"site\",\".*?/(.*)\")",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "hostname",
+        "site",
+        "Value"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "hostname": 0,
+       "site": 1,
+       "Value": 2
+      },
+      "renameByName": {
+       "hostname": "Machine",
+       "fleet": "Fleet",
+       "site": "Site",
+       "Value": "Battery"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machine"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Site"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Battery"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 80
+       },
+       {
+        "id": "unit",
+        "value": "percent"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "red",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 16
+          },
+          {
+           "color": "text",
+           "value": 30
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       },
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "-1": {
+            "text": "unknown"
+           }
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Battery",
+      "desc": false
+     }
+    ]
+   }
+  },
+  {
+   "id": 22,
+   "type": "row",
+   "title": "Load",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 26
+   },
+   "panels": []
+  },
+  {
+   "id": 23,
+   "type": "timeseries",
+   "title": "CPU load (1 min average, hover a line for its machine)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 27,
+    "w": 24,
+    "h": 11
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (fleet,hostname)(node_load1{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "{{hostname}} ({{fleet}})",
+     "interval": "30s"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "quantile(0.5,node_load1{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "median",
+     "interval": "30s"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "quantile(0.95,node_load1{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "95th percentile",
+     "interval": "30s"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "spanNulls": false,
+      "axisGridShow": true
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "A"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#8a97a6"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 1
+       },
+       {
+        "id": "custom.hideFrom",
+        "value": {
+         "legend": true,
+         "tooltip": false,
+         "viz": false
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "B"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#3987e5"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 3
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "C"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#e0912f"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 3
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "single",
+     "sort": "none"
+    }
+   }
+  },
+  {
+   "id": 24,
+   "type": "timeseries",
+   "title": "Memory used (hover a line for its machine)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 38,
+    "w": 24,
+    "h": 11
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (fleet,hostname)((100 * (1 - node_memory_MemAvailable_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} / node_memory_MemTotal_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})))",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "{{hostname}} ({{fleet}})",
+     "interval": "30s"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "quantile(0.5,(100 * (1 - node_memory_MemAvailable_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} / node_memory_MemTotal_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})))",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "median",
+     "interval": "30s"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "quantile(0.95,(100 * (1 - node_memory_MemAvailable_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} / node_memory_MemTotal_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})))",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "95th percentile",
+     "interval": "30s"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 0,
+      "showPoints": "never",
+      "spanNulls": false,
+      "axisGridShow": true
+     },
+     "max": 100
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "A"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#8a97a6"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 1
+       },
+       {
+        "id": "custom.hideFrom",
+        "value": {
+         "legend": true,
+         "tooltip": false,
+         "viz": false
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "B"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#3987e5"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 3
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byFrameRefID",
+       "options": "C"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "#e0912f"
+        }
+       },
+       {
+        "id": "custom.lineWidth",
+        "value": 3
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom",
+     "showLegend": true
+    },
+    "tooltip": {
+     "mode": "single",
+     "sort": "none"
+    }
+   }
+  },
+  {
+   "id": 25,
+   "type": "row",
+   "title": "Machines",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 49
+   },
+   "panels": []
+  },
+  {
+   "id": 26,
+   "type": "table",
+   "title": "Every machine",
+   "description": "Sort on any column, or filter from a column's header. Longest uptime first, to catch machines that didn't reboot.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 50,
+    "w": 24,
+    "h": 20
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance,fleet,site,hostname)(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance,team,name,affiliation)(icpc_workstation_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)((time() - node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "D",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(node_boot_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) * 1000",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "E",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(icpc_reset_ts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) * 1000",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "F",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(icpc_build_ts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) * 1000",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "G",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(icpc_update_ts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}) * 1000",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "H",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance,image,applied)(icpc_version_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "I",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(max by (fleet,site,hostname,instance)((time() - label_replace(last_over_time(icpc_backup_last_success_timestamp_seconds{fleet!=\"generic\"}[6h]),\"hostname\",\"$1\",\"host\",\"(.*)\")) * on(fleet,hostname) group_left(site,instance) clamp_min(up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"},1)))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "J",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(icpc_printouts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "K",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(icpc_print_queue{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "L",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(node_load1{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "M",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)((100 * (1 - node_memory_MemAvailable_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} / node_memory_MemTotal_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "N",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)((100 * node_filesystem_avail_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",mountpoint=\"/\"}))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "O",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(abs(node_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} - timestamp(node_time_seconds{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "P",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\",status=\"Discharging\"}) or (max by (instance)(node_power_supply_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",type=\"Battery\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\"}) * 0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    },
+    {
+     "refId": "Q",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (instance)(max by (fleet,site,hostname,instance)(node_power_supply_capacity{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\",power_supply!~\"hid.*|hidpp.*|wacom.*|ucsi.*\"}))",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "joinByField",
+     "options": {
+      "byField": "instance",
+      "mode": "outer"
+     }
+    },
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "hostname",
+        "team",
+        "name",
+        "affiliation",
+        "site",
+        "Value #C",
+        "Value #D",
+        "Value #E",
+        "Value #F",
+        "image",
+        "Value #G",
+        "applied",
+        "Value #P",
+        "Value #Q",
+        "Value #I",
+        "Value #J",
+        "Value #K",
+        "Value #L",
+        "Value #M",
+        "Value #N",
+        "Value #O"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "hostname": 0,
+       "team": 1,
+       "name": 2,
+       "affiliation": 3,
+       "site": 4,
+       "Value #C": 5,
+       "Value #D": 6,
+       "Value #E": 7,
+       "Value #F": 8,
+       "image": 9,
+       "Value #G": 10,
+       "applied": 11,
+       "Value #P": 12,
+       "Value #Q": 13,
+       "Value #I": 14,
+       "Value #J": 15,
+       "Value #K": 16,
+       "Value #L": 17,
+       "Value #M": 18,
+       "Value #N": 19,
+       "Value #O": 20
+      },
+      "renameByName": {
+       "hostname": "Machine",
+       "team": "Team",
+       "name": "Name",
+       "affiliation": "Affiliation",
+       "site": "Site",
+       "Value #C": "Uptime",
+       "Value #D": "Booted",
+       "Value #E": "Team reset",
+       "Value #F": "Image built",
+       "image": "Image rev",
+       "Value #G": "Ansible applied",
+       "applied": "Applied rev",
+       "Value #P": "Power",
+       "Value #Q": "Battery",
+       "Value #I": "Last backup",
+       "Value #J": "Prints",
+       "Value #K": "Queued",
+       "Value #L": "Load",
+       "Value #M": "Mem %",
+       "Value #N": "Disk free %",
+       "Value #O": "Clock off"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machine"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 125
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Team"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 65
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Name"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 150
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Affiliation"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 170
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Site"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 210
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Uptime"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       },
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Booted"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 115
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Team reset"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 115
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Image built"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 115
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Image rev"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Ansible applied"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 145
+       },
+       {
+        "id": "unit",
+        "value": "time:MMM D HH:mm"
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Applied rev"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 100
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Power"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 85
+       },
+       {
+        "id": "mappings",
+        "value": [
+         {
+          "type": "value",
+          "options": {
+           "0": {
+            "text": "AC",
+            "color": "text"
+           },
+           "1": {
+            "text": "BATTERY",
+            "color": "red"
+           }
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Battery"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       },
+       {
+        "id": "unit",
+        "value": "percent"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Last backup"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 115
+       },
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "text",
+           "value": null
+          },
+          {
+           "color": "orange",
+           "value": 900
+          },
+          {
+           "color": "red",
+           "value": 1800
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Prints"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 75
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Queued"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 80
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Load"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 70
+       },
+       {
+        "id": "decimals",
+        "value": 1
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Mem %"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 80
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Disk free %"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 100
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       },
+       {
+        "id": "thresholds",
+        "value": {
+         "mode": "absolute",
+         "steps": [
+          {
+           "color": "red",
+           "value": null
+          },
+          {
+           "color": "text",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Clock off"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 90
+       },
+       {
+        "id": "unit",
+        "value": "s"
+       },
+       {
+        "id": "decimals",
+        "value": 1
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Uptime",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 27,
+   "type": "row",
+   "title": "Versions and printing",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 70
+   },
+   "panels": []
+  },
+  {
+   "id": 28,
+   "type": "table",
+   "title": "Images",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 71,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count by (fleet,image)(icpc_version_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "fleet",
+        "image",
+        "Value"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "fleet": 0,
+       "image": 1,
+       "Value": 2
+      },
+      "renameByName": {
+       "fleet": "Fleet",
+       "image": "Image rev",
+       "Value": "Machines"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Image rev"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machines"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Machines",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 29,
+   "type": "table",
+   "title": "Applied revisions",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 71,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count by (fleet,applied)(icpc_version_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "fleet",
+        "applied",
+        "Value"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "fleet": 0,
+       "applied": 1,
+       "Value": 2
+      },
+      "renameByName": {
+       "fleet": "Fleet",
+       "applied": "Applied rev",
+       "Value": "Machines"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Applied rev"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 100
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Machines"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 95
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": [
+     {
+      "displayName": "Machines",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 30,
+   "type": "table",
+   "title": "Latest in each fleet's repo",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 71,
+    "w": 4,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "max by (fleet,revision)(icpc_fleet_head_info and on(fleet) up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "filterFieldsByName",
+     "options": {
+      "include": {
+       "names": [
+        "fleet",
+        "revision"
+       ]
+      }
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "fleet": 0,
+       "revision": 1
+      },
+      "renameByName": {
+       "fleet": "Fleet",
+       "revision": "Revision"
+      },
+      "excludeByName": {}
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "align": "auto",
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Revision"
+      },
+      "properties": [
+       {
+        "id": "custom.width",
+        "value": 90
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm",
+    "footer": {
+     "show": false
+    },
+    "sortBy": []
+   }
+  },
+  {
+   "id": 31,
+   "type": "timeseries",
+   "title": "Printouts per 5 minutes",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 71,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "sum(increase(icpc_printouts{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"}[5m]))",
+     "editorMode": "code",
+     "instant": false,
+     "range": true,
+     "format": "time_series",
+     "legendFormat": "",
+     "interval": "5m"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "#3987e5"
+     },
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 0,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "showLegend": false,
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "single",
+     "sort": "none"
+    }
+   }
+  },
+  {
+   "id": 32,
+   "type": "row",
+   "title": "Management server",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 79
+   },
+   "panels": []
+  },
+  {
+   "id": 33,
+   "type": "stat",
+   "title": "Server load",
+   "description": "8 CPUs",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "node_load1{job=\"self\"}",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 1,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "text",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 8
+       },
+       {
+        "color": "red",
+        "value": 16
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 34,
+   "type": "stat",
+   "title": "Server memory used",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"self\"} / node_memory_MemTotal_bytes{job=\"self\"})",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "text",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "red",
+        "value": 92
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 35,
+   "type": "stat",
+   "title": "Server disk free",
+   "description": "Backups are in /srv/backups on this disk",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "node_filesystem_avail_bytes{job=\"self\",mountpoint=\"/\"}",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 21474836480
+       },
+       {
+        "color": "text",
+        "value": 53687091200
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 36,
+   "type": "stat",
+   "title": "Backups running",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "icpc_backup_running",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "text",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 37,
+   "type": "stat",
+   "title": "Failures (15 min)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "sum(increase(icpc_backup_failures_total[15m])) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  },
+  {
+   "id": 38,
+   "type": "stat",
+   "title": "Not reporting details",
+   "description": "Connected machines without the last-minute playbook that publishes revisions and printouts. They pick it up at their next boot or with just contest trigger-ansible",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "PROM"
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 80,
+    "w": 4,
+    "h": 3
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "PROM"
+     },
+     "expr": "count((up{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"} == 1 unless on(instance) icpc_version_info{job=\"node_exporter\",fleet=~\"$fleet\",site=~\"$site\"})) or vector(0)",
+     "editorMode": "code",
+     "instant": true,
+     "range": false,
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "decimals": 0,
+     "noValue": "0",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    }
+   }
+  }
+ ]
+}
