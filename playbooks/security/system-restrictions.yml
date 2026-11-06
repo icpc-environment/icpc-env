@@ -24,3 +24,13 @@
               // return polkit.Result.AUTH_ADMIN; // If we want to allow prompting to auth as admin to do networkmanager related things form the contestant session
           }
       });
+
+- name: Block MTP and PTP devices (phones, cameras, media players) for contestants
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/99-deny-mtp-ptp.rules
+    content: |
+      # MTP/PTP file transfer bypasses udisks2, so the mount-blocking polkit rule
+      # does not cover it. Strip the uaccess tag that would otherwise let logind grant
+      # the active session an ACL on the raw USB node, and lock the node to root.
+      SUBSYSTEM=="usb", ENV{ID_MTP_DEVICE}=="1", TAG-="uaccess", OWNER="root", GROUP="root", MODE="0600"
+      SUBSYSTEM=="usb", ENV{ID_GPHOTO2}=="1", TAG-="uaccess", OWNER="root", GROUP="root", MODE="0600"
